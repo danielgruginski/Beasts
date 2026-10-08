@@ -82,6 +82,22 @@ checks.
   - Lowest vertex: the standing clips stay within 3 cm. In Sleep the hem's hair tips go 15 cm into the ground (it
     lies in the wallow's mud), in Death a down-side foot's edge briefly dips.
 
+- **Cave bear (2026-10-07):**
+  - **Long plantigrade feet stick out of the "near the leg" mask:** `coat_on_trunk` moved the feet's weights to the
+    trunk; `bear_rig._leg_share` now keeps every vertex below 0.3-0.4 m on its leg.
+  - **One-sided masks paint the wrong side:** the lips mask (a single smoothstep) painted the chin black; make
+    masks bands. The palate mask caught the lips until bounded to |x| < 0.045.
+  - **Reared forelegs:** with the trunk at 75°, boff +y is world down and +z world back toward the chest; boff 0
+    reaches the paws straight forward. Ask for "paws up at head height", not raised arms.
+  - **Open mouths need the head lifted:** the head hangs 25° down, so a 40° gape pointed the jaw at the floor and
+    it read as a stick hanging off the chin. Roar, Bite and Rear now lift the head as the jaw opens (about as much
+    as the gape), the tongue is narrower than the jaw so the dark gums frame it, and the fangs are long enough to
+    show (hidden inside the jaw and snout when shut).
+  - **Reared paws in front of the face hide the roar:** Rear holds them out at chest height, wider apart.
+  - **Death roll:** the down-side forepaw sank mid-roll; it now draws in (`tuck`) and its toes lift while the body
+    turns over. Lowest vertex: body within 2 cm in every clip; in Sleep, Wake and Death only hair tips dip
+    (lying on the ground).
+
 ## State (2026-09-26)
 
 - **Grey wolf:** model, rig, three coats and 12 clips.
@@ -89,6 +105,9 @@ checks.
 - **Woolly rhino (2026-10-07):** the woods' boss: model, rig, one coat, the `Spear` object and 13 clips; in
   MedievalSetting with one rhino in `Beasts_Test`. Root motion traced over 3 loops (Walk, Run, Charge): exact
   travel, head steady within 1 cm. The game side (fight, lair) is not built yet; the design doc still says boar.
+- **Cave bear (2026-10-07):** model, rig, two coats (`T_Bear`, `T_Bear_Old`) and 13 clips; in MedievalSetting with
+  two bears in `Beasts_Test`. Root motion traced over 3 loops (Walk 1.10 m, Run 2.30 m per loop, head steady, no
+  snap). Not yet in the itch.io Creatures pack (waiting for a batch, with the rhino). No game side yet.
 
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
@@ -112,7 +131,7 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - it has no swim or climb clips;
   - a rat swarm would want a cheaper variant (~1.5k tris).
 - **Warg** (goblin raider mount): scale about 1.4x, heavier ruff, saddle prop on `Socket_Saddle`, darker coat.
-- **More beasts:** bear, boar and dire variants can reuse the pipeline: parts, tufts, fuse, heat weights, and the
+- **More beasts:** war mammoth, warg, giant elk, boar and dire variants can reuse the pipeline: parts, tufts, fuse, heat weights, and the
   painter's flow strokes.
 
 ## Checks

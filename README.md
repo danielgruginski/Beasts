@@ -6,11 +6,12 @@ in Unity (MedievalSetting, `Assets/Beasts`), with shared code in the `beast_*` m
 - the **grey wolf**: model, rig, three coats and 12 clips;
 - the **giant rat**: model, rig, three coats and 10 clips (see [Giant rat](#giant-rat));
 - the **woolly rhino**, the woods' solo boss: model, rig, one coat, a removable spear and 13 clips (see
-  [Woolly rhino](#woolly-rhino)).
+  [Woolly rhino](#woolly-rhino));
+- the **cave bear**: model, rig, two coats and 13 clips (see [Cave bear](#cave-bear)).
 
 ![The wolf in the bind pose](docs/images/wolf_34.png)
 
-Blender file: `blender/beasts.blend`, scenes **Wolf**, **Rat** and **Rhino**. It is not in the repo, and neither are `export/`,
+Blender file: `blender/beasts.blend`, scenes **Wolf**, **Rat**, **Rhino** and **Bear**. It is not in the repo, and neither are `export/`,
 `textures/` or `renders/`. Everything in them is rebuilt from `src/`, starting from any Blender file.
 
 ## Rebuild
@@ -40,6 +41,11 @@ rhino_build.show()         # the Rhino scene on screen (in its own call)
 rhino_build.build_all()    # body -> rig -> weights -> UVs -> coat -> spear split off -> 13 clips (~40 s)
 rhino_build.export()       # export/Rhino.fbx (RhinoBody + Spear), Textures/T_Rhino.png, Anims/Rhino@<clip>.fbx + rhino_clips.json
 rhino_build.build_model()  # just the model (body, rig, weights, UVs, coat; the spear still joined), for iterating
+
+import bear_build
+bear_build.show()          # the Bear scene on screen (in its own call)
+bear_build.build_all()     # body -> rig -> weights -> UVs -> 2 coats -> 13 clips (~40 s)
+bear_build.export()        # export/Bear.fbx, Textures/T_Bear.png + T_Bear_Old.png, Anims/Bear@<clip>.fbx + bear_clips.json
 ```
 
 Builds are not bit-identical from run to run: the voxel remesh varies slightly, which moves the decimated mesh and
@@ -52,6 +58,8 @@ the UVs. Always export after a rebuild, so the FBX and the textures in `textures
 | `wolf_paint.py` | Seams and unwrap; per-texel painted coats (grey, black, white) |
 | `wolf_anim.py` | Clips keyed from computed bone matrices: trunk/spine/neck/tail bends, 2-bone leg IK + pastern/hock angle, gaits |
 | `rat_body.py`, `rat_rig.py`, `rat_paint.py`, `rat_anim.py`, `rat_build.py` | The same for the giant rat; the tail is a separate ringed shell weighted along its length |
+| `rhino_*.py`, `bear_*.py` | The same for the woolly rhino and the cave bear (body, rig, paint, anim, build) |
+| `beast_coat.py` | Long coats: coat volumes (lofts), hem fringes snapped to their volume or dropped onto the body, clumps, the hair's root-to-tip `t` |
 | `beast_body.py` | Mesh helpers and the body pipeline: `fuse_body` (voxel fuse, fillet, sculpts, decimate, edge flips, fold relaxing), `build_tufts`, `sculpt_fur`, `join_pieces` |
 | `beast_paint.py` | Seams from the skin weights plus the creature's cuts, unwrap (with a guard against blown-up degenerate islands), data bakes, fur strokes, texture writing |
 | `beast_anim.py` | Species, Pose, leg IK, gaits (walk, trot, gallop, bound), tail drag, key tracks, clip keying, `ground_report` |
@@ -179,7 +187,7 @@ In Unity, `M_Rat`, `M_Rat_Black` and `M_Rat_Plague`, rolled by `BeastAppearance`
 | Bite | 0.8 s | event `Bite` at 0.4 s |
 | Lunge | 1.2 s | leaps 0.8 m, event `Bite` at 0.73 s (root motion) |
 | Threat | 2.0 s | back humped, incisors bared, tail lashing, a front-foot stamp |
-| Hit | 0.4 s | |
+| Hit | 0.47 s | knocked back and to its left, forelegs buckling, a small rebound |
 | Death / GetUp | 1.8 s / 1.1 s | flips onto its back, legs curled (event `Dead` at 1.6 s); GetUp reverses the flip |
 
 It uses the wolf's bone names (8 tail bones, no tongue), with `Socket_Back`, `Socket_Head` and `Socket_Mouth`.
@@ -232,7 +240,7 @@ How it differs from the wolf and the rat:
 | Daze | 2.0 s loop | staggering after a charge into an obstacle, legs splayed, head wobbling |
 | Stamp | 1.3 s | rears its front end and slams down; event `Bite` at 1.0 s |
 | Roar | 1.5 s | head up, a long bellow; event `Roar` at 0.3 s |
-| Hit | 0.4 s | |
+| Hit | 0.47 s | knocked back and to its left, forelegs buckling, a small rebound |
 | Death | 2.0 s | collapses onto its right side, the spear standing up for looting; event `Dead` at 1.6 s |
 
 Bones: the wolf's names with 3 tail bones and no tongue; sockets `Socket_Head`, `Socket_Horn` (the horn tip, for
@@ -240,3 +248,55 @@ the gore's effects), `Socket_Mouth`, `Socket_Back`, `Socket_Spear` (at the wound
 Unity: **Tools > Beasts > Rebuild Rhino** (`Logs/RhinoSetup`): `M_Rhino`, `Prefabs/Rhino` (Animator, BeastEvents;
 the spear is the child `Spear`), `Animation/RhinoAnims` (Paw leads into Charge, Sleep into Wake), and one rhino in
 `Scenes/Beasts_Test`.
+
+## Cave bear
+
+A close-quarters brute (Daniel picked it on 2026-10-07 from a cave bear, war mammoth, warg and giant elk). Ursus
+spelaeus: a hump over the shoulders, a steep domed forehead over a long muzzle, small round ears, plantigrade legs on
+broad paws with long pale claws, and a shaggy coat (a mane over the neck and shoulders, a short belly fringe, fringed
+forearms, breeches on the hind legs, cheek ruffs). 1.5 m at the hump, 2.5 m nose to tail; reared up it stands
+2.7 m. Blender scene **Bear** (`BER_*`), with an instance of the wolf beside it for scale.
+
+![The cave bear](docs/images/bear_34.png)
+
+| Part | Triangles |
+|---|---|
+| Fused body (volumes: trunk, hump, cape, skirt, head, legs) | 2,280 |
+| Hair: fringes (cape and belly hems, backs of the legs), clumps (elbows, breeches, tail) | 1,594 |
+| Lower jaw, tongue, teeth (fangs that show when it roars) | 180, 60, 120 |
+| Ears, eyes, claws, nose | 156, 100, 200, 20 |
+| **BearBody** | **4,710** |
+
+Two 1024² coats on the same UVs: `T_Bear` (dark brown, grizzled) and `T_Bear_Old` (greyer, more scars).
+
+It is built like the rhino (shared `beast_coat`, `HeadFrame`, `coat_on_trunk`), with a few differences:
+
+- **Plantigrade feet** on all four legs: the wrists and heels sit near the ground and the long feet keep their leg
+  weights even inside the coat (`bear_rig._leg_share`), or the trunk dragged them.
+- **The mouth** has hanging lips over the jaw line so no gap shows when it opens, and a band-limited lips mask in
+  the painter (one-sided, it painted the chin black).
+- **Rearing** turns the whole trunk about the hip joints (`beast_anim.pivot`); the forelegs ride with the chest and
+  the neck and head pitch back so the face looks ahead.
+
+![Rows: Idle, Walk, Run, Swipe / Bite, Slam (rearing), Slam (the crash), Hug / Rear, Roar, Sleep, Death](docs/images/bear_clips.png)
+
+| Clip | Length | Notes |
+|---|---|---|
+| Sleep | 3.0 s loop | lying on its belly, head on its forepaws, slow breathing, an ear twitch |
+| Wake | 1.5 s | heaves up front end first, shakes its head, ends in the Idle stance |
+| Idle | 3.0 s loop | breathing, a look round, a forepaw shifted, a sniff of the air, ear flicks |
+| Walk / Run | 1.07 / 0.43 s loops | heavy lateral walk, head low and swinging, 1.03 m/s; bounding gallop 5.3 m/s (root motion) |
+| Swipe | 1.0 s | a right-paw haymaker from the side across the front; event `Bite` at 0.42 s |
+| Bite | 1.0 s | coils, lunges with the right forepaw stepping in, head thrust out level, bites and shakes; event `Bite` at 0.4 s |
+| Slam | 1.4 s | rears and crashes down on both forepaws; event `Bite` at 0.77 s |
+| Hug | 2.0 s | rears, opens its forelegs wide and crushes them shut; event `Bite` at 0.73 s |
+| Rear | 2.7 s | stands up to its full height, paws out at chest height, and roars upward; event `Roar` at 0.9 s |
+| Roar | 2.0 s | swats the ground with a forepaw, then roars with the head thrust out and swinging; event `Roar` at 0.3 s |
+| Hit | 0.47 s | knocked back and to its left, forelegs buckling, a small rebound |
+| Death | 2.0 s | sags, rolls onto its left side, a last paw twitch; event `Dead` at 1.6 s |
+
+Bones: the wolf's names with 2 tail bones and no tongue; sockets `Socket_Head`, `Socket_Mouth`, `Socket_Back`,
+`Socket_PawL`, `Socket_PawR` (the forepaws, for the swipe's and the slam's effects).
+Unity: **Tools > Beasts > Rebuild Bear** (`Logs/BearSetup`): `M_Bear`, `M_Bear_Old`, `Prefabs/Bear` (Animator,
+BeastAppearance rolling the two coats 2:1 and the size 0.92-1.08, BeastEvents), `Animation/BearAnims` (Sleep leads
+into Wake), and two bears in `Scenes/Beasts_Test`.

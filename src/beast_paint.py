@@ -387,3 +387,33 @@ def game_material(ob, img, name):
     ob.data.materials.clear()
     ob.data.materials.append(m)
     return m
+
+
+# ----------------------------------------------------------------------------------------- shapes for painters
+def polyline_t(P, rows):
+    """Arc position 0..1 along a polyline of rows (x, y, z, ...) for points P, and the distance to it."""
+    Q = np.array([r[:3] for r in rows], float)
+    seg = np.linalg.norm(np.diff(Q, axis=0), axis=1)
+    cum = np.concatenate([[0], np.cumsum(seg)])
+    best = np.full(len(P), 1e9)
+    t = np.zeros(len(P))
+    for i in range(len(Q) - 1):
+        a, d = Q[i], Q[i + 1] - Q[i]
+        u = np.clip(((P - a) @ d) / (d @ d), 0, 1)
+        dist = np.linalg.norm(P - (a + u[:, None] * d), axis=1)
+        m = dist < best
+        best[m] = dist[m]
+        t[m] = (cum[i] + u[m] * seg[i]) / cum[-1]
+    return t, best
+
+
+def segments(P, segs, width):
+    """1 on thin lines (scars): segs = [(a, b)], distance < width, soft edge."""
+    out = np.zeros(len(P))
+    for a, b in segs:
+        a, b = np.asarray(a, float), np.asarray(b, float)
+        d = b - a
+        u = np.clip(((P - a) @ d) / (d @ d), 0, 1)
+        dist = np.linalg.norm(P - (a + u[:, None] * d), axis=1)
+        out = np.maximum(out, smoothstep(width, width * 0.4, dist) * np.sin(np.pi * np.clip(u, 0.02, 0.98)) ** 0.3)
+    return out

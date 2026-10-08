@@ -7,10 +7,7 @@
 - the ears (separate funnels) ride on EarL / EarR;
 - the chin and lower lip ride on Jaw; the lower cheeks behind the mouth corner follow it part way.
 """
-import bpy, bmesh, math
 import numpy as np
-from mathutils import Vector
-from mathutils.kdtree import KDTree
 import beast_rig
 from beast_body import PART, read_info
 from beast_rig import clean_weights, weight_report, _set_group
@@ -28,15 +25,6 @@ def _jaw_weight(cu):
             smoothstep(-0.66, -0.58, H[:, 1]) * smoothstep(0.24, 0.18, np.abs(H[:, 0])))    # the cheek only
 
 
-def _read_root(body):
-    att = body.data.attributes.get("root")
-    buf = np.zeros(len(body.data.vertices) * 3, np.float32)
-    if att is not None:
-        att.data.foreach_get('vector', buf)
-    return buf.reshape(-1, 3)
-
-
-LEG_BONES = ("UpperArm", "Forearm", "FrontPaw", "FrontToes", "Thigh", "Shin", "HindFoot", "HindToes")
 TRUNK = (("Chest", -0.45), ("Spine2", 0.08), ("Spine1", 0.52), ("Hips", 0.90))   # bone, where along y it leads
 
 
@@ -54,114 +42,28 @@ def _leg_share(co):
     return np.maximum(low, behind)
 
 
-def _coat_on_trunk(body, n):
-    """Move the leg weights of skin vertices above the skirt's hem onto the trunk bones (split along y)."""
-    names = {g.index: g.name for g in body.vertex_groups}
-    co = np.array([body.data.vertices[i].co[:] for i in range(n)])
-    keep = _leg_share(co)
-    ys = np.array([t[1] for t in TRUNK])
-    moved = 0
-    for i in range(n):
-        k = keep[i]
-        if k > 0.999:
-            continue
-        v = body.data.vertices[i]
-        leg = [(names[g.group], g.weight) for g in v.groups if names[g.group].startswith(LEG_BONES)]
-        if not leg:
-            continue
-        free = sum(w for _, w in leg) * (1 - k)
-        for nm, w in leg:
-            body.vertex_groups[nm].add([i], w * k, 'REPLACE')
-        y = co[i, 1]
-        j = int(np.clip(np.searchsorted(ys, y) - 1, 0, len(ys) - 2))
-        t = float(np.clip((y - ys[j]) / (ys[j + 1] - ys[j]), 0, 1))
-        for nm, w in ((TRUNK[j][0], free * (1 - t)), (TRUNK[j + 1][0], free * t)):
-            if w > 1e-4:
-                g = body.vertex_groups[nm]
-                try:
-                    w0 = g.weight(i)
-                except RuntimeError:
-                    w0 = 0.0
-                g.add([i], w0 + w, 'REPLACE')
-        moved += 1
-    return moved
-
-
 def skin(body, rig):
     rep = beast_rig.skin(body, rig, no_heat=("Root", "Motion", "Jaw"), unwarp=None, jaw_weight=_jaw_weight)
     n = body["n_fur"]
     part, _ = read_info(body)
-    _coat_on_trunk(body, n)
+    co = np.array([body.data.vertices[i].co[:] for i in range(n)])
+    beast_rig.coat_on_trunk(body, n, _leg_share(co), TRUNK)
     clean_weights(body)
-    names = {g.index: g.name for g in body.vertex_groups}
-    # clumps and fringes: the weights of the nearest skin vertex to their root
-    hair = np.nonzero(part == PART['hair'])[0]
-    if len(hair):
-        kd = KDTree(n)
-        for i in range(n):
-            kd.insert(body.data.vertices[i].co, i)
-        kd.balance()
-        roots = _read_root(body)
-        src = {}
-        for i in hair:
-            _, j, _ = kd.find(Vector(roots[i]))
-            src[int(i)] = j
-        weights = {j: [(names[g.group], g.weight) for g in body.data.vertices[j].groups] for j in set(src.values())}
-        for g in body.vertex_groups:
-            g.remove([int(i) for i in hair])
-        for i, j in src.items():
-            for nm, w in weights[j]:
-                body.vertex_groups[nm].add([i], w, 'REPLACE')
+    beast_rig.skin_hair_from_roots(body, n, np.nonzero(part == PART['hair'])[0])
     ear = np.nonzero(part == PART['ear'])[0]
     if len(ear):
-        co = np.array([body.data.vertices[int(i)].co[:] for i in ear])
-        for g in body.vertex_groups:
-            g.remove([int(i) for i in ear])
-        _set_group(body, "EarL", ear[co[:, 0] > 0], np.ones(int((co[:, 0] > 0).sum())))
-        _set_group(body, "EarR", ear[co[:, 0] <= 0], np.ones(int((co[:, 0] <= 0).sum())))
-    spear = np.nonzero(part == PART['spear'])[0]
-    if len(spear):
-        for g in body.vertex_groups:
-            g.remove([int(i) for i in spear])
-        _set_group(body, SPEAR_BONE, spear, np.ones(len(spear)))
+        x = np.array([body.data.vertices[int(i)].co.x for i in ear])
+        beast_rig.set_rigid(body, ear[x > 0], "EarL")
+        beast_rig.set_rigid(body, ear[x <= 0], "EarR")
+    beast_rig.set_rigid(body, np.nonzero(part == PART['spear'])[0], SPEAR_BONE)
     clean_weights(body)
     return weight_report(body)
 
 
 def split_spear(body, rig, name="Spear"):
     """Separate the spear's faces into their own object (same rig, material and UVs), named Spear."""
-    from beast_common import remove_obj
-    remove_obj(name)
     part, _ = read_info(body)
-    sel = part == PART['spear']
-    if not sel.any():
-        return None
-    vl = bpy.context.view_layer
-    for o in bpy.context.selected_objects:
-        o.select_set(False)
-    body.hide_set(False)
-    vl.objects.active = body
-    body.select_set(True)
-    bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.select_mode(type='VERT')
-    bpy.ops.mesh.select_all(action='DESELECT')              # the unwrap left everything selected
-    bm = bmesh.from_edit_mesh(body.data)
-    bm.verts.ensure_lookup_table()
-    for v in bm.verts:
-        v.select = bool(sel[v.index])
-    bm.select_flush(True)
-    bmesh.update_edit_mesh(body.data)
-    bpy.ops.mesh.separate(type='SELECTED')
-    bpy.ops.object.mode_set(mode='OBJECT')
-    sp = next(o for o in bpy.context.selected_objects if o is not body)
-    sp.name = name
-    sp.data.name = name
-    for g in list(sp.vertex_groups):                 # only the spear bone is used
-        if g.name != SPEAR_BONE:
-            sp.vertex_groups.remove(g)
-    for k in [k for k in sp.keys()]:
-        del sp[k]
-    return {"verts": len(sp.data.vertices), "tris": sum(len(p.vertices) - 2 for p in sp.data.polygons)}
+    return beast_rig.split_part(body, part == PART['spear'], name, (SPEAR_BONE,))
 
 
 TEST_POSE = {

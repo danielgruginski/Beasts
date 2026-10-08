@@ -245,3 +245,115 @@ def reset_pose(rig):
 
 def frame_matrix(head, frame3):
     return Matrix.Translation(Vector(head)) @ frame3.to_4x4()
+
+
+# ----------------------------------------------------------------------------------------- shaggy coats (beast_coat)
+LEG_BONES = ("UpperArm", "Forearm", "FrontPaw", "FrontToes", "Thigh", "Shin", "HindFoot", "HindToes")
+
+
+def read_root(body):
+    """The 'root' point attribute (where each hair vertex grows from; zeros elsewhere)."""
+    att = body.data.attributes.get("root")
+    buf = np.zeros(len(body.data.vertices) * 3, np.float32)
+    if att is not None:
+        att.data.foreach_get('vector', buf)
+    return buf.reshape(-1, 3)
+
+
+def coat_on_trunk(body, n, keep, trunk, leg_bones=LEG_BONES):
+    """Where a coat hides the upper legs, the skin there rides on the spine: each of the first n (fur) vertices keeps
+    keep[i] of its leg weight; the rest goes to the trunk bones, split along y between neighbours.
+    trunk: ((bone, y it leads at), ...) front to back."""
+    names = {g.index: g.name for g in body.vertex_groups}
+    ys = np.array([t[1] for t in trunk])
+    moved = 0
+    for i in range(n):
+        k = keep[i]
+        if k > 0.999:
+            continue
+        v = body.data.vertices[i]
+        leg = [(names[g.group], g.weight) for g in v.groups if names[g.group].startswith(leg_bones)]
+        if not leg:
+            continue
+        free = sum(w for _, w in leg) * (1 - k)
+        for nm, w in leg:
+            body.vertex_groups[nm].add([i], w * k, 'REPLACE')
+        y = v.co.y
+        j = int(np.clip(np.searchsorted(ys, y) - 1, 0, len(ys) - 2))
+        t = float(np.clip((y - ys[j]) / (ys[j + 1] - ys[j]), 0, 1))
+        for nm, w in ((trunk[j][0], free * (1 - t)), (trunk[j + 1][0], free * t)):
+            if w > 1e-4:
+                g = body.vertex_groups[nm]
+                try:
+                    w0 = g.weight(i)
+                except RuntimeError:
+                    w0 = 0.0
+                g.add([i], w0 + w, 'REPLACE')
+        moved += 1
+    return moved
+
+
+def skin_hair_from_roots(body, n, idx):
+    """Hair shells (vertices idx): each takes the weights of the skin vertex nearest its root, so a clump or a
+    fringe rides on the skin it grows from without stretching."""
+    from mathutils.kdtree import KDTree
+    if not len(idx):
+        return
+    names = {g.index: g.name for g in body.vertex_groups}
+    kd = KDTree(n)
+    for i in range(n):
+        kd.insert(body.data.vertices[i].co, i)
+    kd.balance()
+    roots = read_root(body)
+    src = {int(i): kd.find(Vector(roots[i]))[1] for i in idx}
+    weights = {j: [(names[g.group], g.weight) for g in body.data.vertices[j].groups] for j in set(src.values())}
+    for g in body.vertex_groups:
+        g.remove([int(i) for i in idx])
+    for i, j in src.items():
+        for nm, w in weights[j]:
+            body.vertex_groups[nm].add([i], w, 'REPLACE')
+
+
+def set_rigid(body, idx, bone):
+    """Vertices idx ride 100% on one bone."""
+    if not len(idx):
+        return
+    for g in body.vertex_groups:
+        g.remove([int(i) for i in idx])
+    _set_group(body, bone, idx, np.ones(len(idx)))
+
+
+def split_part(body, sel, name, keep_groups):
+    """Separate the faces of the vertices in `sel` (bool per vertex) into their own object (same rig, material and
+    UVs), keeping only the vertex groups in keep_groups. Call after painting."""
+    import bmesh
+    from beast_common import remove_obj
+    remove_obj(name)
+    if not sel.any():
+        return None
+    vl = bpy.context.view_layer
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    body.hide_set(False)
+    vl.objects.active = body
+    body.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_mode(type='VERT')
+    bpy.ops.mesh.select_all(action='DESELECT')              # the unwrap left everything selected
+    bm = bmesh.from_edit_mesh(body.data)
+    bm.verts.ensure_lookup_table()
+    for v in bm.verts:
+        v.select = bool(sel[v.index])
+    bm.select_flush(True)
+    bmesh.update_edit_mesh(body.data)
+    bpy.ops.mesh.separate(type='SELECTED')
+    bpy.ops.object.mode_set(mode='OBJECT')
+    ob = next(o for o in bpy.context.selected_objects if o is not body)
+    ob.name = name
+    ob.data.name = name
+    for g in list(ob.vertex_groups):
+        if g.name not in keep_groups:
+            ob.vertex_groups.remove(g)
+    for k in [k for k in ob.keys()]:
+        del ob[k]
+    return {"verts": len(ob.data.vertices), "tris": sum(len(p.vertices) - 2 for p in ob.data.polygons)}

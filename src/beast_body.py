@@ -11,7 +11,8 @@ from mathutils import Vector, Matrix
 from beast_common import loft, mesh_obj, get_coll, remove_obj, smoothstep, fbm
 
 # part ids in the "info" attribute (info.g = 1 on pieces that ride on the lower jaw)
-PART = dict(fur=1, nose=2, eye=3, tooth=4, jaw=5, tongue=6, tail=7, whisker=8, horn=9, spear=10, hair=11, ear=12)
+PART = dict(fur=1, nose=2, eye=3, tooth=4, jaw=5, tongue=6, tail=7, whisker=8, horn=9, spear=10, hair=11, ear=12,
+            claw=13)
 
 
 def ellipsoid(bm, center, radii, rot=None, seg=16, rings=10):
@@ -278,3 +279,72 @@ def join_pieces(fur, pieces_bm, tags, prefix, body_name):
     for p in body.data.polygons:
         p.use_smooth = True
     return body, nfur, part_extra
+
+
+class HeadFrame:
+    """A head modelled in its own frame ("head space": horizontal, the muzzle toward -Y, the poll at the origin) and
+    hung from `pivot` pitched down `pitch` degrees. hx maps head space to the body, hx_inv back (sculpt masks, the
+    painter and the rig's masks work in head space), hx_dir turns directions."""
+    def __init__(self, pivot, pitch_deg):
+        self.pivot = np.asarray(pivot, float)
+        self.c, self.s = math.cos(math.radians(pitch_deg)), math.sin(math.radians(pitch_deg))
+
+    def hx(self, P):
+        P = np.asarray(P, float)
+        y, z = P[..., 1], P[..., 2]
+        return np.stack([P[..., 0], y * self.c - z * self.s, y * self.s + z * self.c], -1) + self.pivot
+
+    def hx_inv(self, Q):
+        Q = np.asarray(Q, float) - self.pivot
+        y, z = Q[..., 1], Q[..., 2]
+        return np.stack([Q[..., 0], y * self.c + z * self.s, -y * self.s + z * self.c], -1)
+
+    def hx_dir(self, v):
+        return self.hx(v) - self.pivot
+
+    def to_body(self, bm, before):
+        """Move the vertices added to bm since `before` (a set of its old vertices) from head space to the body."""
+        new = [v for v in bm.verts if v not in before]
+        for v in new:
+            v.co = Vector(self.hx(v.co[:]))
+        return new
+
+
+def cup_ear(bm, base, tip, front, profile=((0.0, 0.050, 0.042), (0.35, 0.064, 0.048), (0.70, 0.050, 0.038),
+                                           (0.92, 0.024, 0.018)), hollow=0.55):
+    """An ear as a cupped shell from `base` to `tip`, open toward `front`: its section is a crescent (the back wraps
+    round from rim to rim, the front is a hollow sunk behind the rims). profile: (t along, half width, depth).
+    UV cut down one rim and round the base. Returns its BMVerts."""
+    base, tip = np.asarray(base, float), np.asarray(tip, float)
+    A = tip - base
+    L = np.linalg.norm(A)
+    A /= L
+    F = np.asarray(front, float)
+    F = F - A * (F @ A)
+    F /= np.linalg.norm(F)
+    S = np.cross(A, F)
+    rings = []
+    for t, w, d in profile:
+        c = base + A * L * t
+        pts = [c - F * math.cos(math.radians(th)) * d + S * math.sin(math.radians(th)) * w
+               for th in (-100, -60, -20, 20, 60, 100)]                      # the back, rim to rim
+        pts += [c - F * hollow * d + S * k * w for k in (0.55, 0.18, -0.18, -0.55)]   # the hollow, rim to rim
+        rings.append([bm.verts.new(Vector(p)) for p in pts])
+    apex = bm.verts.new(Vector(tip))
+    n = len(rings[0])
+    for r0, r1 in zip(rings[:-1], rings[1:]):
+        for j in range(n):
+            bm.faces.new((r0[j], r0[(j + 1) % n], r1[(j + 1) % n], r1[j]))
+    for j in range(n):
+        bm.faces.new((rings[-1][j], rings[-1][(j + 1) % n], apex))
+    bm.faces.new(list(reversed(rings[0])))
+    line = [r[5] for r in rings] + [apex]
+    for p, q in zip(line[:-1], line[1:]):
+        e = bm.edges.get((p, q))
+        if e is not None:
+            e.seam = True
+    for j in range(n):
+        e = bm.edges.get((rings[0][j], rings[0][(j + 1) % n]))
+        if e is not None:
+            e.seam = True
+    return [v for r in rings for v in r] + [apex]
