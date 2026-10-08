@@ -11,7 +11,7 @@ from mathutils import Vector, Matrix
 from beast_common import loft, mesh_obj, get_coll, remove_obj, smoothstep, fbm
 
 # part ids in the "info" attribute (info.g = 1 on pieces that ride on the lower jaw)
-PART = dict(fur=1, nose=2, eye=3, tooth=4, jaw=5, tongue=6, tail=7, whisker=8)
+PART = dict(fur=1, nose=2, eye=3, tooth=4, jaw=5, tongue=6, tail=7, whisker=8, horn=9, spear=10, hair=11, ear=12)
 
 
 def ellipsoid(bm, center, radii, rot=None, seg=16, rings=10):

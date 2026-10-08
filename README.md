@@ -4,11 +4,13 @@ Enemy animals for the colony sim / RPG, built procedurally in Blender like the g
 in Unity (MedievalSetting, `Assets/Beasts`), with shared code in the `beast_*` modules:
 
 - the **grey wolf**: model, rig, three coats and 12 clips;
-- the **giant rat**: model, rig, three coats and 10 clips (see [Giant rat](#giant-rat)).
+- the **giant rat**: model, rig, three coats and 10 clips (see [Giant rat](#giant-rat));
+- the **woolly rhino**, the woods' solo boss: model, rig, one coat, a removable spear and 13 clips (see
+  [Woolly rhino](#woolly-rhino)).
 
 ![The wolf in the bind pose](docs/images/wolf_34.png)
 
-Blender file: `blender/beasts.blend`, scenes **Wolf** and **Rat**. It is not in the repo, and neither are `export/`,
+Blender file: `blender/beasts.blend`, scenes **Wolf**, **Rat** and **Rhino**. It is not in the repo, and neither are `export/`,
 `textures/` or `renders/`. Everything in them is rebuilt from `src/`, starting from any Blender file.
 
 ## Rebuild
@@ -32,6 +34,12 @@ import rat_build
 rat_build.show()           # the Rat scene on screen (in its own call: the switch applies after the call returns)
 rat_build.build_all()      # (~35 s)
 rat_build.export()         # export/Rat.fbx, Textures/T_Rat*.png, Anims/Rat@<clip>.fbx + rat_clips.json
+
+import rhino_build
+rhino_build.show()         # the Rhino scene on screen (in its own call)
+rhino_build.build_all()    # body -> rig -> weights -> UVs -> coat -> spear split off -> 13 clips (~40 s)
+rhino_build.export()       # export/Rhino.fbx (RhinoBody + Spear), Textures/T_Rhino.png, Anims/Rhino@<clip>.fbx + rhino_clips.json
+rhino_build.build_model()  # just the model (body, rig, weights, UVs, coat; the spear still joined), for iterating
 ```
 
 Builds are not bit-identical from run to run: the voxel remesh varies slightly, which moves the decimated mesh and
@@ -176,3 +184,59 @@ In Unity, `M_Rat`, `M_Rat_Black` and `M_Rat_Plague`, rolled by `BeastAppearance`
 
 It uses the wolf's bone names (8 tail bones, no tongue), with `Socket_Back`, `Socket_Head` and `Socket_Mouth`.
 Unity: **Tools > Beasts > Rebuild Rat** (`Logs/RatSetup`); `Scenes/Beasts_Test` holds 10 rats next to the wolves.
+
+## Woolly rhino
+
+The woods' optional solo boss (design: the "Woods Boss" doc, written for a boar; Daniel swapped it for a woolly
+rhino on 2026-10-07). A Coelodonta: a high hump falling to a lower rump, the head carried hanging 45° down, a long
+flattened front horn from a broad base on the nose tip, swept forward, and a short upright second horn, cup-shaped
+ears, short columnar legs on three-toed feet, and a mammoth's coat: a cape of long hair over the hump and a skirt
+hanging from the flanks, both with ragged hems, and feathering over the feet. A snapped boar spear stands out of
+the left shoulder. 1.84 m at the hump, 3.0 m snout to rump, the horn reaches 0.5 m past the snout. Blender scene
+**Rhino** (`RHN_*`), with an instance of the wolf beside it for scale.
+
+![The woolly rhino](docs/images/rhino_34.png)
+
+| Part | Triangles |
+|---|---|
+| Fused body (volumes: trunk, hump, cape, skirt, head, legs) | 2,000 |
+| Hair: fringes along the hems and round the feet, a few clumps (beard, breeches, tail) | 1,970 |
+| Horns, ears, chin, eyes | 308, 156, 180, 120 |
+| **RhinoBody** | **4,734** |
+| **Spear** (its own object, on the Chest bone) | **210** |
+
+One 1024² texture, `T_Rhino` (no other coats: it is a one-off).
+
+How it differs from the wolf and the rat:
+
+- **The coat is two layers.** The volumes are fused like the wolf's body. The hair is separate low-poly shells:
+  *fringes* (thick curtains along each volume's edge, folded into ridges and valleys, the hem a zig-zag of uneven
+  points) and a few clumps. Each hair vertex is skinned like the skin at its root (`root` attribute), so it rides
+  without stretching. Fused locks melted away at this budget, and separate clumps in rows read as teeth.
+- **The head is built in its own frame** (`rhino_body.hx` / `hx_inv`: horizontal, then hung 45° down from the
+  poll). Sculpt masks, the painter and the rig's masks work in head space.
+- **The coat rides on the spine above the skirt's hem**: the legs swing inside the skirt (`rhino_rig._coat_on_trunk`).
+- **The spear** is part of the mesh until after painting (one atlas), then split into `Spear`.
+
+![Top: the Charge, the horn levelled ahead. Bottom: the Gore, the head drops, then tosses up and hooks](docs/images/rhino_attacks.png)
+
+| Clip | Length | Notes |
+|---|---|---|
+| Sleep | 3.0 s loop | lying on its belly, legs folded, slow breathing, an ear twitch |
+| Wake | 1.5 s | heaves up front end first, shakes its head, ends in the Idle stance |
+| Idle | 2.5 s loop | breathing, head bob, a snort, ear flicks, tail swish |
+| Walk / Run | 1.0 / 0.53 s loops | lateral walk 1.3 m/s, trot 3.75 m/s (root motion) |
+| Charge | 0.33 s loop | head-down gallop, the horn levelled ahead like a lance, 9 m/s (root motion; play it faster for more) |
+| Gore | 1.0 s | the horn attack: head drops, tosses up and hooks to its right; event `Bite` at 0.45 s |
+| Paw | 1.2 s loop | the tell before a charge: head low, the right forefoot scrapes back twice |
+| Daze | 2.0 s loop | staggering after a charge into an obstacle, legs splayed, head wobbling |
+| Stamp | 1.3 s | rears its front end and slams down; event `Bite` at 1.0 s |
+| Roar | 1.5 s | head up, a long bellow; event `Roar` at 0.3 s |
+| Hit | 0.4 s | |
+| Death | 2.0 s | collapses onto its right side, the spear standing up for looting; event `Dead` at 1.6 s |
+
+Bones: the wolf's names with 3 tail bones and no tongue; sockets `Socket_Head`, `Socket_Horn` (the horn tip, for
+the gore's effects), `Socket_Mouth`, `Socket_Back`, `Socket_Spear` (at the wound, +Y out of it).
+Unity: **Tools > Beasts > Rebuild Rhino** (`Logs/RhinoSetup`): `M_Rhino`, `Prefabs/Rhino` (Animator, BeastEvents;
+the spear is the child `Spear`), `Animation/RhinoAnims` (Paw leads into Charge, Sleep into Wake), and one rhino in
+`Scenes/Beasts_Test`.

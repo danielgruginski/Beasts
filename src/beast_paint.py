@@ -253,7 +253,7 @@ def _despeckle(ao, valid, r=5):
 
 
 def bake_data(ob, size=1024, ao_samples=96, ao_dist=0.25):
-    """Rest position, normal, info (part, on-jaw) and AO per texel."""
+    """Rest position, normal, info (part, on-jaw, aux: info.b, free for the creature) and AO per texel."""
     scn = bpy.context.scene
     prev_engine = scn.render.engine
     scn.render.engine = 'CYCLES'
@@ -325,7 +325,7 @@ def bake_data(ob, size=1024, ao_samples=96, ao_dist=0.25):
     N /= np.maximum(np.linalg.norm(N, axis=-1, keepdims=True), 1e-6)
     eyes = {k: np.array(ob[k]) for k in ob.keys() if k.startswith("eye")}
     return dict(P=P, N=N, part=np.rint(out["info"][..., 0] * 255).astype(int), on_jaw=out["info"][..., 1] > 0.5,
-                ao=out["ao"], valid=valid, eyes=eyes)
+                aux=out["info"][..., 2], ao=out["ao"], valid=valid, eyes=eyes)
 
 
 def _c(h):

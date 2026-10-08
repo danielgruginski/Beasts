@@ -66,10 +66,29 @@ checks.
 - **Scene switching:** `rat_build.build_all` asserts that the Rat scene is on screen, because collections are
   created in the current scene.
 
+- **Rhino (2026-10-07):**
+  - **Hair shells snap to their own volume.** Snapping a hem to the fused body jumped between the cape, trunk, legs
+    and head (`rhino_body._Snap` uses the volume's loft alone; strips drop onto the body from above).
+  - **A loft whose centre line rises tilts its rings** (they stay perpendicular to the path), so the top leans
+    forward: the cape's first try buried the ears. Keep coat volumes' centre lines level and shape them with the radii.
+  - **Create bmesh layers before any vertex:** adding the `root` layer later orphaned the BMVerts already made, so
+    the horns and eyes were tagged as jaw.
+  - **Masks in head space need bounds on every side:** the jaw-follow mask (cheek) also caught the forelegs, which
+    then trailed the head in the gallop.
+  - **Short legs, short strides:** a stance sweep over about +-0.35 m stretches the 1 m legs flat. The charge is
+    9 m/s; the game should play it faster rather than lengthen the stride.
+  - **Split the spear after painting, and deselect everything first:** the unwrap leaves all faces selected, and the
+    first split took the whole mesh.
+  - Lowest vertex: the standing clips stay within 3 cm. In Sleep the hem's hair tips go 15 cm into the ground (it
+    lies in the wallow's mud), in Death a down-side foot's edge briefly dips.
+
 ## State (2026-09-26)
 
 - **Grey wolf:** model, rig, three coats and 12 clips.
 - **Giant rat (2026-09-27):** model, rig, three coats and 10 clips.
+- **Woolly rhino (2026-10-07):** the woods' boss: model, rig, one coat, the `Spear` object and 13 clips; in
+  MedievalSetting with one rhino in `Beasts_Test`. Root motion traced over 3 loops (Walk, Run, Charge): exact
+  travel, head steady within 1 cm. The game side (fight, lair) is not built yet; the design doc still says boar.
 
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.

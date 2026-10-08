@@ -10,7 +10,8 @@ using static Beasts.EditorTools.BeastSetupUtil;
 namespace Beasts.EditorTools
 {
     /// <summary>
-    /// Scenes/Beasts_Test: a wolf pack and a rat swarm on random clips, and goblins around them (if Assets/Goblins is installed).
+    /// Scenes/Beasts_Test: a wolf pack, a rat swarm and the woolly rhino on random clips, and goblins around them (if
+    /// Assets/Goblins is installed).
     /// Press Play. Tools > Beasts > Build Test Scene; the beast setups rebuild it too.
     /// </summary>
     public static class BeastsTestScene
@@ -53,6 +54,7 @@ namespace Beasts.EditorTools
             {
                 (WolfSetup.PrefabPath, WolfSetup.SetPath, "Wolf", "wolves", 7, 3.5f, 1.3f, 2.2f),
                 (RatSetup.PrefabPath, RatSetup.SetPath, "Rat", "rats", 10, 2.0f, 0.7f, 1.3f),
+                (RhinoSetup.PrefabPath, RhinoSetup.SetPath, "Rhino", "rhinos", 1, 6.0f, 2.3f, 4.0f),
             })
             {
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
