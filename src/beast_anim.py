@@ -8,7 +8,8 @@ toe curl and (front) shoulder-blade swing. `pose_matrices` turns that into armat
 beast_rig.apply_pose keys them.
 
 Bone names are shared by all quadrupeds: Hips, Spine1, Spine2, Chest, Neck1.., Head, Jaw, (Tongue1, Tongue2),
-EarL/R, Tail1.., ScapulaL/R, UpperArm, Forearm, FrontPaw, FrontToes, Thigh, Shin, HindFoot, HindToes.
+EarL/R, Tail1.., ScapulaL/R, UpperArm, Forearm, FrontPaw, FrontToes, Thigh, Shin, HindFoot, HindToes; the mammoth
+adds Trunk1.. hanging from Head (Species.trunk_n, Pose.trunk: + pitch curls it toward its front).
 
 Legs: the distal segment (front paw / hind foot) keeps its rest angle turned by `flex`; the two segments above it
 are a 2-bone IK on the bind pose's own knee side. Paw targets are on the ground (absolute) or, with weight `wb`,
@@ -33,7 +34,7 @@ def rad(d):
 
 
 class Species:
-    def __init__(self, rest_bones, body_c, prefix, rig, neck_n=2, tail_n=5, tongue=True, tail_floor=None):
+    def __init__(self, rest_bones, body_c, prefix, rig, neck_n=2, tail_n=5, tongue=True, tail_floor=None, trunk_n=0):
         self.rest_bones = rest_bones
         self.body_c = Vector(body_c)
         self.prefix = prefix
@@ -42,6 +43,7 @@ class Species:
         self.tail_n = tail_n
         self.tongue = tongue
         self.tail_floor = tail_floor      # per tail bone: lowest z of its end (a tail lying on the ground drags)
+        self.trunk_n = trunk_n            # the mammoth's trunk: Trunk1.. from Head
         self.rest = {}
 
     def action_name(self, clip):
@@ -72,6 +74,7 @@ class Pose:
         self.tongue = [0.0, 0.0]                          # (slide out m, droop deg)
         self.ears = {1: [0.0, 0.0], -1: [0.0, 0.0]}      # (+ forward / - pinned back, + splay out)
         self.tail = [[0.0, 0.0, 0.0] for _ in range(sp.tail_n)]  # + pitch lifts, yaw swings
+        self.trunk = [[0.0, 0.0, 0.0] for _ in range(sp.trunk_n)]  # + pitch curls it toward its front, yaw swings
         self.legs = {k: LegPose() for k in LEGS}
 
 
@@ -150,6 +153,11 @@ def pose_matrices(sp, p):
     if sp.tongue:
         Wm["Tongue1"] = Wm["Jaw"] @ rel("Tongue1", "Jaw") @ Matrix.Translation((0, p.tongue[0], 0)) @ _rot(-p.tongue[1])
         Wm["Tongue2"] = Wm["Tongue1"] @ rel("Tongue2", "Tongue1") @ _rot(-p.tongue[1] * 1.3)
+    par = "Head"
+    for i in range(sp.trunk_n):
+        n = f"Trunk{i + 1}"
+        Wm[n] = Wm[par] @ rel(n, par) @ _rot(*p.trunk[i])
+        par = n
     for s, sfx in ((1, "L"), (-1, "R")):
         e = p.ears[s]
         Wm[f"Ear{sfx}"] = Wm["Head"] @ rel(f"Ear{sfx}", "Head") @ _rot(e[0], -s * e[1])

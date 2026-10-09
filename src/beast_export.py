@@ -27,10 +27,33 @@ def _select(objs):
     bpy.context.view_layer.objects.active = objs[0]
 
 
+def _reveal(objs):
+    """Unhide the view-layer collections holding objs (a hidden one, e.g. the rig's eye toggled off in the
+    outliner, makes its objects unselectable and the export silently skips them). -> the old states to restore."""
+    names = {c.name for o in objs for c in o.users_collection}
+    old = []
+
+    def walk(lc):
+        if lc.collection.name in names:
+            old.append((lc, lc.exclude, lc.hide_viewport))
+            lc.exclude = False
+            lc.hide_viewport = False
+        for c in lc.children:
+            walk(c)
+    walk(bpy.context.view_layer.layer_collection)
+    return old
+
+
+def _restore(old):
+    for lc, ex, hv in old:
+        lc.exclude, lc.hide_viewport = ex, hv
+
+
 def export_model(rig_name="WolfRig", meshes=("WolfBody",), name="Wolf", tex_prefix="T_Wolf"):
     os.makedirs(os.path.join(EXPORT, "Textures"), exist_ok=True)
     rig = bpy.data.objects[rig_name]
     objs = [bpy.data.objects[m] for m in meshes]
+    shown = _reveal([rig] + objs)
     hidden = rig.hide_get()
     for pb in rig.pose.bones:
         pb.matrix_basis = Matrix.Identity(4)
@@ -41,6 +64,7 @@ def export_model(rig_name="WolfRig", meshes=("WolfBody",), name="Wolf", tex_pref
     for o in [rig] + objs:
         o.select_set(False)
     rig.hide_set(hidden)
+    _restore(shown)
     written = [path]
     for fn in os.listdir(os.path.join(ROOT, "textures")):
         if fn.startswith(tex_prefix) and fn.endswith(".png"):
@@ -54,6 +78,7 @@ def export_clips(anim, rig_name="WolfRig", name="Wolf"):
     """anim: the clip module (wolf_anim): CLIPS, FPS, MOVING, action_name, use, clear."""
     os.makedirs(os.path.join(EXPORT, "Anims"), exist_ok=True)
     rig = bpy.data.objects[rig_name]
+    shown = _reveal([rig])
     hidden = rig.hide_get()
     scn = bpy.context.scene
     keep = (scn.frame_start, scn.frame_end, scn.render.fps)
@@ -81,6 +106,7 @@ def export_clips(anim, rig_name="WolfRig", name="Wolf"):
         anim.clear(rig)
         rig.select_set(False)
         rig.hide_set(hidden)
+        _restore(shown)
     with open(os.path.join(EXPORT, "Anims", f"{name.lower()}_clips.json"), "w", encoding="utf-8") as f:
         json.dump({"clips": meta}, f, indent=1)          # a list, so Unity's JsonUtility can read it
     return written

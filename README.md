@@ -7,11 +7,12 @@ in Unity (MedievalSetting, `Assets/Beasts`), with shared code in the `beast_*` m
 - the **giant rat**: model, rig, three coats and 10 clips (see [Giant rat](#giant-rat));
 - the **woolly rhino**, the woods' solo boss: model, rig, one coat, a removable spear and 13 clips (see
   [Woolly rhino](#woolly-rhino));
-- the **cave bear**: model, rig, two coats and 13 clips (see [Cave bear](#cave-bear)).
+- the **cave bear**: model, rig, two coats and 13 clips (see [Cave bear](#cave-bear));
+- the **woolly mammoth**: model, rig with a six-bone trunk, two coats and 12 clips (see [Woolly mammoth](#woolly-mammoth)).
 
 ![The wolf in the bind pose](docs/images/wolf_34.png)
 
-Blender file: `blender/beasts.blend`, scenes **Wolf**, **Rat**, **Rhino** and **Bear**. It is not in the repo, and neither are `export/`,
+Blender file: `blender/beasts.blend`, scenes **Wolf**, **Rat**, **Rhino**, **Bear** and **Mammoth**. It is not in the repo, and neither are `export/`,
 `textures/` or `renders/`. Everything in them is rebuilt from `src/`, starting from any Blender file.
 
 ## Rebuild
@@ -46,6 +47,11 @@ import bear_build
 bear_build.show()          # the Bear scene on screen (in its own call)
 bear_build.build_all()     # body -> rig -> weights -> UVs -> 2 coats -> 13 clips (~40 s)
 bear_build.export()        # export/Bear.fbx, Textures/T_Bear.png + T_Bear_Old.png, Anims/Bear@<clip>.fbx + bear_clips.json
+
+import mammoth_build
+mammoth_build.show()       # the Mammoth scene on screen (in its own call)
+mammoth_build.build_all()  # body -> rig -> weights -> UVs -> 2 coats -> 12 clips (~45 s)
+mammoth_build.export()     # export/Mammoth.fbx, Textures/T_Mammoth.png + T_Mammoth_Dark.png, Anims/Mammoth@<clip>.fbx + mammoth_clips.json
 ```
 
 Builds are not bit-identical from run to run: the voxel remesh varies slightly, which moves the decimated mesh and
@@ -58,7 +64,7 @@ the UVs. Always export after a rebuild, so the FBX and the textures in `textures
 | `wolf_paint.py` | Seams and unwrap; per-texel painted coats (grey, black, white) |
 | `wolf_anim.py` | Clips keyed from computed bone matrices: trunk/spine/neck/tail bends, 2-bone leg IK + pastern/hock angle, gaits |
 | `rat_body.py`, `rat_rig.py`, `rat_paint.py`, `rat_anim.py`, `rat_build.py` | The same for the giant rat; the tail is a separate ringed shell weighted along its length |
-| `rhino_*.py`, `bear_*.py` | The same for the woolly rhino and the cave bear (body, rig, paint, anim, build) |
+| `rhino_*.py`, `bear_*.py`, `mammoth_*.py` | The same for the woolly rhino, the cave bear and the woolly mammoth (body, rig, paint, anim, build) |
 | `beast_coat.py` | Long coats: coat volumes (lofts), hem fringes snapped to their volume or dropped onto the body, clumps, the hair's root-to-tip `t` |
 | `beast_body.py` | Mesh helpers and the body pipeline: `fuse_body` (voxel fuse, fillet, sculpts, decimate, edge flips, fold relaxing), `build_tufts`, `sculpt_fur`, `join_pieces` |
 | `beast_paint.py` | Seams from the skin weights plus the creature's cuts, unwrap (with a guard against blown-up degenerate islands), data bakes, fur strokes, texture writing |
@@ -300,3 +306,57 @@ Bones: the wolf's names with 2 tail bones and no tongue; sockets `Socket_Head`, 
 Unity: **Tools > Beasts > Rebuild Bear** (`Logs/BearSetup`): `M_Bear`, `M_Bear_Old`, `Prefabs/Bear` (Animator,
 BeastAppearance rolling the two coats 2:1 and the size 0.92-1.08, BeastEvents), `Animation/BearAnims` (Sleep leads
 into Wake), and two bears in `Scenes/Beasts_Test`.
+
+## Woolly mammoth
+
+Mammuthus primigenius, a big bull (asked for on 2026-10-08). 3.1 m at the shoulder hump, the back falling in one long
+slope to a low rump, a high domed skull with a dip behind it and the forehead sloping in one line down into a thick trunk root, small furry ears, a trunk hanging nearly to the ground
+with its tip curled out, long tusks spiralling down, out, forward and up with the tips turning in, columnar legs on
+round feet with pale toenails, a short tufted tail. The coat hangs in three tiers down the flanks (the hump's hem,
+mid flank, the skirt's hem), with long hair on the cheeks, a bib at the chest, hair down the backs of the legs and breeches.
+Blender scene **Mammoth** (`MAM_*`), with an instance of the wolf beside it for scale.
+
+![The woolly mammoth](docs/images/mammoth_34.png)
+
+| Part | Triangles |
+|---|---|
+| Fused body (trunk volume, skirt, head, the trunk's stump, legs) | 2,600 |
+| Hair: three tiers of fringes, cheeks, strips down the legs, clumps (bib, breeches, tail) | 2,156 |
+| Trunk (a separate tube on Trunk1-6) | 340 |
+| Tusks, lower lip, ears, eyes | 736, 180, 156, 100 |
+| **MammothBody** | **6,268** |
+
+Two 1024² coats on the same UVs: `T_Mammoth` (reddish brown, ginger tips) and `T_Mammoth_Dark` (near black).
+
+How it differs:
+
+- **The trunk is a separate clean tube** (its root hides a short stump fused into the face), skinned along Trunk1-6
+  by arc length (`mammoth_rig._skin_trunk`). Fused and decimated, a tube this thin twisted into long diagonal
+  facets; the legs had the same problem until `_dec_weight` kept more triangles on them.
+- **No coat volume over the hump.** A volume wider than the body left a ledge (like a saddle blanket), so the hump's
+  long hair is fringe strips rooted on the fused body along the flank's widest line; higher up, hair hanging off the
+  rounded back stands out as fins.
+- **The trunk's bones** are posed through `Species.trunk_n` / `Pose.trunk` in `beast_anim` (+ pitch curls it toward
+  its front); `mammoth_anim` names its shapes (HANG, RAISED, TUCKED, TO_MOUTH, REACH, ON_GROUND).
+
+![Rows: Idle, Walk, Run, Charge / Trumpet, TuskSwipe, Stomp (rearing), Stomp (the slam) / Graze (reach), Graze (to the mouth), Sleep, Death](docs/images/mammoth_clips.png)
+
+| Clip | Length | Notes |
+|---|---|---|
+| Sleep | 4.0 s loop | lying on its belly, legs folded, the trunk out along the ground, slow breathing |
+| Wake | 2.0 s | heaves up front end first, shakes its head, ends in the Idle stance |
+| Idle | 3.0 s loop | breathing, the trunk swaying and sniffing, ear flaps, tail swish, weight shifting |
+| Walk / Run | 1.6 / 0.8 s loops | lateral walk 1.38 m/s; an elephant's amble (no suspension) 4.5 m/s (root motion) |
+| Charge | 0.67 s loop | head down with the tusks levelled, trunk tucked under the chin, ears pinned, 6.3 m/s (root motion) |
+| Trumpet | 2.0 s | stamps, rears its head with the trunk raised high, ears flared; event `Roar` at 0.6 s |
+| TuskSwipe | 1.2 s | winds up to its left, sweeps the tusks across to the right with a step in, hooking up; event `Bite` at 0.5 s |
+| Stomp | 1.6 s | rears its front end up, trunk high, and slams both forefeet down; event `Bite` at 1.03 s |
+| Graze | 4.0 s loop | the trunk reaches to the ground, grips, curls the grass up to its mouth, it chews |
+| Hit | 0.5 s | a flinch, the trunk whipping |
+| Death | 2.5 s | staggers, kneels, sinks onto its belly and slumps right, the tusks propping the head; event `Dead` at 2.2 s |
+
+Bones: the wolf's names with 2 tail bones, no tongue, Trunk1-6; sockets `Socket_Head`, `Socket_Mouth`,
+`Socket_Back` (on the hump: a rider or a howdah), `Socket_Trunk` (the tip), `Socket_TuskL` / `Socket_TuskR` (the
+tips). Unity: **Tools > Beasts > Rebuild Mammoth** (`Logs/MammothSetup`): `M_Mammoth`, `M_Mammoth_Dark`,
+`Prefabs/Mammoth` (Animator, BeastAppearance rolling the two coats 2:1 and the size 0.92-1.06, BeastEvents),
+`Animation/MammothAnims` (Sleep leads into Wake), and one mammoth in `Scenes/Beasts_Test`.

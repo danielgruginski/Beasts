@@ -98,6 +98,21 @@ checks.
     turns over. Lowest vertex: body within 2 cm in every clip; in Sleep, Wake and Death only hair tips dip
     (lying on the ground).
 
+- **Woolly mammoth (2026-10-08):**
+  - **Thin tubes don't survive the voxel fuse + decimation:** the forelegs and the trunk twisted into long diagonal
+    facets (Daniel spotted both). The legs now keep more triangles (`_dec_weight`); the trunk is a separate loft
+    with clean rings over a fused stump, skinned by arc length.
+  - **A coat volume wider than the body leaves a ledge**; hair hanging from where the back turns over stands out as
+    fins; fringe loops round the shins read as leg-warmer cuffs; clumps lying on the back read as scales.
+  - **A hidden view-layer collection makes the export silently skip its objects** (the rig's eye toggled off in the
+    outliner gave 4 KB clip files with no armature). `beast_export` now reveals the collections while exporting.
+  - **The head, after Daniel's reference photo:** it read as a ball with an upright face and a thin trunk stuck on.
+    Now the dome sits high at the back, the forehead (a rotated ellipsoid) slopes in one line down and forward into
+    a flared trunk root (a fused stump the tube starts inside), and the ears are small flaps pressed to the head
+    (hollow facing out, so they don't show edge-on as blades). Daniel was happy with the tusks; they are unchanged.
+  - Lowest vertex: the body within 3 cm in every clip, the tusks rest on the ground in Death; lying (Sleep, Wake,
+    Death) the skirt's hair tips go up to 0.4 m into the ground.
+
 ## State (2026-09-26)
 
 - **Grey wolf:** model, rig, three coats and 12 clips.
@@ -108,6 +123,9 @@ checks.
 - **Cave bear (2026-10-07):** model, rig, two coats (`T_Bear`, `T_Bear_Old`) and 13 clips; in MedievalSetting with
   two bears in `Beasts_Test`. Root motion traced over 3 loops (Walk 1.10 m, Run 2.30 m per loop, head steady, no
   snap). Not yet in the itch.io Creatures pack (waiting for a batch, with the rhino). No game side yet.
+- **Woolly mammoth (2026-10-08):** model (6.3k tris, a six-bone trunk, spiralling tusks), two coats and 12 clips; in
+  MedievalSetting with one mammoth in `Beasts_Test`. Root motion traced over 3 loops (Walk 2.20 m, Run 3.60 m,
+  Charge 4.20 m per loop, head steady). Not in the itch.io pack yet; no game side yet.
 
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
@@ -131,7 +149,7 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - it has no swim or climb clips;
   - a rat swarm would want a cheaper variant (~1.5k tris).
 - **Warg** (goblin raider mount): scale about 1.4x, heavier ruff, saddle prop on `Socket_Saddle`, darker coat.
-- **More beasts:** war mammoth, warg, giant elk, boar and dire variants can reuse the pipeline: parts, tufts, fuse, heat weights, and the
+- **More beasts:** a war mammoth (howdah on `Socket_Back`), warg, giant elk, boar and dire variants can reuse the pipeline: parts, tufts, fuse, heat weights, and the
   painter's flow strokes.
 
 ## Checks

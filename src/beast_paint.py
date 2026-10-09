@@ -30,6 +30,8 @@ def _region(bone):
         return 'ear' + bone[-1]
     if bone.startswith("Tail"):
         return 'tail'
+    if bone.startswith("Trunk"):                       # the mammoth's trunk (the body is 'trunk')
+        return 'proboscis'
     for k, r in LEG_BONES.items():
         if bone.startswith(k):
             return r + bone[-1]

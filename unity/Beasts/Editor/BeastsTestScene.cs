@@ -56,6 +56,7 @@ namespace Beasts.EditorTools
                 (RatSetup.PrefabPath, RatSetup.SetPath, "Rat", "rats", 10, 2.0f, 0.7f, 1.3f),
                 (RhinoSetup.PrefabPath, RhinoSetup.SetPath, "Rhino", "rhinos", 1, 6.0f, 2.3f, 4.0f),
                 (BearSetup.PrefabPath, BearSetup.SetPath, "Bear", "bears", 2, 5.0f, 2.0f, 3.0f),
+                (MammothSetup.PrefabPath, MammothSetup.SetPath, "Mammoth", "mammoths", 1, 8.0f, 3.5f, 5.0f),
             })
             {
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
