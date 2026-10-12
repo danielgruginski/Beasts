@@ -5,7 +5,7 @@ namespace Beasts
 {
     /// <summary>
     /// The ooze's effects, built in code (no particle prefabs to keep in sync), coloured by its <see cref="OozeLook"/>:
-    ///   a wet slime trail on the floor while it moves (an <see cref="OozeTrail"/>: a ribbon that can't fold);
+    ///   a wet slime trail on the floor while it moves (an <see cref="OozeTrail"/>: splats merged in a wetness field);
     ///   drips falling from the raised pods' tips (Reach, Side, Probe);
     ///   splashes on the clips' events: Hit (Lash's slam, Grab's catch: at the pod's tip), Hurt, Grab, Engulf, Dead,
     ///   Split, Risen, and a spray at the mouth on Spit;
@@ -98,8 +98,9 @@ namespace Beasts
                 float v = (p - lastPos).magnitude / Mathf.Max(Time.deltaTime, 1e-4f);
                 trailR.target = transform;
                 trailR.emitting = v > 0.08f * Size;
-                trailR.width = 1.5f * Size;
-                trailR.step = 0.25f * Size;
+                trailR.step = 0.15f * Size;
+                trailR.radius = 0.8f * Size;
+                trailR.behind = 1.0f * Size;
                 lastPos = p;
             }
             float floor = transform.position.y;
@@ -193,15 +194,15 @@ namespace Beasts
             var go = new GameObject("Trail");
             go.transform.SetParent(fxRoot, false);
             trailR = go.AddComponent<OozeTrail>();
-            trailR.Init(trailMaterial);
-            trailR.target = transform;
+            trailR.cell = 0.1f * Size;                                  // fixed from here: the field is laid out in it
             trailR.life = 9f;
-            trailR.step = 0.25f * Size;
-            trailR.width = 1.5f * Size;
-            var g = new Gradient();
-            g.SetKeys(new[] { new GradientColorKey(c, 0), new GradientColorKey(c, 1) },
-                      new[] { new GradientAlphaKey(0.55f, 0), new GradientAlphaKey(0.35f, 0.4f), new GradientAlphaKey(0, 1) });
-            trailR.colour = g;
+            trailR.step = 0.15f * Size;
+            trailR.radius = 0.8f * Size;
+            trailR.behind = 1.0f * Size;
+            var slime = Color.Lerp(c, Color.black, 0.25f);
+            slime.a = 1f;
+            trailR.Init(trailMaterial, slime);
+            trailR.target = transform;
             trailR.emitting = false;
         }
 

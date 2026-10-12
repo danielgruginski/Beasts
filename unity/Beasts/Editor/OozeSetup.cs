@@ -22,9 +22,10 @@ namespace Beasts.EditorTools
     ///   Anims/Ooze@*.fbx       one clip each, avatar copied from Ooze.fbx; loop flags, root motion and animation events
     ///                          (OnBeastEvent: Hit, Hurt, Grab, Engulf, Spit, Dead, Risen, Split) from ooze_clips.json
     ///   Materials              M_Ooze (Beasts/OozeJelly: T_Ooze's masks coloured by OozeLook's preset, per renderer),
-    ///                          M_OozeContents (URP Lit, smoothness from the alpha), and the effects' M_OozeTrail,
-    ///                          M_OozeDrop, M_OozePuddle (URP Particles/Lit) and M_OozeGlob (the jelly on a flat mask)
-    ///   Textures/FX            the effects' small textures, drawn here (drop, splat, trail, flat mask); Models/
+    ///                          M_OozeContents (URP Lit, smoothness from the alpha), and the effects' M_OozeTrail
+    ///                          (Beasts/OozeSlick: the trail's wetness field), M_OozeDrop, M_OozePuddle (URP
+    ///                          Particles/Lit) and M_OozeGlob (the jelly on a flat mask)
+    ///   Textures/FX            the effects' small textures, drawn here (drop, splat, flat mask); Models/
     ///                          OozeGlob.asset, the glob's sphere
     ///   Prefabs/Ooze           Animator + OozeLook (random colour, size 0.9-1.1) + BeastEvents + OozeFx
     ///   Prefabs/GiantOoze      the same at 1.6x (life-size remains inside) + OozeSplit: Split makes two Oozes at 0.79x
@@ -44,6 +45,7 @@ namespace Beasts.EditorTools
         public const string SetPath = SetDir + "/OozeAnims.asset";
         public const string GiantSetPath = SetDir + "/GiantOozeAnims.asset";
         const string JellyShader = "Beasts/OozeJelly";
+        const string SlickShader = "Beasts/OozeSlick";
         const string FxDir = Textures + "/FX";
         const float BoundsPad = 0.8f;        // the pods reach this far past the bind pose (Grab, Lash)
         const float GiantSize = 1.6f, ChildScale = 0.79f, SplitAt = 58f / 30f;
@@ -280,15 +282,9 @@ namespace Beasts.EditorTools
                 float c = 0.85f + 0.15f * Smooth(rim, 0f, r);
                 return new Color(c, c, c, a * 0.95f);
             }, true);
-            var trailTex = SaveTexture("T_OozeTrail", 64, 32, (u, v) =>
-            {
-                float w = 0.42f + 0.05f * Mathf.Sin(u * 18.8f) + 0.03f * Mathf.Sin(u * 43f + 1.3f);
-                float a = 1f - Smooth(w - 0.12f, w, Mathf.Abs(v - 0.5f));
-                return new Color(1, 1, 1, a);
-            }, true);
             var flat = SaveTexture("T_OozeFlat", 8, 8, (u, v) => new Color(0.55f, 1f, 0.5f, 0.42f), false);
 
-            var trail = ParticleMat("M_OozeTrail", trailTex, 0.95f);
+            var trail = SlickMaterial("M_OozeTrail", log);                  // OozeTrail gives each ooze its own copy
             var dropM = ParticleMat("M_OozeDrop", drop, 0.9f);
             var puddle = ParticleMat("M_OozePuddle", splat, 0.95f);
             Material glob = null;
@@ -335,6 +331,32 @@ namespace Beasts.EditorTools
                 ti.SaveAndReimport();
             }
             return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
+        /// <summary>The trail's sheet (Beasts/OozeSlick): slime where OozeTrail's wetness field passes the edge.</summary>
+        static Material SlickMaterial(string name, StringBuilder log)
+        {
+            var shader = Shader.Find(SlickShader);
+            if (shader == null)
+            {
+                log.AppendLine($"  {SlickShader} not found: no slime trail");
+                return null;
+            }
+            var path = $"{Materials}/{name}.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(shader) { name = name };
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            mat.shader = shader;
+            mat.SetVector("_Edge", new Vector4(0.30f, 0.40f, 0, 0));
+            mat.SetVector("_Opacity", new Vector4(0.20f, 0.60f, 0, 0));
+            mat.SetFloat("_Smoothness", 0.92f);
+            mat.SetFloat("_Bump", 4f);
+            mat.renderQueue = (int)RenderQueue.Transparent - 10;          // under the jelly, which blends over it
+            EditorUtility.SetDirty(mat);
+            return mat;
         }
 
         /// <summary>URP Particles/Lit, alpha blended, both faces, glossy: the wet effects (vertex colour tints them).</summary>

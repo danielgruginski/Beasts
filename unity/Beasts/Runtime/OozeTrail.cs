@@ -1,217 +1,184 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Beasts
 {
     /// <summary>
-    /// The ooze's slime trail: a wet ribbon lying on the floor behind it, as the TrailRenderer drew it (same width,
-    /// taper, colour, texture), but built as a mesh of its own so it can't fold over itself on a turn: on the inside
-    /// of a bend the ribbon's half is never wider than the bend's radius (the inner edge runs as a smaller curve),
-    /// neither edge ever runs backward along the trail, and past a sharp corner (<see cref="corner"/>) a new strip
-    /// starts. It lives beside the ooze (on its effects
-    /// root), so it fades out after the ooze is gone. <see cref="OozeFx"/> drives it (target, emitting, width).
+    /// The ooze's slime trail, as splats that know about each other: the ooze paints them into a wetness field (a small
+    /// R8 texture tied to the world, wrapping round, <see cref="cell"/> metres a texel) as it goes, and one flat sheet
+    /// round it (Beasts/OozeSlick) shows slime wherever the field passes an edge threshold. So splats close together
+    /// merge into one wet patch with smooth necks (no alpha piling up where they overlap); as the field dries the edges
+    /// creep in and the patch breaks into puddles before it goes (<see cref="life"/>). The splats land at the ooze's rear
+    /// edge (<see cref="behind"/>), so none appear under its see-through body. It lives beside the ooze (on its effects
+    /// root), so it dries out after the ooze is gone. <see cref="OozeFx"/> drives it (target, emitting, sizes).
+    /// (Replaced a ribbon, 2026-10-12: at 1.5 m wide it folded on turns, and its fresh end showed through the jelly.)
     /// </summary>
     public class OozeTrail : MonoBehaviour
     {
         public Transform target;
         public bool emitting;
-        public float width = 1.5f, life = 9f, step = 0.25f, lift = 0.012f;
-        [Tooltip("A turn sharper than this (degrees) between two steps starts a new strip.")]
-        public float corner = 110f;
-        [Tooltip("0 = the newest end, under the ooze; 1 = the oldest.")]
-        public AnimationCurve widthCurve = new AnimationCurve(new Keyframe(0, 0.9f), new Keyframe(0.15f, 1f), new Keyframe(1, 0.35f));
-        public Gradient colour;
+        [Tooltip("Metres between splats.")]
+        public float step = 0.15f;
+        [Tooltip("A splat's radius (m).")]
+        public float radius = 0.8f;
+        [Tooltip("How far behind the ooze's centre the splats land (m): its rear edge.")]
+        public float behind = 1.0f;
+        [Tooltip("Seconds until fresh slime has dried away.")]
+        public float life = 9f;
+        [Tooltip("Metres per field texel; the field covers resolution x cell metres round the ooze.")]
+        public float cell = 0.1f;
+        public int resolution = 128;
+        public float lift = 0.012f;
 
-        struct Point { public Vector3 p; public float born; public bool start; }
+        const float Max = 1.3f;                 // the field's value at texture 1
+        const float Fresh = 1.15f;              // a splat's centre
+        const float Edge = 0.30f;               // the slime's edge (OozeSlick _Edge.x)
 
-        readonly List<Point> points = new List<Point>();
-        readonly List<(Vector3 p, float f)> strip = new List<(Vector3, float)>();
-        readonly List<float> halfL = new List<float>(), halfR = new List<float>();
-        readonly List<Vector3> verts = new List<Vector3>(), norms = new List<Vector3>();
-        readonly List<Vector2> uvs = new List<Vector2>();
-        readonly List<Color> cols = new List<Color>();
-        readonly List<int> tris = new List<int>();
-        Mesh mesh;
-        Vector3 lastHead;
-        bool hasLast;
+        float[] field;
+        byte[] bytes;
+        Texture2D tex;
+        Material mat;
+        MeshRenderer mr;
+        Vector3 lastSplat;
+        bool hasLast, wet;
+        float lastTime = -1f;
+        System.Random rng;
 
-        public int PointCount => points.Count;
+        public Material Material => mat;
 
-        public void Init(Material mat)
+        public void Init(Material slick, Color colour)
         {
-            mesh = new Mesh { name = "OozeTrail" };
-            mesh.MarkDynamic();
+            rng = new System.Random(GetInstanceID());
+            field = new float[resolution * resolution];
+            bytes = new byte[resolution * resolution];
+            tex = new Texture2D(resolution, resolution, TextureFormat.R8, false, true)
+            {
+                name = "OozeTrailField", wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear,
+            };
+            tex.SetPixelData(bytes, 0);
+            tex.Apply(false);
+            mat = new Material(slick) { name = slick.name + " (trail)" };
+            mat.SetTexture("_Field", tex);
+            mat.SetColor("_Color", colour);
+            var mesh = new Mesh { name = "OozeTrailSheet" };
+            mesh.vertices = new[] { new Vector3(-0.5f, 0, -0.5f), new Vector3(0.5f, 0, -0.5f), new Vector3(-0.5f, 0, 0.5f), new Vector3(0.5f, 0, 0.5f) };
+            mesh.uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) };
+            mesh.normals = new[] { Vector3.up, Vector3.up, Vector3.up, Vector3.up };
+            mesh.triangles = new[] { 0, 2, 1, 1, 2, 3 };
             gameObject.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var mr = gameObject.AddComponent<MeshRenderer>();
+            mr = gameObject.AddComponent<MeshRenderer>();
             mr.sharedMaterial = mat;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = true;
+            mr.enabled = false;
         }
 
         public void Clear()
         {
-            points.Clear();
+            if (field != null) System.Array.Clear(field, 0, field.Length);
             hasLast = false;
-            if (mesh != null) mesh.Clear();
+            wet = false;
+            if (mr != null) mr.enabled = false;
         }
 
         void LateUpdate() => Step(Time.time);
 
         void OnDestroy()
         {
-            if (mesh != null) Destroy(mesh);
+            if (tex != null) Destroy(tex);
+            if (mat != null) Destroy(mat);
+            var mf = GetComponent<MeshFilter>();
+            if (mf != null && mf.sharedMesh != null) Destroy(mf.sharedMesh);
         }
 
-        static Vector3 Flat(Vector3 v)
-        {
-            v.y = 0f;
-            return v.sqrMagnitude > 1e-10f ? v.normalized : Vector3.forward;
-        }
-
-        void Add(Vector3 p, float now, bool start) => points.Add(new Point { p = p, born = now, start = start });
-
-        /// <summary>One update at time <paramref name="now"/> (seconds): age the points out, follow the target, rebuild
-        /// the mesh. LateUpdate calls it with Time.time; a test can drive it with a clock of its own.</summary>
+        /// <summary>One update at time <paramref name="now"/> (seconds): dry the field, lay splats behind the target,
+        /// move the sheet with it, upload. LateUpdate calls it with Time.time; a test can drive it with its own clock.</summary>
         public void Step(float now)
         {
-            while (points.Count > 0 && now - points[0].born > life) points.RemoveAt(0);
-            if (points.Count > 0 && !points[0].start)                   // its strip's first point aged out
-            {
-                var q = points[0];
-                q.start = true;
-                points[0] = q;
-            }
-            bool withHead = false;
-            var head = Vector3.zero;
+            if (field == null) return;
+            float dt = lastTime < 0f ? 0f : Mathf.Clamp(now - lastTime, 0f, 0.25f);
+            lastTime = now;
+            float tau = life / Mathf.Log(Fresh / Edge);           // fresh slime reaches the edge value after `life`
+            float keep = Mathf.Exp(-dt / tau), most = 0f;
+            if (wet && dt > 0f)
+                for (int i = 0; i < field.Length; i++)
+                {
+                    float v = field[i] * keep;
+                    field[i] = v < 0.02f ? 0f : v;
+                    if (v > most) most = v;
+                }
+            else if (wet) most = Fresh;
             if (target != null)
             {
-                head = target.position + Vector3.up * lift;
-                bool jumped = hasLast && (head - lastHead).magnitude > 6f * step;     // a teleport: no ribbon across it
+                var fwd = target.forward;
+                fwd.y = 0f;
+                fwd = fwd.sqrMagnitude > 1e-6f ? fwd.normalized : Vector3.forward;
+                var rear = target.position - fwd * behind;
                 if (emitting)
                 {
-                    if (points.Count == 0 || jumped) Add(head, now, true);
-                    else
+                    float d = hasLast ? (rear - lastSplat).magnitude : 0f;
+                    if (!hasLast || d > 8f * step)                     // the first, or after a teleport
                     {
-                        var last = points[points.Count - 1];
-                        if ((head - last.p).magnitude >= step)
-                        {
-                            if (points.Count >= 2 && !last.start &&
-                                Vector3.Angle(Flat(last.p - points[points.Count - 2].p), Flat(head - last.p)) > corner)
-                                Add(last.p, now, true);                  // a sharp corner: a new strip from it
-                            Add(head, now, false);
-                        }
-                        else withHead = true;                           // the live end, up to the ooze
+                        Splat(rear);
+                        lastSplat = rear;
                     }
+                    else if (d >= step)
+                    {
+                        int n = Mathf.FloorToInt(d / step);
+                        for (int k = 1; k <= n; k++) Splat(Vector3.Lerp(lastSplat, rear, k * step / d));
+                        lastSplat = Vector3.Lerp(lastSplat, rear, n * step / d);
+                    }
+                    hasLast = true;
+                    most = Fresh;
                 }
-                lastHead = head;
-                hasLast = true;
+                else
+                {
+                    lastSplat = rear;                                   // resume from where it is, not with a line
+                    hasLast = true;
+                }
+                float size = resolution * cell;                         // the sheet: round the ooze, on texel steps
+                var c = target.position;
+                transform.position = new Vector3(Mathf.Round(c.x / cell) * cell, c.y + lift, Mathf.Round(c.z / cell) * cell);
+                transform.rotation = Quaternion.identity;
+                var ps = transform.parent != null ? transform.parent.lossyScale : Vector3.one;
+                transform.localScale = new Vector3(size * 0.96f / ps.x, 1f / ps.y, size * 0.96f / ps.z);
+                mat.SetFloat("_FieldScale", 1f / size);
+                mat.SetFloat("_FieldTexel", 1f / resolution);
             }
-            Rebuild(now, head, withHead);
+            wet = most > 0f;
+            mr.enabled = wet;
+            if (!wet) return;
+            for (int i = 0; i < field.Length; i++) bytes[i] = (byte)(Mathf.Clamp01(field[i] / Max) * 255f + 0.5f);
+            tex.SetPixelData(bytes, 0);
+            tex.Apply(false);
         }
 
-        void Rebuild(float now, Vector3 head, bool withHead)
+        /// <summary>One splat at a world point: a soft round blob with a ragged outline, a little off the path, the
+        /// field keeping the wetter of what was there and the splat.</summary>
+        void Splat(Vector3 at)
         {
-            if (mesh == null) return;
-            verts.Clear();
-            norms.Clear();
-            uvs.Clear();
-            cols.Clear();
-            tris.Clear();
-            int s0 = 0;
-            for (int k = 1; k <= points.Count; k++)
-                if (k == points.Count || points[k].start)
+            float R(double lo, double hi) => (float)(lo + (hi - lo) * rng.NextDouble());
+            at += new Vector3(R(-1, 1), 0, R(-1, 1)) * 0.12f * radius;
+            float r = radius * R(0.8, 1.15) / cell;                    // in texels
+            float p1 = R(0, 6.28), p2 = R(0, 6.28), a1 = R(0.06, 0.14), a2 = R(0.04, 0.09);
+            float amp = Fresh * R(0.82, 1.1);                          // wetter here and there: it dries into puddles
+            float cx = at.x / cell - 0.5f, cz = at.z / cell - 0.5f;     // texel centres sit at +0.5
+            int x0 = Mathf.FloorToInt(cx - r * 1.25f), x1 = Mathf.CeilToInt(cx + r * 1.25f);
+            int z0 = Mathf.FloorToInt(cz - r * 1.25f), z1 = Mathf.CeilToInt(cz + r * 1.25f);
+            int N = resolution;
+            for (int z = z0; z <= z1; z++)
+                for (int x = x0; x <= x1; x++)
                 {
-                    Strip(s0, k, now, withHead && k == points.Count, head);
-                    s0 = k;
+                    float dx = x - cx, dz = z - cz;
+                    float dd = Mathf.Sqrt(dx * dx + dz * dz);
+                    float th = Mathf.Atan2(dz, dx);
+                    float rr = r * (1f + a1 * Mathf.Sin(3f * th + p1) + a2 * Mathf.Sin(5f * th + p2));
+                    if (dd >= rr) continue;
+                    float q = 1f - (dd / rr) * (dd / rr);
+                    float v = amp * q * q;
+                    int i = ((z % N + N) % N) * N + ((x % N + N) % N);
+                    if (v > field[i]) field[i] = v;
                 }
-            mesh.Clear();
-            if (verts.Count == 0) return;
-            mesh.SetVertices(verts);
-            mesh.SetNormals(norms);
-            mesh.SetUVs(0, uvs);
-            mesh.SetColors(cols);
-            mesh.SetTriangles(tris, 0);
-            mesh.RecalculateBounds();
-        }
-
-        /// <summary>points[a..b) as one ribbon, oldest first; u = age (0 newest .. 1 oldest), v across.</summary>
-        void Strip(int a, int b, float now, bool withHead, Vector3 head)
-        {
-            strip.Clear();
-            for (int k = a; k < b; k++) strip.Add((points[k].p, Mathf.Clamp01((now - points[k].born) / life)));
-            if (withHead && strip.Count > 0 && (head - strip[strip.Count - 1].p).sqrMagnitude > 1e-4f) strip.Add((head, 0f));
-            if (strip.Count < 2) return;
-            int n = strip.Count;
-            // half-widths each side: on the inside of a bend, no wider than the bend's radius (so the inner edge
-            // runs as a smaller curve instead of folding back), eased over the neighbours so it doesn't pinch
-            halfL.Clear();
-            halfR.Clear();
-            for (int k = 0; k < n; k++)
-            {
-                float w = 0.5f * width * widthCurve.Evaluate(strip[k].f);
-                float wl = w, wr = w;
-                if (k > 0 && k < n - 1)
-                {
-                    Vector3 q0 = strip[k - 1].p, q1 = strip[k].p, q2 = strip[k + 1].p;
-                    q0.y = q1.y = q2.y = 0f;
-                    float ab = (q1 - q0).magnitude, bc = (q2 - q1).magnitude, ca = (q0 - q2).magnitude;
-                    float cross = Vector3.Cross(q1 - q0, q2 - q1).y;                 // + turning right (Unity: y up, left-handed)
-                    float area2 = Mathf.Abs(cross);
-                    if (area2 > 1e-6f)
-                    {
-                        float radius = ab * bc * ca / (2f * area2);
-                        float lim = 0.85f * radius;
-                        if (cross > 0f) wr = Mathf.Min(wr, lim);               // turning right: the right side is inside
-                        else wl = Mathf.Min(wl, lim);
-                    }
-                }
-                halfL.Add(wl);
-                halfR.Add(wr);
-            }
-            for (int pass = 0; pass < 2; pass++)
-                for (int k = 1; k < n - 1; k++)
-                {
-                    halfL[k] = Mathf.Min(halfL[k], (halfL[k - 1] + halfL[k] + halfL[k + 1]) / 3f);
-                    halfR[k] = Mathf.Min(halfR[k], (halfR[k - 1] + halfR[k] + halfR[k + 1]) / 3f);
-                }
-            var toLocal = transform.worldToLocalMatrix;
-            var up = toLocal.MultiplyVector(Vector3.up).normalized;
-            int v0 = verts.Count;
-            Vector3 pl = Vector3.zero, pr = Vector3.zero;
-            for (int k = 0; k < n; k++)
-            {
-                var p = strip[k].p;
-                var t = Flat(k == 0 ? strip[1].p - p : k == n - 1 ? p - strip[k - 1].p : strip[k + 1].p - strip[k - 1].p);
-                var side = Vector3.Cross(Vector3.up, t);                         // to the right of the path
-                float f = strip[k].f;
-                Vector3 l = p - side * halfL[k], r = p + side * halfR[k];
-                if (k > 0)                                              // and as a safety net: an edge never runs backward
-                {
-                    if (Vector3.Dot(l - pl, t) < 0f) l = pl;
-                    if (Vector3.Dot(r - pr, t) < 0f) r = pr;
-                }
-                pl = l;
-                pr = r;
-                var c = colour != null ? colour.Evaluate(f) : Color.white;
-                verts.Add(toLocal.MultiplyPoint3x4(l));
-                verts.Add(toLocal.MultiplyPoint3x4(r));
-                norms.Add(up);
-                norms.Add(up);
-                uvs.Add(new Vector2(f, 0f));
-                uvs.Add(new Vector2(f, 1f));
-                cols.Add(c);
-                cols.Add(c);
-                if (k > 0)
-                {
-                    int i = v0 + 2 * (k - 1);
-                    tris.Add(i);
-                    tris.Add(i + 2);
-                    tris.Add(i + 1);
-                    tris.Add(i + 1);
-                    tris.Add(i + 2);
-                    tris.Add(i + 3);
-                }
-            }
+            wet = true;
         }
     }
 }

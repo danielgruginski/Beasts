@@ -529,9 +529,16 @@ The Hit clip also has an event, `Hurt` at 0.07 s, for a splash.
   - a colour preset (fixed, or random from a list), a size, which remains are hidden;
   - in an ooze bigger than 1x the remains keep their real size (done after the Animator, idempotently).
 - **`OozeFx`** (built in code):
-  - a slime trail lying flat on the floor while it moves (`OozeTrail`: a ribbon mesh built each frame; on the inside of
-    a bend its half is never wider than the bend's radius and no edge runs backward, so it can't fold over itself on a
-    turn, which the TrailRenderer it replaced did at 1.5 m wide);
+  - a slime trail while it moves (`OozeTrail`, shader `Beasts/OozeSlick`): splats that know about each other. The ooze
+    paints soft, ragged splats at its rear edge into a small wetness field (128² R8, 0.1 m a texel x size, tied to the
+    world and wrapping); one flat sheet round it shows slime where the field passes an edge threshold, its slope
+    tilting the normal for a wet highlight. Splats merge into one sheet with smooth necks (no alpha piling up where
+    they overlap), and as the field dries over 9 s the edges creep in and it breaks into puddles. No splat lands
+    under the see-through body. (It replaced a TrailRenderer that folded on turns and showed its fresh end through the
+    jelly, then a fold-free ribbon whose end still showed.)
+
+    ![The slime trail in Unity: merged splats behind the ooze, drying into puddles further back](docs/images/ooze_unity_trail.png)
+
   - drips from under the raised pods' tips;
   - splashes on Hit, Hurt, Grab, Engulf, Dead, Split and Risen;
   - on Spit, an `OozeGlob` arcs from `Socket_Spit` to a target, splashes, and leaves a fizzing acid puddle.
@@ -548,7 +555,7 @@ The Hit clip also has an event, `Hurt` at 0.07 s, for a splash.
   - `SmallOoze`: 0.5–0.6x, with no skull, helm or sword inside.
 - **The clip pools** (`OozeAnims`, plus `GiantOozeAnims` with Split): Puddle leads into Rise, and so does Death.
   `Beasts_Test` has two oozes, three small ones and a giant.
-- **Effect assets**, drawn by `OozeSetup`: `Textures/FX/` (drop, splat, trail, flat mask), `M_OozeTrail`,
+- **Effect assets**, drawn by `OozeSetup`: `Textures/FX/` (drop, splat, flat mask), `M_OozeTrail` (Beasts/OozeSlick),
   `M_OozeDrop`, `M_OozePuddle` (URP Particles/Lit, with "preserve specular" off: on, every quad showed whole),
   `M_OozeGlob` and `Models/OozeGlob.asset`.
 - **Checked:** avatar valid; Crawl 0.60 m/s, `dir=(0, 0, 1)`; 1.200 m per loop over 3 loops, with the Body's offset
