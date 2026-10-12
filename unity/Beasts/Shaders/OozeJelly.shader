@@ -1,7 +1,10 @@
 // The dungeon ooze's see-through jelly (Beasts, ooze_paint.shell_material is the Blender preview of it). Two passes
 // over the same mesh, alpha blended without depth writes: the far side first (back faces, normal turned toward the
 // eye), then the near side, so the shell reads as a solid lump with the contents (a separate opaque mesh) inside.
-// Opacity = the texture's alpha (thick core denser, pod tips and the skirt's edge clear) + a fresnel rim. Premultiplied
+// The colour is the material's (or a renderer's MaterialPropertyBlock, OozeLook): T_Ooze holds masks (R tone: thin -> mid
+// -> core by the jelly's thickness, G shade: creases dark, B detail, A opacity), mapped through four colours, so any
+// ooze colour is a material setting. Opacity = the texture's alpha (thick core denser, pod tips and the skirt's edge
+// clear) x _Opacity + a fresnel rim. Premultiplied
 // (URP Lit's "Premultiply"): the diffuse fades with the opacity, the highlights don't, so it stays wet and glossy where
 // it is clear. A faint glow of its own colour keeps the shaded side from going black; a small vertex wobble; a shadow
 // dithered by the opacity (a transparent shell casts none otherwise).
@@ -9,8 +12,11 @@ Shader "Beasts/OozeJelly"
 {
     Properties
     {
-        [MainTexture] _BaseMap ("Colour (RGB), opacity (A)", 2D) = "white" {}
-        [MainColor] _BaseColor ("Tint", Color) = (1, 1, 1, 1)
+        [MainTexture][NoScaleOffset] _BaseMap ("Masks: tone, shade, detail, opacity (linear)", 2D) = "white" {}
+        _ThinColor ("Thin (tips, edges)", Color) = (0.651, 0.831, 0.333, 1)
+        _MidColor ("Mid", Color) = (0.310, 0.549, 0.110, 1)
+        _CoreColor ("Core (thick)", Color) = (0.173, 0.353, 0.071, 1)
+        _CreviceColor ("Creases", Color) = (0.090, 0.196, 0.031, 1)
         _Opacity ("Opacity", Range(0, 2)) = 1
         _Fresnel ("Rim opacity", Range(0, 1)) = 0.45
         _FresnelPower ("Rim falloff", Range(0.5, 8)) = 2.5
@@ -31,7 +37,7 @@ Shader "Beasts/OozeJelly"
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
         CBUFFER_START(UnityPerMaterial)
             float4 _BaseMap_ST;
-            half4 _BaseColor;
+            half4 _ThinColor, _MidColor, _CoreColor, _CreviceColor;
             half _Opacity, _Fresnel, _FresnelPower, _Smoothness, _Glow, _BackFade, _Wobble, _WobbleSpeed, _ShadowDensity;
         CBUFFER_END
 

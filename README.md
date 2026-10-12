@@ -64,7 +64,7 @@ deer_build.review()        # renders/deer_<view>.png; review_test_pose(), review
 
 import ooze_build
 ooze_build.show()          # the Ooze scene on screen (in its own call)
-ooze_build.build_all()     # shell -> contents -> UVs -> 2 textures -> materials -> rig + weights -> 10 clips (~45 s)
+ooze_build.build_all()     # shell -> contents -> UVs -> 2 textures -> materials -> rig + weights -> 12 clips (~45 s)
 ooze_build.export()        # export/Ooze.fbx (OozeBody + OozeContents), Textures/T_Ooze*.png, Anims/Ooze@<clip>.fbx + ooze_clips.json
 ooze_build.review()        # renders/ooze_<view>.png (EEVEE); clip_sheets() -> ooze_clip_<Name>.png; ooze_anim.report()
 ```
@@ -436,8 +436,8 @@ out and 1.2 m tall, hip-high on a person (`renders/ooze_scale.png` has a Humans 
 
 | Part | Triangles | Texture |
 |---|---|---|
-| `OozeBody`: the shell (dome, skirt, 6 pseudopods, uroid), open at the floor | 2,844 | `T_Ooze` 1024²: RGB colour, A opacity |
-| `OozeContents`: nucleus, 7 vacuoles, skull, femur, shin, helm, 7 coins, sword | 1,850 | `T_OozeContents` 512²: RGB colour, A smoothness |
+| `OozeBody`: the shell (dome, skirt, 6 pseudopods, uroid), open at the floor | 2,844 | `T_Ooze` 1024², linear masks: R tone (thin, mid, core), G shade, B detail, A opacity; the colour is the shader's |
+| `OozeContents`: nucleus (and its hidden twin), 7 vacuoles, skull, femur, shin, helm, 7 coins, sword | 2,070 | `T_OozeContents` 512²: RGB colour, A smoothness |
 
 How it differs from the furred beasts:
 
@@ -455,25 +455,36 @@ How it differs from the furred beasts:
   - thickness: the thick core is darker and more opaque, the tips and the skirt's edge clearer;
   - AO;
   - streaks along the pods (cytoplasm streaming).
-- **Materials** (the Blender preview of the planned Unity look):
-  - `M_Ooze`: dithered alpha. Opacity is the texture plus a fresnel rim. It has a faint emission, is two-sided,
+
+  These are written as masks, not colours. A colour preset (`ooze_paint.PRESETS`, the same as Unity's
+  `OozeLook.Presets`: Green, Grey, Black, Ochre, Crimson) maps them through thin, mid, core and crevice colours.
+- **Materials** (the Blender preview of the Unity look):
+  - `M_Ooze`: the masks coloured by a preset (`shell_material(preset=...)`), dithered alpha. Opacity is the texture
+    times the preset's opacity, plus a fresnel rim. It has a faint emission, is two-sided,
     smoothness 0.9, and casts a transparent shadow.
   - `M_OozeContents`: opaque.
 
-**Rig** (`ooze_rig`, 41 bones):
+**Rig** (`ooze_rig`, 47 bones):
 - Root, Motion;
-- Body, then Dome (a leaf: squash, stretch and lean) and Tail (the uroid);
-- `<Pod>1–3` for Reach, Lead, Side, Back, Bud and Probe;
-- Gut, with one bone per floating piece (Nucleus, Skull, Femur, Shin, Helm, Sword, Coins, Vac1–7);
+- Body, then:
+  - HalfL / HalfR, the mass's halves, which part in Split. Each carries its own dome (DomeL / DomeR: leaves for
+    squash, stretch and lean, which move as one Dome in every other clip) and its side's pods;
+  - WaistTop / WaistLow, the middle band, which pinches to a strand in Split;
+  - Tail (the uroid);
+- `<Pod>1–3` for Reach, Back and Bud (left) and Lead, Side and Probe (right);
+- Gut, with one bone per floating piece: Nucleus and Nucleus2 (its twin hidden inside, which divides out in Split),
+  Skull, Femur, Shin, Helm, Sword, Coins, Vac1–7;
 - sockets: `Socket_Gut` (a swallowed victim), `Socket_Mouth` (a grabbed one, carried in by Engulf) and `Socket_Spit`
   (the Probe's tip).
 
 How the shell is weighted:
 - by a soft minimum over the shape's pieces (`ooze_body.parts`);
 - along each pod, by hat weights on the chain, so a stretched pod stretches along its whole length;
-- in the mass, Dome by height;
+- in the mass, upper or lower by height, split left/right across the middle;
 - smoothed;
-- below 16 cm handed back to Body, so the rim stays on the floor.
+- after smoothing, the middle band is re-split onto the waist (`_waist_pass`), and a vertex that is mostly pod takes
+  its pod's side;
+- below 16 cm handed to the lower mass, so the rim stays on the floor.
 
 Pods are posed by bending, by stretching (child bones slide along the chain) or by laying the chain along a curve to a
 target (`OozePose.curve`). Whatever sits in the domed part of the mass follows the Dome by the skin's own weight.
@@ -489,6 +500,10 @@ target (`OozePose.curve`). Whatever sits in the domed part of the mass follows t
 | Hit | 0.8 s | a jolt: a damped wobble, the pods flinch |
 | Death | 2.33 s | collapses into a puddle with a last shudder: raised pods flop, the vacuoles pop one by one, the remains sink to the floor; event `Dead` at 1.87 s; holds |
 | Puddle / Rise | 3.0 s loop / 1.67 s | lying flat and alive (an ambush), rippling; rises from it with an overshoot; event `Risen` at 1.0 s |
+| Split | 2.5 s | binary fission, for a big ooze: the pods draw in, the nucleus divides, the halves part with a waist pinching between them; event `Split` at 1.93 s (the strand snaps: the game swaps in two oozes, behind a splash) |
+| Reform | 1.67 s | such a new ooze taking shape: from a blob (Split's end pose, half of it) the pods push out with an overshoot |
+
+The Hit clip also has an event, `Hurt` at 0.07 s, for a splash.
 
 `ooze_anim.report()` checks every clip. Last run:
 - the rim stays within 4 cm of the floor;
@@ -503,17 +518,108 @@ target (`OozePose.curve`). Whatever sits in the domed part of the mass follows t
   copies.
 - **The jelly shader (`Beasts/OozeJelly`):**
   - two passes over the shell, the far side (back faces) first, then the near side;
+  - the colour comes from four material colours (thin, mid, core, crevice) mapping T_Ooze's masks. `OozeLook` sets
+    them per renderer with a MaterialPropertyBlock, so one material serves every colour;
   - premultiplied alpha: the diffuse fades with the opacity, the highlights don't;
-  - opacity = the texture's alpha + a fresnel rim, a faint glow of its own colour, a small vertex wobble;
+  - opacity = the texture's alpha x `_Opacity` + a fresnel rim, a faint glow of its own colour, a small vertex wobble;
   - a shadow dithered by the opacity;
   - Forward+ lighting through `UniversalFragmentPBR`, so torches light it.
 - **The contents** use URP Lit (`M_OozeContents`).
-- **The prefab** is the Animator, `BeastAppearance` (size 0.85–1.15; no skin swap, since there are two meshes) and
-  `BeastEvents`. Its renderer bounds are padded 0.8 m for the reaching pods.
-- **The clip pools:** Puddle leads into Rise, and so does Death. `Beasts_Test` has two oozes.
+- **`OozeLook`:**
+  - a colour preset (fixed, or random from a list), a size, which remains are hidden;
+  - in an ooze bigger than 1x the remains keep their real size (done after the Animator, idempotently).
+- **`OozeFx`** (built in code):
+  - a slime trail lying flat on the floor while it moves;
+  - drips from under the raised pods' tips;
+  - splashes on Hit, Hurt, Grab, Engulf, Dead, Split and Risen;
+  - on Spit, an `OozeGlob` arcs from `Socket_Spit` to a target, splashes, and leaves a fizzing acid puddle.
+
+  The trail and splashes live on an object beside the ooze, so they outlast it.
+- **`OozeSplit`:** on the Split event it spawns two `childPrefab`s at the HalfL / HalfR bones, at 0.79x the size,
+  in the same colour. Each keeps only the remains on its own side (worked out from the model by `OozeSetup`) and
+  starts on Reform. `SplitInto` hands the two to the game. With `respawnAfter` (the test scene: 25 s) the big one
+  only goes dormant and comes back rising from a puddle.
+- **Prefabs**, each with an Animator, `OozeLook`, `BeastEvents` and `OozeFx`; renderer bounds padded 0.8 m for the
+  reaching pods:
+  - `Ooze`: random colour, 0.9–1.1x;
+  - `GiantOoze`: 1.6x, green or black pudding, with `OozeSplit`;
+  - `SmallOoze`: 0.5–0.6x, with no skull, helm or sword inside.
+- **The clip pools** (`OozeAnims`, plus `GiantOozeAnims` with Split): Puddle leads into Rise, and so does Death.
+  `Beasts_Test` has two oozes, three small ones and a giant.
+- **Effect assets**, drawn by `OozeSetup`: `Textures/FX/` (drop, splat, trail, flat mask), `M_OozeTrail`,
+  `M_OozeDrop`, `M_OozePuddle` (URP Particles/Lit, with "preserve specular" off: on, every quad showed whole),
+  `M_OozeGlob` and `Models/OozeGlob.asset`.
 - **Checked:** avatar valid; Crawl 0.60 m/s, `dir=(0, 0, 1)`; 1.200 m per loop over 3 loops, with the Body's offset
   unchanged at every loop start.
 - **The test scene and the renders no longer change the scenes open in the editor:** `BeastsTestScene.Build` fills
   the scene additively, and the ooze's renders use a preview scene.
 
 ![The ooze in Unity: the clips posed, a goblin for scale](docs/images/ooze_unity_lineup.png)
+
+![Colour presets in Unity, with a giant black pudding, a small grey ooze and a goblin](docs/images/ooze_unity_presets.png)
+![Split from the front, from above and at 3/4](docs/images/ooze_clip_split.png)
+![The effects: acid glob, puddle, splash and drips](docs/images/ooze_unity_fx.png)
+
+## Warg
+
+The goblin raiders' mount (2026-10-12), from Daniel's reference: a massive, shaggy, dark brown-grey wolf with yellow
+eyes and bared fangs; the goblins' ones wear a saddle, a bridle and a bone war-mask. About 1.35x the wolf (withers
+1.1 m, nose to rump 2.1 m). Blender scene **Warg** (`WRG_*` cameras, a wolf beside it for scale).
+
+![The ridden warg, 3/4 view](docs/images/warg_34.png)
+
+| Part | Triangles | Texture |
+|---|---|---|
+| `WargBody`: fused fur body 4.3k, jaw, tongue, teeth and eyes 0.9k, hair shells 1.9k | 7,072 | `T_Warg` (dark), `T_Warg_Ash`, `T_Warg_Black` 1024², A = smoothness; `T_Warg_Normal` for all three |
+| `WargTack`: blanket, seat, girth, breast collar, stirrups, bridle, bit rings, reins | 1,564 | `T_WargTack` 512² + `T_WargTack_Normal` |
+| `WargMask`: the bone war-mask, two horns | 304 | (the tack's) |
+
+How it is built:
+
+- **The wolf's recipe, made bigger** (`warg_body`): the wolf's landmarks edited for a deeper chest, broader skull,
+  thicker legs and big paws, then mapped to the world by `hw()`, which enlarges the head, shortens and deepens the
+  muzzle (`_mz`) and scales everything by `S = 1.35`. The masks, the painter and the rig read wolf units through
+  `hw_inv`, so they read like the wolf's.
+- **The shag is separate hair** (`beast_coat.clump`): staggered tiers of spiky locks round the neck (`TIERS`: the
+  mane from the poll to the shoulders, each tier lying back over the next and stopping before the saddle), a bib
+  under the throat, a belly fringe, rings of locks making the tail a brush (`TAIL_RINGS`), fringes down the backs of
+  the forearms and single locks (cheeks, elbows, breeches). Each is rooted by a ray cast onto the fur and skinned like
+  the skin at its root. (Fused tufts melted into lumps at this size.)
+- **Eyes:** slanted almonds low at the stop under a heavy brow, laid onto a smooth fit of the socket.
+- **Paint** (`warg_paint`, the wolf's painter): long painted locks with dark partings on the coat, and on each hair
+  lock (its texels know its root: `bake_data(roots=True)`) strands down its length, a dark root and grizzled tips.
+  The same relief makes the normal map (`beast_paint.write_normal_map`, image-space gradients within each island).
+- **Tack** (`warg_tack`), for the ridden ones only: fitted onto the built body by ray casts (straps lie on the fur,
+  the blanket drapes over the back, the mask is notched clear of the eyes). Weights are copied from the skin under
+  each piece; the bridle and the mask ride on Head, the reins blend Head → Neck1 → Spine2. The info attribute holds
+  the part and (along, across) for the painter: stitching inside the straps' edges, the blanket's ochre border, the
+  mask's cracks and red war paint.
+
+Clips (`warg_anim`): the wolf's twelve, every distance ×1.35, the gaits a little slower.
+
+| Clip | Length | Notes |
+|---|---|---|
+| Idle / IdlePant | 4.0 s / 3.0 s loop | |
+| Walk / Trot / Run | 0.93 / 0.6 / 0.47 s loop | root motion 1.16 / 2.48 / 6.36 m/s |
+| Bite | 1.2 s | event `Bite` at 0.5 s |
+| Lunge | 1.6 s | leaps 2.2 m, event `Bite` at 0.93 s |
+| Threat, Howl, Hit | 2.4, 3.5, 0.5 s | `Howl` at 0.8 s |
+| Death / GetUp | 2.2 / 1.5 s | onto its left side, `Dead` at 1.9 s |
+
+**In Unity:** Tools > Beasts > Rebuild Warg (`WargSetup.cs`). `Prefabs/Warg` is wild (tack and mask off);
+`Prefabs/WargRidden` is saddled and masked. The `WargTack` component switches the two meshes (`saddled`, `masked`)
+and finds `Socket_Saddle` (`Seat`) for a rider. `BeastAppearance.target` puts the coat on `WargBody` only.
+
+![In Unity, ridden, with a goblin for scale](docs/images/warg_unity_ridden.png)
+
+![Clip poses in Unity: Idle, Walk, Trot, Run, Bite, Lunge, Howl, Death](docs/images/warg_unity_lineup.png)
+
+Rebuild in Blender (Warg scene on screen):
+
+```python
+import warg_build
+warg_build.show()
+body, rig, report = warg_build.build_model()      # body, rig, weights, UVs, coats
+import warg_tack; warg_tack.build(body, rig)      # the tack and the mask (work layer on: warg_build.work_layer(True))
+warg_build.export()                               # clips + Warg.fbx + textures into export/
+```

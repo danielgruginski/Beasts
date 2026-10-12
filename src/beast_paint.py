@@ -142,15 +142,15 @@ def unwrap(ob, cut, scales, unwarp=None, margin=0.003, relax=40):
     bm = bmesh.from_edit_mesh(ob.data)
     bm.faces.ensure_lookup_table()
     uv = bm.loops.layers.uv.active
-    for f in bm.faces:
-        lab = labels[f.index]
+    _tame_islands(bm, uv)                    # before the region scales (2026-10-12): after them, many small islands
+    for f in bm.faces:                       # scaled down (the warg's hair) dragged the median low and the eyes,
+        lab = labels[f.index]                # head and jaw were "tamed" back to it
         k = scales.get(lab.split('_')[0], 1.0)
         if lab.endswith('_sole'):
             k = scales.get('sole', 1.0)
         if k != 1.0:
             for l in f.loops:
                 l[uv].uv *= k
-    _tame_islands(bm, uv)
     bmesh.update_edit_mesh(ob.data)
     bpy.ops.uv.select_all(action='SELECT')
     bpy.ops.uv.pack_islands(margin=margin, rotate=True)
@@ -254,8 +254,9 @@ def _despeckle(ao, valid, r=5):
     return np.where(valid, np.maximum(ao, mean * 0.85), ao)
 
 
-def bake_data(ob, size=1024, ao_samples=96, ao_dist=0.25):
-    """Rest position, normal, info (part, on-jaw, aux: info.b, free for the creature) and AO per texel."""
+def bake_data(ob, size=1024, ao_samples=96, ao_dist=0.25, roots=False):
+    """Rest position, normal, info (part, on-jaw, aux: info.b, free for the creature) and AO per texel; with roots,
+    also where each texel's hair grows from (the 'root' point attribute of beast_coat's shells; D['root'])."""
     scn = bpy.context.scene
     prev_engine = scn.render.engine
     scn.render.engine = 'CYCLES'
@@ -299,10 +300,22 @@ def bake_data(ob, size=1024, ao_samples=96, ao_dist=0.25):
         a.attribute_name = "info"
         return a.outputs['Color']
 
+    def root(nt):
+        a = nt.nodes.new('ShaderNodeAttribute')
+        a.attribute_name = "root"
+        n = nt.nodes.new('ShaderNodeVectorMath')
+        n.operation = 'ADD'
+        n.inputs[1].default_value = (2, 2, 2)
+        nt.links.new(a.outputs['Vector'], n.inputs[0])
+        return n.outputs[0]
+
     scn.cycles.samples = 1
-    for key, builder in (("pos", lambda nt: geo(nt, 'Position', add=(2, 2, 2))),
-                         ("nrm", lambda nt: geo(nt, 'Normal', mul=(0.5, 0.5, 0.5), add=(0.5, 0.5, 0.5))),
-                         ("info", attr)):
+    bakes = [("pos", lambda nt: geo(nt, 'Position', add=(2, 2, 2))),
+             ("nrm", lambda nt: geo(nt, 'Normal', mul=(0.5, 0.5, 0.5), add=(0.5, 0.5, 0.5))),
+             ("info", attr)]
+    if roots and "root" in ob.data.attributes:
+        bakes.append(("root", root))
+    for key, builder in bakes:
         img = _bake_setup(ob, "_WLF_" + key, size, builder)
         bpy.ops.object.bake(type='EMIT', margin=6, use_clear=True)
         out[key] = _read(img)
@@ -326,8 +339,11 @@ def bake_data(ob, size=1024, ao_samples=96, ao_dist=0.25):
     N = out["nrm"][..., :3] * 2 - 1
     N /= np.maximum(np.linalg.norm(N, axis=-1, keepdims=True), 1e-6)
     eyes = {k: np.array(ob[k]) for k in ob.keys() if k.startswith("eye")}
-    return dict(P=P, N=N, part=np.rint(out["info"][..., 0] * 255).astype(int), on_jaw=out["info"][..., 1] > 0.5,
-                aux=out["info"][..., 2], ao=out["ao"], valid=valid, eyes=eyes)
+    D = dict(P=P, N=N, part=np.rint(out["info"][..., 0] * 255).astype(int), on_jaw=out["info"][..., 1] > 0.5,
+             aux=out["info"][..., 2], ao=out["ao"], valid=valid, eyes=eyes, info=out["info"])
+    if "root" in out:
+        D["root"] = out["root"][..., :3] - 2.0
+    return D
 
 
 def _c(h):
@@ -348,7 +364,7 @@ def _streaks(P, F, seed, across=0.010, length=0.035, steps=7):
     return acc / steps
 
 
-def write_texture(D, col, smooth, image_name, ob=None, material_name=None):
+def write_texture(D, col, smooth, image_name, ob=None, material_name=None, normal=None):
     os.makedirs(TEX_DIR, exist_ok=True)
     H, Wd = D['part'].shape
     img = bpy.data.images.get(image_name)
@@ -365,11 +381,50 @@ def write_texture(D, col, smooth, image_name, ob=None, material_name=None):
     img.file_format = 'PNG'
     img.save()
     if ob is not None:
-        game_material(ob, img, material_name or "M_" + image_name[2:])
+        game_material(ob, img, material_name or "M_" + image_name[2:], normal)
     return path
 
 
-def game_material(ob, img, name):
+def height_normals(D, height, strength=4.0):
+    """Tangent-space normal map (OpenGL: +Y up the V axis, as Unity and Blender read it) from a per-texel height
+    field: central differences within each island (a missing neighbour falls back to one side, none to flat), so
+    seams and gutters add no ridges. Returns (H, W, 3) in 0..1."""
+    v = D['valid']
+    h = np.where(v, height, 0.0)
+
+    def grad(axis):
+        fw = np.roll(h, -1, axis) - h
+        bw = h - np.roll(h, 1, axis)
+        vf = np.roll(v, -1, axis) & v
+        vb = np.roll(v, 1, axis) & v
+        return np.where(vf & vb, 0.5 * (fw + bw), np.where(vf, fw, np.where(vb, bw, 0.0)))
+    n = np.stack([-strength * grad(1), -strength * grad(0), np.ones_like(h)], -1)
+    n /= np.linalg.norm(n, axis=-1, keepdims=True)
+    return np.where(v[..., None], n * 0.5 + 0.5, np.array([0.5, 0.5, 1.0]))
+
+
+def write_normal_map(D, height, image_name, strength=4.0):
+    """height_normals -> textures/<image_name>.png (linear), gutters pushed out like the colour's. -> (path, image)"""
+    os.makedirs(TEX_DIR, exist_ok=True)
+    H, Wd = D['part'].shape
+    img = bpy.data.images.get(image_name)
+    if img is not None:
+        bpy.data.images.remove(img)
+    img = bpy.data.images.new(image_name, Wd, H, alpha=True)
+    img.colorspace_settings.name = 'Non-Color'
+    rgba = np.concatenate([height_normals(D, height, strength), np.ones((H, Wd, 1))], -1).astype(np.float32)
+    img.pixels.foreach_set(rgba.ravel())
+    fill_gutters(img, D['valid'])
+    path = os.path.join(TEX_DIR, image_name + ".png")
+    img.filepath_raw = path
+    img.file_format = 'PNG'
+    img.save()
+    return path, img
+
+
+def game_material(ob, img, name, normal=None):
+    """Principled with the painted texture (alpha = smoothness, as URP Lit reads it); normal: an optional
+    tangent-space normal map image."""
     m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     m.use_nodes = True
     nt = m.node_tree
@@ -384,6 +439,12 @@ def game_material(ob, img, name):
     nt.links.new(tex.outputs['Color'], bsdf.inputs['Base Color'])
     nt.links.new(tex.outputs['Alpha'], inv.inputs[1])
     nt.links.new(inv.outputs[0], bsdf.inputs['Roughness'])
+    if normal is not None:
+        nt_ = nt.nodes.new('ShaderNodeTexImage')
+        nt_.image = normal
+        nm = nt.nodes.new('ShaderNodeNormalMap')
+        nt.links.new(nt_.outputs['Color'], nm.inputs['Color'])
+        nt.links.new(nm.outputs['Normal'], bsdf.inputs['Normal'])
     nt.links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
     nt.nodes.active = tex
     ob.data.materials.clear()

@@ -148,10 +148,11 @@ def loop_anchors(spec, step, reach=0.3):
     return A, out, gap == 0
 
 
-def fringe(bm, bvh, anchors, closed, d, longs, shorts, thick, lift, rng, root_layer, outs=None):
+def fringe(bm, bvh, anchors, closed, d, longs, shorts, thick, lift, rng, root_layer, outs=None, dirs=None):
     """A curtain rooted along the anchors (snapped to the surface): samples alternate tooth centres (long, ridged
     outward) and gaps (short, a valley). Four vertices per sample: outer root, outer middle, tip, inner root.
-    UV cut along the inner root line, and across the strip every 16 samples. Returns its BMVerts."""
+    UV cut along the inner root line, and across the strip every 16 samples. dirs: a direction per anchor, in place
+    of d. Returns its BMVerts."""
     g = Vector((0, 0, -1))
     hits = [bvh.find_nearest(a) for a in anchors]
     P = [h[0] for h in hits]
@@ -163,6 +164,8 @@ def fringe(bm, bvh, anchors, closed, d, longs, shorts, thick, lift, rng, root_la
         a_, b_ = (P[(k + 1) % M], P[k - 1]) if closed else (P[min(k + 1, M - 1)], P[max(k - 1, 0)])
         t = (a_ - b_).normalized()
         D = Vector(d) if outs is None else outs[k] * d + Vector((0, 0, -1))   # loops: outward from their centre
+        if dirs is not None:
+            D = Vector(dirs[k])
         D = D - n * D.dot(n)
         D = (D.normalized() + lift * n)
         D = (D - t * D.dot(t)).normalized()

@@ -10,8 +10,8 @@ using static Beasts.EditorTools.BeastSetupUtil;
 namespace Beasts.EditorTools
 {
     /// <summary>
-    /// Scenes/Beasts_Test: a wolf pack, a rat swarm, the woolly rhino, bears, a mammoth, deer and two oozes on random
-    /// clips, and goblins around them (if Assets/Goblins is installed).
+    /// Scenes/Beasts_Test: a wolf pack, a rat swarm, the woolly rhino, bears, a mammoth, deer and oozes (two, three small,
+    /// a giant that splits) on random clips, and goblins around them (if Assets/Goblins is installed).
     /// Press Play. Tools > Beasts > Build Test Scene; the beast setups rebuild it too.
     /// </summary>
     public static class BeastsTestScene
@@ -25,8 +25,6 @@ namespace Beasts.EditorTools
             Build(log);
             Debug.Log(log.ToString());
         }
-
-        static bool AnyDirty() => Enumerable.Range(0, SceneManager.sceneCount).Any(i => SceneManager.GetSceneAt(i).isDirty);
 
         /// <summary>Built beside whatever is open (other tools and sessions keep their scenes): the test scene is
         /// created additively (or rebuilt in place if it is open), active only while it is filled, saved, and closed
@@ -85,6 +83,10 @@ namespace Beasts.EditorTools
                 (MammothSetup.PrefabPath, MammothSetup.SetPath, "Mammoth", "mammoths", 1, 8.0f, 3.5f, 5.0f),
                 (DeerSetup.PrefabPath, DeerSetup.SetPath, "Deer", "deer", 3, 4.5f, 2.6f, 3.0f),
                 (OozeSetup.PrefabPath, OozeSetup.SetPath, "Ooze", "oozes", 2, 6.0f, 1.6f, 3.5f),
+                (OozeSetup.SmallPrefabPath, OozeSetup.SetPath, "SmallOoze", "small oozes", 3, 3.0f, 0.9f, 2.0f),
+                (OozeSetup.GiantPrefabPath, OozeSetup.GiantSetPath, "GiantOoze", "giant oozes", 1, 8.0f, 2.5f, 5.5f),
+                (WargSetup.PrefabPath, WargSetup.SetPath, "Warg", "wargs", 2, 5.0f, 1.9f, 3.2f),
+                (WargSetup.RiddenPrefabPath, WargSetup.SetPath, "WargRidden", "saddled wargs", 2, 5.0f, 2.0f, 3.2f),
             })
             {
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
@@ -103,6 +105,8 @@ namespace Beasts.EditorTools
                     ra.wanderRadius = 13f;
                     ra.separation = separation;
                     ra.labelHeight = labelHeight;
+                    var split = go.GetComponent<OozeSplit>();
+                    if (split != null) split.respawnAfter = 25f;            // a split giant comes back to be watched again
                 }
                 counts.Add($"{count} {plural}");
             }
@@ -123,38 +127,58 @@ namespace Beasts.EditorTools
         public static void RenderLineup(GameObject prefab, Dictionary<string, AnimationClip> clips, (string clip, float t)[] poses,
                                         string dir, float spacing, float lookHeight, StringBuilder log)
         {
-            if (AnyDirty())
+            // in a preview scene (2026-10-12): the open scenes, other tools' and other sessions', are never touched
+            var scene = EditorSceneManager.NewPreviewScene();
+            bool async = ShaderUtil.allowAsyncCompilation;
+            ShaderUtil.allowAsyncCompilation = false;
+            try
             {
-                log.AppendLine("  renders skipped: an open scene has unsaved changes");
-                return;
+                void Add(GameObject g) => SceneManager.MoveGameObjectToScene(g, scene);
+                var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
+                Add(ground);
+                ground.transform.localScale = new Vector3(4, 1, 4);
+                var gm = AssetDatabase.LoadAssetAtPath<Material>(Scenes + "/M_BeastGround.mat");
+                if (gm != null) ground.GetComponent<Renderer>().sharedMaterial = gm;
+                var sun = new GameObject("Sun").AddComponent<Light>();
+                Add(sun.gameObject);
+                sun.type = LightType.Directional;
+                sun.intensity = 1.6f;
+                sun.shadows = LightShadows.Soft;
+                sun.transform.rotation = Quaternion.Euler(50, 200, 0);
+                float x0 = -(poses.Length - 1) * 0.5f * spacing;
+                for (int i = 0; i < poses.Length; i++)
+                {
+                    var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
+                    go.transform.SetPositionAndRotation(new Vector3(x0 + i * spacing, 0, 0), Quaternion.Euler(0, 200f, 0));
+                    if (clips.TryGetValue(poses[i].clip, out var c)) c.SampleAnimation(go, Mathf.Min(poses[i].t, c.length));
+                    foreach (var smr in go.GetComponentsInChildren<SkinnedMeshRenderer>()) smr.forceMatrixRecalculationPerRender = true;
+                }
+                var gob = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Goblins/Prefabs/Goblin_Spearman.prefab");
+                if (gob != null)
+                {
+                    var g = (GameObject)PrefabUtility.InstantiatePrefab(gob, scene);
+                    g.transform.SetPositionAndRotation(new Vector3(x0 - 2.2f, 0, 0.8f), Quaternion.Euler(0, 180f, 0));
+                }
+                float w = poses.Length * spacing;
+                void Shoot(string name, Vector3 pos, Vector3 at, float fov, string file, int pw, int ph, bool warm = false)
+                {
+                    var cam = MakeCamera(name, pos, at, fov);
+                    Add(cam.gameObject);
+                    cam.scene = scene;
+                    if (warm) Render(cam, dir, file, pw, ph);    // the first render of fresh skinned meshes can come out
+                    Render(cam, dir, file, pw, ph);              // empty (shadows only): render it twice
+                }
+                Shoot("CAM_Lineup", new Vector3(0, 3.5f + lookHeight, -w * 0.72f), new Vector3(0, lookHeight, 0), 45, "lineup.png", 1800, 800, true);
+                Shoot("CAM_Close", new Vector3(x0 + 1.3f, 1.2f + lookHeight, -4.2f), new Vector3(x0, lookHeight, 0), 38, "close.png", 1200, 900);
+                Shoot("CAM_Colony", new Vector3(0, 40 * Mathf.Sin(50 * Mathf.Deg2Rad), -40 * Mathf.Cos(50 * Mathf.Deg2Rad)),
+                      new Vector3(0, 0.5f, 0), 30, "lineup_colony_40m.png", 1600, 900);
+                log.AppendLine("  renders: " + dir);
             }
-            var previousPath = SceneManager.GetActiveScene().path;
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Lighting(40f);
-            float x0 = -(poses.Length - 1) * 0.5f * spacing;
-            for (int i = 0; i < poses.Length; i++)
+            finally
             {
-                var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-                go.transform.position = new Vector3(x0 + i * spacing, 0, 0);
-                go.transform.rotation = Quaternion.Euler(0, 200f, 0);
-                if (clips.TryGetValue(poses[i].clip, out var c)) c.SampleAnimation(go, Mathf.Min(poses[i].t, c.length));
+                ShaderUtil.allowAsyncCompilation = async;
+                EditorSceneManager.ClosePreviewScene(scene);
             }
-            var gob = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Goblins/Prefabs/Goblin_Spearman.prefab");
-            if (gob != null)
-            {
-                var g = (GameObject)PrefabUtility.InstantiatePrefab(gob);
-                g.transform.SetPositionAndRotation(new Vector3(x0 - 2.2f, 0, 0.8f), Quaternion.Euler(0, 180f, 0));
-            }
-            float w = poses.Length * spacing;
-            Render(MakeCamera("CAM_Lineup", new Vector3(0, 3.5f + lookHeight, -w * 0.72f), new Vector3(0, lookHeight, 0), 45), dir, "lineup.png", 1800, 800);
-            Render(MakeCamera("CAM_Close", new Vector3(x0 + 1.3f, 1.2f + lookHeight, -4.2f), new Vector3(x0, lookHeight, 0), 38), dir, "close.png", 1200, 900);
-            Render(MakeCamera("CAM_Colony", new Vector3(0, 40 * Mathf.Sin(50 * Mathf.Deg2Rad), -40 * Mathf.Cos(50 * Mathf.Deg2Rad)),
-                              new Vector3(0, 0.5f, 0), 30), dir, "lineup_colony_40m.png", 1600, 900);
-            log.AppendLine("  renders: " + dir);
-            if (!string.IsNullOrEmpty(previousPath) && AssetDatabase.LoadAssetAtPath<SceneAsset>(previousPath) != null)
-                EditorSceneManager.OpenScene(previousPath, OpenSceneMode.Single);
-            else if (AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) != null)
-                EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
         }
 
         /// <summary>Goblins from Assets/Goblins (if installed) on their own random clips around the pack.

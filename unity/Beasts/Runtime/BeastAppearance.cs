@@ -11,6 +11,8 @@ namespace Beasts
     public class BeastAppearance : MonoBehaviour
     {
         public Material[] skins;
+        [Tooltip("The skinned mesh the skins go on (empty = the first one; the warg's tack is a mesh of its own).")]
+        public SkinnedMeshRenderer target;
         [Tooltip("Which material of the skinned mesh the skins replace (the wasp's wings are slot 1).")]
         public int materialSlot;
         [Tooltip("Uniform scale range.")]
@@ -27,7 +29,7 @@ namespace Beasts
         void Roll(int s)
         {
             var rng = new System.Random(s);
-            var smr = GetComponentInChildren<SkinnedMeshRenderer>();
+            var smr = target != null ? target : GetComponentInChildren<SkinnedMeshRenderer>();
             string skin = "";
             if (smr != null && skins != null && skins.Length > 0)
             {

@@ -3,19 +3,22 @@ matrices (parents first, every child carried by its parent's motion) and `build_
 scale per bone. The skeleton plays in place; Motion carries the travel (Crawl).
 
 A pose holds:
-  dome        the Dome's squash/stretch (scale along world X, Y, Z about its head on the floor) and lean (deg, +
-              forward, + to its left). Whatever sits in the domed part of the mass (pod bases, contents) follows it
-              by the same height weight the skin uses (ooze_rig.DOME_Z).
+  dome        the dome transform (DomeL, DomeR and WaistTop take it): squash/stretch (scale along world X, Y, Z
+              about the head on the floor) and lean (deg, + forward, + to its left), composed by each call.
+              Whatever sits in the domed part of the mass (pod bases, contents) follows it by the same height
+              weight the skin uses (ooze_rig.DOME_Z).
   loc / rot   world-space offsets and rotations (about the bone's head) per bone
   bend / ext  local pitch / yaw (deg; pods: + pitch lifts, the Probe: + curls forward) and stretch along the bone (m)
-  scl         local scale (leaf bones only: Dome, the pod tips (uniform), Nucleus, Vac*)
+  scl         local scale (leaf bones only: the domes and waists, the pod tips (uniform), Nucleus*, Vac*, Tail)
+  free        bones posed on their own that otherwise copy another (Nucleus2 copies Nucleus)
   curve       pod -> (control point, tip, weight): the pod's chain laid along a quadratic curve from its base,
               blended with the bent chain by the weight (reach for a point, wrap round a victim, flop down dead)
 
 Clips: Idle, Crawl (root motion), Lash (the Probe slams down in front), Grab (Reach shoots out and pulls back),
 Engulf (Reach and Lead close round a victim, the dome rolls over it: Socket_Mouth carries it in to Socket_Gut), Spit
 (the Probe aims, the dome pumps: a glob from Socket_Spit), Hit, Death (collapses to a puddle, vacuoles pop, the
-remains sink), Puddle (lying flat, alive: an ambush), Rise (from the puddle).
+remains sink), Puddle (lying flat, alive: an ambush), Rise (from the puddle), Split (binary fission into two halves,
+for a big ooze: the game swaps in two smaller ones at the event) and Reform (such a new ooze taking shape).
 """
 import math
 import numpy as np
@@ -26,6 +29,7 @@ from beast_anim import track as K, _fcurves
 from beast_common import smoothstep
 import ooze_body as OB
 import ooze_rig as OR
+from ooze_contents import NUCLEUS2
 
 RIG = OR.RIG
 FPS = 30
@@ -36,13 +40,17 @@ PIECES = ("Nucleus", "Skull", "Femur", "Shin", "Helm", "Sword", "Coins")
 VACS = tuple(f"Vac{i + 1}" for i in range(7))
 MOVING = {"Crawl"}
 CRAWL_LOOP = 1.2                      # m per Crawl loop (2 s): 0.6 m/s
-EVENTS = {"Lash": [("Hit", 20 / FPS)], "Grab": [("Hit", 18 / FPS)],
+SPLIT_AT = 58                          # Split: the frame it comes apart (event Split: the game swaps in two oozes)
+SPLIT_D = 0.55                         # each half's travel (m, before scale): they end centred at +-(HALF_X + SPLIT_D)
+SPLIT_SCALE = 0.79                     # each new ooze's scale against the old one: half the volume
+STUB = 0.30                            # a drawn-in pod's length (ball)
+EVENTS = {"Lash": [("Hit", 20 / FPS)], "Grab": [("Hit", 18 / FPS)], "Hit": [("Hurt", 2 / FPS)],
           "Engulf": [("Grab", 22 / FPS), ("Engulf", 46 / FPS)], "Spit": [("Spit", 21 / FPS)],
-          "Death": [("Dead", 56 / FPS)], "Rise": [("Risen", 30 / FPS)]}
+          "Death": [("Dead", 56 / FPS)], "Rise": [("Risen", 30 / FPS)], "Split": [("Split", SPLIT_AT / FPS)]}
 SHEET_FRAMES = {"Idle": (0, 22, 45, 67), "Crawl": (0, 15, 30, 45), "Lash": (0, 13, 20, 26, 40),
                 "Grab": (0, 10, 18, 28, 44), "Engulf": (0, 14, 22, 34, 46, 62, 80), "Spit": (0, 14, 21, 30, 44),
                 "Hit": (0, 3, 7, 12, 24), "Death": (0, 12, 24, 36, 56, 70), "Puddle": (0, 45),
-                "Rise": (0, 10, 20, 30, 40, 50)}
+                "Rise": (0, 10, 20, 30, 40, 50), "Split": (0, 16, 30, 44, 58, 75), "Reform": (0, 10, 22, 32, 50)}
 
 
 def rad(d):
@@ -63,6 +71,7 @@ class OozePose:
         self.dome_s = Vector((1, 1, 1))        # world X, Y, Z
         self.dome_lean = [0.0, 0.0]            # deg: forward (about X), to its left (about -Y)
         self.loc, self.rot, self.bend_, self.ext_, self.scl, self.curve_ = {}, {}, {}, {}, {}, {}
+        self.free = set()                      # bones posed on their own that otherwise copy another (Nucleus2)
 
     def dome(self, sz=1.0, sx=None, sy=None, lean=0.0, roll=0.0):
         """Compose onto the dome: sz height, sx, sy width and depth (default: volume kept, 1/sqrt(sz)); leans add."""
@@ -170,6 +179,9 @@ def _curve_chain(rig_R, pod, P0, C, T):
 def pose_world(rig, p):
     """-> armature-space matrix per bone."""
     R = rest(rig)
+    for d in (p.loc, p.rot, p.bend_, p.ext_, p.scl):          # the twin nucleus rides inside the nucleus
+        if "Nucleus2" not in p.free and "Nucleus" in d:
+            d["Nucleus2"] = d["Nucleus"]
     world, done = {}, set()
     bones = sorted(rig.data.bones, key=lambda b: len(b.parent_recursive))
     for b in bones:
@@ -180,7 +192,7 @@ def pose_world(rig, p):
         Dp = world[par] @ R[par].inverted() if par else Matrix.Identity(4)
         if n == "Motion":
             world[n] = Matrix.Translation(p.root) @ R[n]
-        elif n == "Dome":
+        elif n in OR.DOMES:                                  # DomeL, DomeR, WaistTop: the shared dome transform
             world[n] = Dp @ p.dome_matrix() @ _delta_matrix(p, n, R[n], follow=False)
         elif n.endswith("1") and n[:-1] in OB.POD:
             pod = n[:-1]
@@ -199,7 +211,7 @@ def pose_world(rig, p):
                 world[m] = Dp @ chain[m]
                 done.add(m)
         else:
-            world[n] = Dp @ _delta_matrix(p, n, R[n], follow=n in PIECES or n in VACS or n.startswith("Socket_Gut"))
+            world[n] = Dp @ _delta_matrix(p, n, R[n], follow=n in PIECES or n in VACS or n == "Nucleus2" or n.startswith("Socket_Gut"))
     return world
 
 
@@ -558,8 +570,108 @@ def _clip_rise():
     return N, fn, False
 
 
+def ball(p, rig, c):
+    """Pods drawn in to stubs and the dome rounded, c of the way: a blob. Split ends in two of these (each half of
+    one), Reform starts from one, so the swap from one ooze to two lines up."""
+    if c <= 1e-4:
+        return
+    p.dome(sz=1 + 0.10 * c, sx=1 - 0.05 * c, sy=1 - 0.05 * c)
+    for pod, info in OB.POD.items():
+        pts = [Vector(q[:3]) for q in info["pts"]]
+        d = pts[1] - pts[0]
+        if pod in FLOOR_PODS:
+            d.z = 0
+        d.normalize()
+        T, C = pts[0] + d * STUB, pts[0] + d * (STUB * 0.5)
+        s = 1 - 0.35 * c
+        if pod in FLOOR_PODS:                      # on the floor: the tip stays at its own height, keeps its height
+            T.z = C.z = pts[2].z
+            p.scale(f"{pod}3", Vector((s, s, 1)))
+        else:
+            p.scale(f"{pod}3", s)
+        p.curve(pod, C, T, c)
+
+
+def carry(p, n, pivot, axis, deg, offset):
+    """Move bone n as if it rode on a part that turns `deg` about `axis` through `pivot`, then shifts by offset."""
+    h = rest(bpy.data.objects[RIG])[n].to_translation()
+    M = Matrix.Rotation(rad(deg), 3, Vector(axis))
+    q = Vector(pivot)
+    p.move(n, (q + M @ (h - q)) - h + Vector(offset))
+    p.turn(n, axis, deg)
+
+
+def _clip_split():
+    """Binary fission: the pods draw in, the nucleus divides, the mass parts left and right with a waist pinching
+    between the halves, which round up and lean apart; at SPLIT_AT (event Split) the strand snaps. The game swaps
+    in two oozes there (SPLIT_SCALE x this one's size, at +-(HALF_X + SPLIT_D), playing Reform), behind a splash."""
+    N = 75
+
+    def fn(f):
+        rig = bpy.data.objects[RIG]
+        R = rest(rig)
+        p = OozePose()
+        ball(p, rig, K([(0, 0), (18, 1), (75, 1)], f))
+        shiver = math.exp(-((f - 10) / 8.0) ** 2) * math.sin(f * 1.9)
+        p.dome(sz=1 + 0.04 * shiver)
+        fis = K([(0, 0), (6, 0), (28, 1), (75, 1)], f)                     # the nucleus divides first
+        sep = K([(0, 0), (20, 0), (40, 0.42), (54, 0.9), (SPLIT_AT, 1.0), (66, 1.04), (75, 1.0)], f)
+        pinch = K([(0, 0), (22, 0), (44, 0.65), (SPLIT_AT - 2, 1.0), (75, 1.0)], f)
+        roll = K([(0, 0), (24, 0), (48, 1.6), (SPLIT_AT, 2.0), (66, 0.6), (75, 0)], f)
+        d = SPLIT_D * sep
+        # each half leans apart about its outer foot (about its middle, the outer rim went 11 cm into the floor)
+        sides = {"L": (1, Vector((OR.HALF_X + 0.85, 0.05, 0))), "R": (-1, Vector((-OR.HALF_X - 0.85, 0.05, 0)))}
+        for s, (sx, pivot) in sides.items():
+            carry(p, "Half" + s, pivot, (0, 1, 0), sx * roll, (sx * d, 0, 0))     # the tops lean apart
+            k = 1 - 0.16 * pinch                                              # each half rounds up into a blob:
+            p.scale("Dome" + s, Vector((k, 1 + 0.08 * pinch, 1 - 0.04 * pinch)))   # narrower about its own middle
+            p.move("Dome" + s, (sx * (1 - k) * 0.45, 0, 0))                  # (the bone sits at the centre)
+        p.scale("WaistTop", Vector((1, 1 - 0.88 * pinch, 1 - 0.7 * pinch)))   # local (x, up, depth)
+        p.scale("WaistLow", Vector((1, 1 - 0.5 * pinch, 1 - 0.7 * pinch)))
+        p.scale("Tail", Vector((1 - 0.6 * pinch, 1 - 0.6 * pinch, 1)))         # its height kept: the rim stays down
+        if f > SPLIT_AT:                                                      # the snap: both halves wobble
+            j = math.exp(-(f - SPLIT_AT) / 5.0) * math.cos((f - SPLIT_AT) / 1.8)
+            for s in ("DomeL", "DomeR"):
+                p.scale(s, Vector((1 + 0.04 * j, 1 - 0.08 * j, 1 + 0.04 * j)))
+        # the contents go with their side's half
+        p.free.add("Nucleus2")
+        for n in [x for x in PIECES if x != "Nucleus"] + list(VACS):
+            hx = R[n].to_translation().x
+            sx, pivot = sides["L" if hx >= 0 else "R"]
+            deeper = 0.25 * (1 - smoothstep(0.1, 0.45, abs(hx)))           # near the middle: further in, clear
+            carry(p, n, pivot, (0, 1, 0), sx * roll, (sx * d * (1 + deeper), 0, 0))   # of the waist
+        carry(p, "Nucleus", sides["L"][1], (0, 1, 0), roll, (d + 0.08 * fis, 0, 0))
+        carry(p, "Nucleus2", sides["R"][1], (0, 1, 0), -roll, (-d - 0.22 * fis, 0, 0))
+        p.scale("Nucleus2", 1 + (1 / NUCLEUS2 - 1) * fis)
+        p.scale("Nucleus", 1 + 0.06 * math.sin(math.pi * fis))
+        return p
+    return N, fn, False
+
+
+def _clip_reform():
+    """A new ooze from a Split: a blob (the ball pose), the pods pushing out with an overshoot, a jiggle into Idle."""
+    N = 50
+
+    def fn(f):
+        rig = bpy.data.objects[RIG]
+        p = OozePose()
+        c = K([(0, 1), (6, 1), (28, 0.12), (36, -0.06), (42, 0.02), (50, 0)], f)
+        ball(p, rig, max(c, 0.0))
+        if c < 0:
+            for pod in PODS:
+                stretch(p, pod, -c * 0.8)                                     # reaching a little past rest
+        j = math.exp(-f / 10.0) * math.sin(f / 2.0)
+        p.dome(sz=1 + 0.06 * j)
+        amp = float(smoothstep(0.5, 1.0, f / N))
+        breathe(p, f, N, amp)
+        drift(p, f, N, amp)
+        return p
+    return N, fn, False
+
+
 CLIPS = {"Idle": _clip_idle, "Crawl": _clip_crawl, "Lash": _clip_lash, "Grab": _clip_grab, "Engulf": _clip_engulf,
-         "Spit": _clip_spit, "Hit": _clip_hit, "Death": _clip_death, "Puddle": _clip_puddle, "Rise": _clip_rise}
+         "Spit": _clip_spit, "Hit": _clip_hit, "Death": _clip_death, "Puddle": _clip_puddle, "Rise": _clip_rise,
+         "Split": _clip_split, "Reform": _clip_reform}
 
 
 # ----------------------------------------------------------------------------------------- build / use

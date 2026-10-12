@@ -292,13 +292,13 @@ def texel_bake(ob, size):
     return F >= 0, P, N, F
 
 
-def _save(name, rgba, mask, size):
+def _save(name, rgba, mask, size, colorspace='sRGB'):
     img = bpy.data.images.get(name)
     if img is None or tuple(img.size) != (size, size):
         if img is not None:
             bpy.data.images.remove(img)
         img = bpy.data.images.new(name, size, size, alpha=True)
-    img.colorspace_settings.name = 'sRGB'
+    img.colorspace_settings.name = colorspace
     img.alpha_mode = 'CHANNEL_PACKED'
     img.pixels.foreach_set(np.ascontiguousarray(rgba, np.float32).ravel())
     fill_gutters(img, mask)
@@ -312,8 +312,20 @@ def _save(name, rgba, mask, size):
 
 # ------------------------------------------------------------------ shell paint
 
-SHELL_PAL = dict(core="#2c5a12", mid="#4f8c1c", thin="#a6d455", crevice="#173208", streak="#3a7014",
-                 fleck="#c8e47a")
+# The colour is the shader's (Unity's Beasts/OozeJelly, M_Ooze here): T_Ooze holds masks, and a preset's colours map
+# them. Same presets as OozeLook.Presets in Unity. opacity scales the texture's alpha.
+PRESETS = {
+    "Green": dict(thin="#a6d455", mid="#4f8c1c", core="#2c5a12", crevice="#173208", opacity=1.0),   # acid ooze
+    "Grey": dict(thin="#c4c8bf", mid="#868c84", core="#4c524c", crevice="#22261f", opacity=1.0),    # grey ooze
+    "Black": dict(thin="#5c4e62", mid="#2a2231", core="#130f17", crevice="#060408", opacity=1.45),  # black pudding
+    "Ochre": dict(thin="#f2d173", mid="#c88f2e", core="#7e4f19", crevice="#3a2208", opacity=1.0),   # ochre jelly
+    "Crimson": dict(thin="#e58272", mid="#a42c26", core="#5a0f11", crevice="#260405", opacity=1.1),
+}
+
+
+def preset_linear(name):
+    p = PRESETS[name]
+    return {k: (srgb_to_lin(hexc(v)) if isinstance(v, str) else v) for k, v in p.items()}
 
 
 def _pod_membership(P):
@@ -335,9 +347,10 @@ def _pod_membership(P):
     return w, tan
 
 
-def paint_shell(ob, size=1024, name="T_Ooze", pal=None):
-    pal = dict(SHELL_PAL, **(pal or {}))
-    C = {k: srgb_to_lin(hexc(v)) for k, v in pal.items()}
+def paint_shell(ob, size=1024, name="T_Ooze"):
+    """T_Ooze, linear masks (the shader colours them): R tone (0 thin -> 0.5 mid -> 1 core, by the jelly's thickness),
+    G shade (ambient occlusion: creases go dark), B detail (0.5 neutral: lumps lighter, streaks along the pods
+    darker, a few pale flecks), A opacity (thick core denser, tips and the skirt's edge clear)."""
     mask, P, N, F = texel_bake(ob, size)
     p, n = P[mask].astype(float), N[mask].astype(float)
     # thickness: the deepest the field gets along the inward normal
@@ -359,24 +372,21 @@ def paint_shell(ob, size=1024, name="T_Ooze", pal=None):
 
     t_thin = smoothstep(0.06, 0.32, thick)                 # 0 at tips and the skirt's edge, 1 in the mass
     t_core = smoothstep(0.30, 0.65, thick)
-    col = C["thin"] * (1 - t_thin)[:, None] + C["mid"] * t_thin[:, None]
-    col = col * (1 - t_core)[:, None] + C["core"] * t_core[:, None]
-    col = col * (1 + 0.18 * blot)[:, None]
-    sk = smoothstep(0.15, 0.55, streak)[:, None] * 0.55
-    col = col * (1 - sk) + C["streak"] * sk
-    cr = (1 - smoothstep(0.55, 0.95, ao))[:, None]
-    col = col * (1 - cr) + C["crevice"] * cr
-    col = col * (0.75 + 0.25 * ao)[:, None]
-    fleck = smoothstep(0.86, 0.95, fl)[:, None] * 0.35 * (1 - t_core)[:, None]
-    col = col * (1 - fleck) + C["fleck"] * fleck
+    tone = 0.5 * t_thin + 0.5 * t_core                     # the shader: thin -> mid below 0.5, mid -> core above
+    sk = smoothstep(0.15, 0.55, streak) * 0.55
+    fleck = smoothstep(0.86, 0.95, fl) * 0.35 * (1 - t_core)
+    factor = (1 + 0.18 * blot) * (1 - 0.3 * sk) * (1 + 0.5 * fleck)
+    detail = np.clip(0.5 + (factor - 1) / 0.9, 0, 1)      # the shader: colour x (0.55 + 0.9 detail)
     alpha = 0.19 + 0.20 * t_thin + 0.10 * t_core + 0.10 * (1 - ao) + 0.03 * blot
     alpha = np.clip(alpha, 0.14, 0.6)
 
     rgba = np.zeros((size, size, 4), np.float32)
-    rgba[..., 3] = 1.0
-    rgba[mask, :3] = lin_to_srgb(col)
+    rgba[..., :] = (0.5, 1.0, 0.5, 0.3)
+    rgba[mask, 0] = tone
+    rgba[mask, 1] = ao
+    rgba[mask, 2] = detail
     rgba[mask, 3] = alpha
-    img = _save(name, rgba, mask, size)
+    img = _save(name, rgba, mask, size, colorspace='Non-Color')
     return img, dict(coverage=float(mask.mean()), thick=(float(thick.min()), float(np.median(thick)), float(thick.max())),
                      alpha=(float(alpha.min()), float(np.median(alpha)), float(alpha.max())))
 
@@ -462,32 +472,83 @@ def _img_node(nt, img, loc):
     return t
 
 
-def shell_material(img, name="M_Ooze", smoothness=0.9, fresnel=0.45, glow=0.06):
-    """Principled, colour + opacity from T_Ooze, opacity raised toward the silhouette (fresnel), a faint inner glow
-    in the colour so the shadowed side isn't black; dithered so the back faces and contents show in order."""
+def shell_material(img, name="M_Ooze", preset="Green", smoothness=0.9, fresnel=0.45, glow=0.06):
+    """Principled with T_Ooze's masks coloured by a preset the way Unity's Beasts/OozeJelly does (tone through thin,
+    mid and core; creases toward the crevice colour; detail x 0.55..1.45), opacity raised toward the silhouette
+    (fresnel), a faint inner glow in the colour so the shadowed side isn't black; dithered so the back faces and the
+    contents show in order."""
+    P = preset_linear(preset)
     m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     m.use_nodes = True
     nt = m.node_tree
     for nd in list(nt.nodes):
         nt.nodes.remove(nd)
-    out = nt.nodes.new("ShaderNodeOutputMaterial")
-    out.location = (700, 0)
-    b = nt.nodes.new("ShaderNodeBsdfPrincipled")
-    b.location = (350, 0)
-    t = _img_node(nt, img, (-400, 100))
-    lw = nt.nodes.new("ShaderNodeLayerWeight")
-    lw.location = (-400, -250)
+    N = nt.nodes.new
+    L = nt.links.new
+    out = N("ShaderNodeOutputMaterial")
+    out.location = (1300, 0)
+    b = N("ShaderNodeBsdfPrincipled")
+    b.location = (950, 0)
+    t = _img_node(nt, img, (-700, 100))
+    sep = N("ShaderNodeSeparateColor")
+    sep.location = (-420, 100)
+    L(t.outputs["Color"], sep.inputs[0])
+    ramp = N("ShaderNodeValToRGB")                    # tone: thin -> mid -> core
+    ramp.location = (-200, 300)
+    els = ramp.color_ramp.elements
+    els[0].position, els[0].color = 0.0, (*P["thin"], 1)
+    els[1].position, els[1].color = 1.0, (*P["core"], 1)
+    mid = els.new(0.5)
+    mid.color = (*P["mid"], 1)
+    L(sep.outputs[0], ramp.inputs[0])
+    crev = N("ShaderNodeMapRange")                    # 1 - smoothstep(0.55, 0.95, shade)
+    crev.location = (-200, 0)
+    crev.interpolation_type = 'SMOOTHSTEP'
+    crev.inputs[1].default_value, crev.inputs[2].default_value = 0.55, 0.95
+    crev.inputs[3].default_value, crev.inputs[4].default_value = 1.0, 0.0
+    L(sep.outputs[1], crev.inputs[0])
+    mix = N("ShaderNodeMix")
+    mix.data_type = 'RGBA'
+    mix.location = (100, 250)
+    L(crev.outputs[0], mix.inputs[0])
+    L(ramp.outputs[0], mix.inputs[6])
+    mix.inputs[7].default_value = (*P["crevice"], 1)
+    shade = N("ShaderNodeMapRange")                   # x (0.75 + 0.25 shade)
+    shade.location = (100, 0)
+    shade.inputs[3].default_value, shade.inputs[4].default_value = 0.75, 1.0
+    L(sep.outputs[1], shade.inputs[0])
+    det = N("ShaderNodeMapRange")                     # x (0.55 + 0.9 detail)
+    det.location = (100, -200)
+    det.inputs[3].default_value, det.inputs[4].default_value = 0.55, 1.45
+    L(sep.outputs[2], det.inputs[0])
+    k = N("ShaderNodeMath")
+    k.operation = 'MULTIPLY'
+    k.location = (350, -100)
+    L(shade.outputs[0], k.inputs[0])
+    L(det.outputs[0], k.inputs[1])
+    col = N("ShaderNodeVectorMath")
+    col.operation = 'SCALE'
+    col.location = (600, 150)
+    L(mix.outputs[2], col.inputs[0])
+    L(k.outputs[0], col.inputs["Scale"])
+    lw = N("ShaderNodeLayerWeight")
+    lw.location = (100, -450)
     lw.inputs["Blend"].default_value = 0.5
-    mul = nt.nodes.new("ShaderNodeMath")
+    op = N("ShaderNodeMath")                          # alpha x the preset's opacity
+    op.operation = 'MULTIPLY'
+    op.location = (350, -350)
+    L(t.outputs["Alpha"], op.inputs[0])
+    op.inputs[1].default_value = P["opacity"]
+    mul = N("ShaderNodeMath")
     mul.operation = 'MULTIPLY_ADD'
     mul.use_clamp = True
-    mul.location = (0, -200)
+    mul.location = (600, -350)
     mul.inputs[1].default_value = fresnel
-    nt.links.new(lw.outputs["Facing"], mul.inputs[0])
-    nt.links.new(t.outputs["Alpha"], mul.inputs[2])
-    nt.links.new(t.outputs["Color"], b.inputs["Base Color"])
-    nt.links.new(mul.outputs[0], b.inputs["Alpha"])
-    nt.links.new(t.outputs["Color"], b.inputs["Emission Color"])
+    L(lw.outputs["Facing"], mul.inputs[0])
+    L(op.outputs[0], mul.inputs[2])
+    L(col.outputs[0], b.inputs["Base Color"])
+    L(mul.outputs[0], b.inputs["Alpha"])
+    L(col.outputs[0], b.inputs["Emission Color"])
     b.inputs["Emission Strength"].default_value = glow
     b.inputs["Roughness"].default_value = 1 - smoothness
     b.inputs["IOR"].default_value = 1.35

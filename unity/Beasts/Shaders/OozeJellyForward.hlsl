@@ -41,11 +41,21 @@ JVaryings JellyVert(JAttributes a)
     return o;
 }
 
+// The masks to a colour (ooze_paint.shell_material builds the same in Blender): tone through thin, mid and core;
+// creases toward the crevice colour; detail lightens lumps and darkens the streaks.
+half3 JellyColour(half4 m)
+{
+    half3 c = m.r < 0.5 ? lerp(_ThinColor.rgb, _MidColor.rgb, m.r * 2) : lerp(_MidColor.rgb, _CoreColor.rgb, m.r * 2 - 1);
+    c = lerp(c, _CreviceColor.rgb, 1 - smoothstep(0.55, 0.95, m.g));
+    return c * (0.75 + 0.25 * m.g) * (0.55 + 0.9 * m.b);
+}
+
 // facing: +1 the near side, -1 the far side (seen from inside, its normal turned toward the eye); fade scales it.
 half4 JellyShade(JVaryings i, half facing, half fade)
 {
     UNITY_SETUP_INSTANCE_ID(i);
-    half4 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv) * _BaseColor;
+    half4 m = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv);
+    half4 tex = half4(JellyColour(m), m.a);
     float3 v = GetWorldSpaceNormalizeViewDir(i.positionWS);
     float3 n = NormalizeNormalPerPixel(i.normalWS) * facing;
     half rim = pow(1 - saturate(dot(n, v)), _FresnelPower);

@@ -106,6 +106,26 @@ namespace Beasts.EditorTools
             return mat;
         }
 
+        /// <summary>A tangent-space normal map (OpenGL, as Blender writes it) on a Lit material: imported as a normal
+        /// map, set as _BumpMap.</summary>
+        public static void AddNormalMap(Material mat, string texPath, float scale = 1f)
+        {
+            if (AssetImporter.GetAtPath(texPath) is TextureImporter ti)
+            {
+                ti.textureType = TextureImporterType.NormalMap;
+                ti.maxTextureSize = 1024;
+                ti.mipmapEnabled = true;
+                ti.textureCompression = TextureImporterCompression.CompressedHQ;
+                ti.SaveAndReimport();
+            }
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
+            if (tex == null || !mat.HasProperty("_BumpMap")) return;
+            mat.SetTexture("_BumpMap", tex);
+            if (mat.HasProperty("_BumpScale")) mat.SetFloat("_BumpScale", scale);
+            mat.EnableKeyword("_NORMALMAP");
+            EditorUtility.SetDirty(mat);
+        }
+
         /// <summary>URP Lit, transparent (alpha blended), both faces (wings, membranes).</summary>
         public static Material MakeTransparentLit(string name, string texPath, Color tint, float smoothness)
         {

@@ -16,6 +16,7 @@ import ooze_body as OB
 
 PART = dict(nucleus=1, bone=2, blade=3, grip=4, brass=5, helm=6, coin=7, vacuole=8)
 MARGIN = 0.07
+NUCLEUS2 = 0.84                     # the twin nucleus's size (Split grows it to 1)
 
 
 # ------------------------------------------------------------------ small mesh builders (local space, numpy)
@@ -230,6 +231,8 @@ def placements():
     items = []
     V, F = _nucleus()
     items.append(("nucleus", V, F, PART["nucleus"], _xf((0.10, 0.22, 0.52), (0, 0, 20))))
+    # its twin, a little smaller and hidden inside it: it grows out when the ooze divides (Split, on its own bone)
+    items.append(("nucleus2", V * NUCLEUS2, F, PART["nucleus"], _xf((0.10, 0.22, 0.52), (0, 0, 200))))
     V, F = _skull()
     items.append(("skull", V, F, PART["bone"], _xf((-0.30, -0.26, 0.40), (18, -22, 38))))
     V, F = _long_bone(0.46)

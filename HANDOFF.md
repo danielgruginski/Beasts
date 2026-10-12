@@ -217,6 +217,62 @@ checks.
     - **`EditorApplication.delayCall` doesn't tick while Unity is in the background,** so `AutoBuild` never ran. Run
       `OozeSetup.Build()` with RunCommand. The RunCommand sandbox rejects `using System.Reflection`; write
       `(System.Reflection.BindingFlags)40` inline.
+  - **The extras (2026-10-12, same day), installed too:**
+    - colour by shader (T_Ooze is masks now) with five presets;
+    - Giant and Small prefabs;
+    - Split and Reform clips, with the rig's halves, waist and twin nucleus (47 bones);
+    - `OozeLook`, `OozeFx`, `OozeGlob` and `OozeSplit`.
+
+    The 10 older clips came through the rig change within a few cm (99% of vertices within 3 cm; up to 10 cm in
+    Lash's lean: the 4-influence cap in the middle band). All 12 pass `ooze_anim.report()`.
+  - Gotchas from the extras:
+    - **`Mathf.SmoothStep(a, b, t)` interpolates from a to b;** it is not GLSL's smoothstep. Used as one, the effect
+      textures came out nearly opaque everywhere (`OozeSetup.Smooth` is the real one).
+    - **URP Particles/Lit's "preserve specular" (`_BlendModePreserveSpecular`, on by default)** keeps reflections at
+      full strength on clear texels, so every puddle and drop quad showed whole. It is off on the ooze's effect
+      materials.
+    - **Testing the effects without play mode:**
+      - build them in a temporary additive scene (active only during the call) via reflection on Awake/Start, simulate
+        the particle systems, render, then close the scene unsaved;
+      - place it far from the open scene's creatures, since the camera renders every loaded scene;
+      - `Destroy` logs an error in edit mode, which is harmless there;
+      - a TrailRenderer builds no geometry in edit mode, so **the trail is still unverified**: look at it in play.
+    - **Split leaves a sharp V-shaped fold in the middle just before the snap** (seen from the front; from above the
+      hourglass reads well). The splash covers the swap.
+
+- **Warg (2026-10-12):** the goblin raiders' mount, from Daniel's reference (a goblin on a huge, shaggy, dark
+  brown-grey wolf with a bone war-mask). Blender scene **Warg** (`WRG_*`, a wolf beside it for scale).
+  - Body: the wolf's recipe ×1.35 (`warg_body.S`, folded into `hw()` with the head warp and a shortened, heavier
+    muzzle `_mz`), so masks, painter and rig work in wolf units through `hw_inv`. Heavier legs (`LEG_K`, thicker
+    toward the paws), bigger paws, short laid-back ears. 7,072 tris: fur 4.3k, mouth and eyes 0.9k, hair shells 1.9k.
+  - The shag is separate hair (beast_coat clumps): `TIERS` of locks round the neck (the mane, poll to shoulders,
+    stopping before the saddle), a bib under the throat, a belly fringe, `TAIL_RINGS` (a brush), forearm fringes
+    (`LEG_STRIPS`), `LOCKS` (cheeks, elbows, breeches). Skinned from their roots.
+  - Eyes (reworked at Daniel's ask): slanted almonds (`EYE_SLANT`, `EYE_SHAPE`) low at the stop, in a deeper
+    socket under a heavy brow, laid onto a quadric fitted to the socket (the decimated socket is faceted, so a flat
+    cap came out ragged); painted with a round pupil, a lid line and a dark brow.
+  - Coats `T_Warg` (dark), `T_Warg_Ash`, `T_Warg_Black` + `T_Warg_Normal` (the painter's relief: clumps on the
+    coat, strands down each lock — each lock's texels know its root, `bake_data(roots=True)`).
+  - Tack (`warg_tack`, only for the ridden ones): `WargTack` 1,564 tris (felt blanket, leather seat with pommel
+    and cantle, girth, breast collar, stirrups, bridle, bit rings, reins) and `WargMask` 304 tris (the bone
+    war-mask, notched clear of the eyes, two horns, red war paint), one texture `T_WargTack` 512² + normal map.
+    Fitted by ray casts onto the fur; weights copied from the skin there, the bridle and mask on Head, the reins
+    Head → Neck1 → Spine2. Dressed total 8,940 tris.
+  - 12 clips (`warg_anim`: the wolf's, distances ×1.35, slower cadences).
+  - In MedievalSetting (`WargSetup.cs`, Tools > Beasts > Rebuild Warg): `Prefabs/Warg` (wild: tack and mask off)
+    and `Prefabs/WargRidden` (`WargTack` component: saddled, masked; `Seat` = `Socket_Saddle`), `WargAnims`;
+    2 + 2 in `Beasts_Test`. Report: avatar valid, Walk 1.16, Trot 2.48, Run 6.36 m/s root speed, `dir=(0, 0, 1)`.
+    Not checked in (another thread does Plastic). No game side yet; no rider clips for the goblins yet.
+  - Gotchas from it:
+    - **`beast_scene.shot` renders Workbench by default:** textured studio light with its own plastic specular, no
+      normal map, no smoothness. Judge materials in EEVEE (`warg_build.review` does now).
+    - **`beast_paint._tame_islands` ran after the region scales** (fixed 2026-10-12): with many small hair islands
+      scaled down, the median dropped and the eyes, head and jaw were "tamed" to hair density. It runs before the
+      scales now. The other beasts' eyes and heads were affected the same way (their teeth and claws are many
+      small islands too); rebuilding them would sharpen their faces.
+    - **`BeastsTestScene.RenderLineup` used `NewScene(Single)`** (a scene switch in the shared editor); it renders
+      in a preview scene now, and the lineup camera renders twice (the first render of fresh skinned meshes came
+      out as shadows only).
 
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
@@ -239,23 +295,31 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - its ears still have slightly ragged edges up close;
   - it has no swim or climb clips;
   - a rat swarm would want a cheaper variant (~1.5k tris).
-- **Warg** (goblin raider mount): scale about 1.4x, heavier ruff, saddle prop on `Socket_Saddle`, darker coat.
-- **More beasts:** a war mammoth (howdah on `Socket_Back`), warg, giant elk, boar and dire variants can reuse the pipeline: parts, tufts, fuse, heat weights, and the
-  painter's flow strokes.
+- **Warg:**
+  - goblin rider clips (sitting on `Socket_Saddle`, holding the reins) belong to the Goblins repo;
+  - the lower jaw shows as a flat bar under the lip (the wolf's design);
+  - up close the hair clumps still read a little like blades; the coat's relief is only the normal map;
+  - in Death it lies on its left side: the stirrup on that side goes into the ground;
+  - game side: a `Creature` definition (wild packs; ridden by goblin raiders), the Bite/Howl events.
+- **More beasts:** a war mammoth (howdah on `Socket_Back`), giant elk, boar and dire variants can reuse the
+  pipeline: parts, tufts, fuse, heat weights, and the painter's flow strokes.
 - **Ooze, Unity side:**
-  - **Pending install:** the repo's `OozeSetup.cs` has one change the installed copy lacks: its renders turn off
-    async shader compilation, because the first lineup after the install drew only the contents. It wasn't installed
-    because other sessions were in the editor and it would have cost a second recompile. The next
-    `install_to_unity.ps1` (or copying that one file) brings it.
-  - Maybe a slime-trail or puddle decal to ground it.
+  - The pending `OozeFx.cs` / `OozeSetup.cs` fixes went in with the warg's install (2026-10-12).
+  - Look at the effects in play (`Beasts_Test`), the trail especially.
+  - Maybe a puddle decal under a resting ooze.
 - **Ooze, game side:**
   - It is not in the game yet: no `Creature` definition and no dungeon spawns. Read the GDD first.
   - Engulf hands the victim from `Socket_Mouth` to `Socket_Gut`. A 1.7 m person doesn't fit in a 1.1 m dome, so
     hide them or crouch them inside.
-  - Puddle + Rise make an ambush; Spit needs a glob projectile.
+  - Puddle + Rise make an ambush.
+  - Spit's glob exists (`OozeGlob.Landed` for the damage; set `OozeFx.spitTarget`).
+  - Split: hook `OozeSplit.SplitInto` to make the two halves real creatures. Splitting again (halves of halves) is
+    up to the game.
+  - Sounds (squelch, splat, spit) via the game's SoundBank; the SFX pack has none.
 - **Ooze, later:**
-  - colour variants via `paint_shell(pal=...)`: grey ooze, black pudding, ochre jelly;
-  - a Split clip (it divides when cut), a ceiling Drop, a turn in place.
+  - a ceiling Drop, a Squeeze (under doors and grates), a turn in place;
+  - a softer neck in Split (it folds into a V just before the snap);
+  - more colours: add one to both `ooze_paint.PRESETS` and `OozeLook.Presets`.
 
 ## Checks
 
