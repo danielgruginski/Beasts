@@ -96,9 +96,12 @@ Shader "Beasts/OozeSlick"
                 half border = smoothstep(0, _Border, min(b.x, b.y));
                 half cover = smoothstep(_Edge.x, _Edge.y, f) * border;
                 clip(cover - 0.002);
-                float fx = Field(fu + float2(_FieldTexel, 0)) - Field(fu - float2(_FieldTexel, 0));
-                float fz = Field(fu + float2(0, _FieldTexel)) - Field(fu - float2(0, _FieldTexel));
-                float3 n = normalize(float3(-fx * _Bump, 1, -fz * _Bump));
+                // the slope over two texels each way: across the seams where splats meet (the field keeps the wetter of
+                // two, so its slope breaks there) a one-texel slope drew a bright zig-zag; the edges keep their bead
+                float e = 2 * _FieldTexel;
+                float fx = Field(fu + float2(e, 0)) - Field(fu - float2(e, 0));
+                float fz = Field(fu + float2(0, e)) - Field(fu - float2(0, e));
+                float3 n = normalize(float3(-fx * _Bump * 0.5, 1, -fz * _Bump * 0.5));
                 half alpha = cover * lerp(_Opacity.x, _Opacity.y, saturate((f - _Edge.x) / max(1 - _Edge.x, 0.01)));
 
                 InputData d = (InputData)0;

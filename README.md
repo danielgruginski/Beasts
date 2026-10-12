@@ -533,7 +533,8 @@ The Hit clip also has an event, `Hurt` at 0.07 s, for a splash.
     paints soft, ragged splats at its rear edge into a small wetness field (128² R8, 0.1 m a texel x size, tied to the
     world and wrapping); one flat sheet round it shows slime where the field passes an edge threshold, its slope
     tilting the normal for a wet highlight. Splats merge into one sheet with smooth necks (no alpha piling up where
-    they overlap), and as the field dries over 9 s the edges creep in and it breaks into puddles. No splat lands
+    they overlap). A new splat wells out from its middle over a second (`grow`: the drying in reverse), so none is
+    stamped in whole, and as the field dries over 9 s the edges creep in and it breaks into puddles. No splat lands
     under the see-through body. (It replaced a TrailRenderer that folded on turns and showed its fresh end through the
     jelly, then a fold-free ribbon whose end still showed.)
 

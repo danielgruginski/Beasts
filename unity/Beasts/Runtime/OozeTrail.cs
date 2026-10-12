@@ -6,7 +6,8 @@ namespace Beasts
     /// The ooze's slime trail, as splats that know about each other: the ooze paints them into a wetness field (a small
     /// R8 texture tied to the world, wrapping round, <see cref="cell"/> metres a texel) as it goes, and one flat sheet
     /// round it (Beasts/OozeSlick) shows slime wherever the field passes an edge threshold. So splats close together
-    /// merge into one wet patch with smooth necks (no alpha piling up where they overlap); as the field dries the edges
+    /// merge into one wet patch with smooth necks (no alpha piling up where they overlap); a new splat wells out from its
+    /// middle over <see cref="grow"/> seconds, and as the field dries the edges
     /// creep in and the patch breaks into puddles before it goes (<see cref="life"/>). The splats land at the ooze's rear
     /// edge (<see cref="behind"/>), so none appear under its see-through body. It lives beside the ooze (on its effects
     /// root), so it dries out after the ooze is gone. <see cref="OozeFx"/> drives it (target, emitting, sizes).
@@ -24,6 +25,9 @@ namespace Beasts
         public float behind = 1.0f;
         [Tooltip("Seconds until fresh slime has dried away.")]
         public float life = 9f;
+        [Tooltip("Seconds a new splat takes to spread to its full size: the drying the other way round, so it wells out " +
+                 "from its middle instead of appearing whole.")]
+        public float grow = 1.0f;
         [Tooltip("Metres per field texel; the field covers resolution x cell metres round the ooze.")]
         public float cell = 0.1f;
         public int resolution = 128;
@@ -33,6 +37,9 @@ namespace Beasts
         const float Fresh = 1.15f;              // a splat's centre
         const float Edge = 0.30f;               // the slime's edge (OozeSlick _Edge.x)
 
+        struct Splatter { public float cx, cz, r, p1, p2, a1, a2, amp, born; }   // a splat still spreading
+
+        readonly System.Collections.Generic.List<Splatter> spreading = new System.Collections.Generic.List<Splatter>();
         float[] field;
         byte[] bytes;
         Texture2D tex;
@@ -75,6 +82,7 @@ namespace Beasts
         public void Clear()
         {
             if (field != null) System.Array.Clear(field, 0, field.Length);
+            spreading.Clear();
             hasLast = false;
             wet = false;
             if (mr != null) mr.enabled = false;
@@ -118,13 +126,13 @@ namespace Beasts
                     float d = hasLast ? (rear - lastSplat).magnitude : 0f;
                     if (!hasLast || d > 8f * step)                     // the first, or after a teleport
                     {
-                        Splat(rear);
+                        Splat(rear, now);
                         lastSplat = rear;
                     }
                     else if (d >= step)
                     {
                         int n = Mathf.FloorToInt(d / step);
-                        for (int k = 1; k <= n; k++) Splat(Vector3.Lerp(lastSplat, rear, k * step / d));
+                        for (int k = 1; k <= n; k++) Splat(Vector3.Lerp(lastSplat, rear, k * step / d), now);
                         lastSplat = Vector3.Lerp(lastSplat, rear, n * step / d);
                     }
                     hasLast = true;
@@ -144,6 +152,14 @@ namespace Beasts
                 mat.SetFloat("_FieldScale", 1f / size);
                 mat.SetFloat("_FieldTexel", 1f / resolution);
             }
+            for (int k = spreading.Count - 1; k >= 0; k--)              // the new splats well out to their full size
+            {
+                var s = spreading[k];
+                float t = grow > 0f ? Mathf.Clamp01((now - s.born) / grow) : 1f;
+                Stamp(s, s.amp * t * t * (3f - 2f * t));
+                if (t >= 1f) spreading.RemoveAt(k);
+                most = Mathf.Max(most, Fresh);
+            }
             wet = most > 0f;
             mr.enabled = wet;
             if (!wet) return;
@@ -152,33 +168,43 @@ namespace Beasts
             tex.Apply(false);
         }
 
-        /// <summary>One splat at a world point: a soft round blob with a ragged outline, a little off the path, the
-        /// field keeping the wetter of what was there and the splat.</summary>
-        void Splat(Vector3 at)
+        /// <summary>A new splat at a world point: a soft round blob with a ragged outline, a little off the path. It
+        /// spreads in over <see cref="grow"/> seconds (Step stamps it a little wetter each frame).</summary>
+        void Splat(Vector3 at, float now)
         {
             float R(double lo, double hi) => (float)(lo + (hi - lo) * rng.NextDouble());
             at += new Vector3(R(-1, 1), 0, R(-1, 1)) * 0.12f * radius;
-            float r = radius * R(0.8, 1.15) / cell;                    // in texels
-            float p1 = R(0, 6.28), p2 = R(0, 6.28), a1 = R(0.06, 0.14), a2 = R(0.04, 0.09);
-            float amp = Fresh * R(0.82, 1.1);                          // wetter here and there: it dries into puddles
-            float cx = at.x / cell - 0.5f, cz = at.z / cell - 0.5f;     // texel centres sit at +0.5
-            int x0 = Mathf.FloorToInt(cx - r * 1.25f), x1 = Mathf.CeilToInt(cx + r * 1.25f);
-            int z0 = Mathf.FloorToInt(cz - r * 1.25f), z1 = Mathf.CeilToInt(cz + r * 1.25f);
+            spreading.Add(new Splatter
+            {
+                cx = at.x / cell - 0.5f, cz = at.z / cell - 0.5f,       // in texels (their centres sit at +0.5)
+                r = radius * R(0.8, 1.15) / cell,
+                p1 = R(0, 6.28), p2 = R(0, 6.28), a1 = R(0.06, 0.14), a2 = R(0.04, 0.09),
+                amp = Fresh * R(0.82, 1.1),                              // wetter here and there: it dries into puddles
+                born = now,
+            });
+            wet = true;
+        }
+
+        /// <summary>A splat into the field at a given wetness, the field keeping the wetter of what was there and it.</summary>
+        void Stamp(in Splatter s, float amp)
+        {
+            if (amp <= 0f) return;
+            int x0 = Mathf.FloorToInt(s.cx - s.r * 1.25f), x1 = Mathf.CeilToInt(s.cx + s.r * 1.25f);
+            int z0 = Mathf.FloorToInt(s.cz - s.r * 1.25f), z1 = Mathf.CeilToInt(s.cz + s.r * 1.25f);
             int N = resolution;
             for (int z = z0; z <= z1; z++)
                 for (int x = x0; x <= x1; x++)
                 {
-                    float dx = x - cx, dz = z - cz;
+                    float dx = x - s.cx, dz = z - s.cz;
                     float dd = Mathf.Sqrt(dx * dx + dz * dz);
                     float th = Mathf.Atan2(dz, dx);
-                    float rr = r * (1f + a1 * Mathf.Sin(3f * th + p1) + a2 * Mathf.Sin(5f * th + p2));
+                    float rr = s.r * (1f + s.a1 * Mathf.Sin(3f * th + s.p1) + s.a2 * Mathf.Sin(5f * th + s.p2));
                     if (dd >= rr) continue;
                     float q = 1f - (dd / rr) * (dd / rr);
                     float v = amp * q * q;
                     int i = ((z % N + N) % N) * N + ((x % N + N) % N);
                     if (v > field[i]) field[i] = v;
                 }
-            wet = true;
         }
     }
 }
