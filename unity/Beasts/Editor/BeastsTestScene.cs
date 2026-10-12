@@ -28,7 +28,8 @@ namespace Beasts.EditorTools
 
         /// <summary>Built beside whatever is open (other tools and sessions keep their scenes): the test scene is
         /// created additively (or rebuilt in place if it is open), active only while it is filled, saved, and closed
-        /// again if it wasn't open.</summary>
+        /// again if it wasn't open. When all that's open is an empty untitled scene (batch mode, a fresh project),
+        /// there is nothing to keep, and Unity won't add a scene beside an unsaved one: it is built in its place.</summary>
         public static void Build(StringBuilder log)
         {
             var target = SceneManager.GetSceneByPath(ScenePath);
@@ -39,13 +40,19 @@ namespace Beasts.EditorTools
                 return;
             }
             var previous = SceneManager.GetActiveScene();
+            bool untitled = !wasOpen && string.IsNullOrEmpty(previous.path) && SceneManager.sceneCount == 1;
+            if (untitled && previous.isDirty)
+            {
+                log.AppendLine("  test scene skipped: the open untitled scene has unsaved changes (save it first)");
+                return;
+            }
             Scene scene;
             if (wasOpen)
             {
                 scene = target;
                 foreach (var r in scene.GetRootGameObjects()) Object.DestroyImmediate(r);
             }
-            else scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            else scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, untitled ? NewSceneMode.Single : NewSceneMode.Additive);
             SceneManager.SetActiveScene(scene);
             try
             {
@@ -54,8 +61,8 @@ namespace Beasts.EditorTools
             }
             finally
             {
-                if (previous.IsValid() && previous.isLoaded && previous != scene) SceneManager.SetActiveScene(previous);
-                if (!wasOpen) EditorSceneManager.CloseScene(scene, true);
+                if (!untitled && previous.IsValid() && previous.isLoaded && previous != scene) SceneManager.SetActiveScene(previous);
+                if (!wasOpen && !untitled) EditorSceneManager.CloseScene(scene, true);
             }
         }
 
