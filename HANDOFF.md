@@ -113,6 +113,31 @@ checks.
   - Lowest vertex: the body within 3 cm in every clip, the tusks rest on the ground in Death; lying (Sleep, Wake,
     Death) the skirt's hair tips go up to 0.4 m into the ground.
 
+- **Red deer stag (2026-10-11):**
+  - **Thin legs: fused stump + grafted clean tube, one surface.** The stumps (upper arm to mid forearm, stifle to
+    mid gaskin) are fused, so the elbow and stifle bend in heat-weighted skin. Below `deer_body.SEAM` the stump is
+    cut off and a clean lofted lower leg is stitched onto its rim (`_graft_legs`: rim snapped to an ellipse, a zip
+    strip, the slivers beautified and relaxed). A separate tube out of the body, then out of the stump's end, both
+    showed a ragged crossing line in a stride; seating and tucking the overlap didn't cure it.
+  - **The grafted legs keep the fur's part id** (`body["leg_verts"]` lists them): the baked part id is interpolated
+    across faces, and a stitch between ids 1 and 17 painted dashes of nose, eye and claw colours.
+  - **The legs skin down by height** (`deer_rig.LEG_CHAIN`) and copy the stump's weights at the seam; the heat
+    weights round the shoulders and haunches get extra smoothing (a lifted leg pinched a fold).
+  - **Workbench renders use the material's viewport roughness/specular** (defaults 0.4 / 0.5: glossy, dark):
+    `deer_paint.matte` sets 1.0 / 0.0 and a low BSDF specular. The painted light is lighter than the wolf's.
+  - **Mane:** cone tufts decimated into shards, fringe strips read as a spiky collar with a dark gap down the
+    chest. Now the neck's full throat side, a strong fur sculpt there and long dark strokes in the texture.
+  - **Tines:** a flared ring at the beam's surface and one just outside, so the root is soft and the flat root's
+    bent normals stay inside the beam; 8 sides; they leave the beam forward and up and curve upward.
+  - **A pale band along the jaw read as teeth** (and a shiny lip as a highlight): the jaw is dark like the muzzle,
+    only the chin's front pale, smoothness 0.14. With a matte coat the eyes need a painted catchlight.
+  - `deer_body._relax_creases` smooths decimation creases sharper than 55 degrees (a slit down the back).
+  - **Clips:** grazing needs the chest lowered (trunk pitch -13, 0.10 down) as well as the three neck bones, or the
+    muzzle stops 0.3 m above the grass; the head is tilted so the antlers stay clear. Lying, a folded foreleg's
+    cannon goes back along the ground (flex -95; at -150 the forearm went into the ground) and the hooves curl
+    little. Dead on its left side, the head rolls +45 so the antlers stand up (rolled with the trunk, one antler
+    went 0.4 m into the ground). Running, the neck goes level and the head pitches up 50 to keep the face forward.
+
 ## State (2026-09-26)
 
 - **Grey wolf:** model, rig, three coats and 12 clips.
@@ -126,6 +151,12 @@ checks.
 - **Woolly mammoth (2026-10-08):** model (6.3k tris, a six-bone trunk, spiralling tusks), two coats and 12 clips; in
   MedievalSetting with one mammoth in `Beasts_Test`. Root motion traced over 3 loops (Walk 2.20 m, Run 3.60 m,
   Charge 4.20 m per loop, head steady). Not in the itch.io pack yet; no game side yet.
+- **Red deer stag (2026-10-11):** prey for the hunting grounds: model (5.4k tris), rig (3 neck bones), one coat
+  (`T_Deer`) and 11 clips (Idle, Graze, Alert, Walk, Trot, Run, Attack, Hit, Death, Sleep, Wake); sheets in
+  `renders/deer_clip_*.png`. Exported (`deer_build.export()`: 38 bones incl. Root/Motion/5 sockets, one skinned mesh, Motion
+  travels 3.8 m a Run loop, 1.3 m a Walk loop). Installed in MedievalSetting 2026-10-11 (`DeerSetup.cs`, Tools > Beasts >
+  Rebuild Deer: avatar valid, Run 8.14 m/s, Walk 1.08, Trot 2.93 root speed; 3 deer in `Beasts_Test`); the game's
+  `red_deer` (prey: skittish, flees) in the hunting grounds.
 
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.

@@ -8,11 +8,12 @@ in Unity (MedievalSetting, `Assets/Beasts`), with shared code in the `beast_*` m
 - the **woolly rhino**, the woods' solo boss: model, rig, one coat, a removable spear and 13 clips (see
   [Woolly rhino](#woolly-rhino));
 - the **cave bear**: model, rig, two coats and 13 clips (see [Cave bear](#cave-bear));
-- the **woolly mammoth**: model, rig with a six-bone trunk, two coats and 12 clips (see [Woolly mammoth](#woolly-mammoth)).
+- the **woolly mammoth**: model, rig with a six-bone trunk, two coats and 12 clips (see [Woolly mammoth](#woolly-mammoth));
+- the **red deer stag** (prey): model, rig, one coat and 11 clips, exported, not yet in Unity (see [Red deer stag](#red-deer-stag)).
 
 ![The wolf in the bind pose](docs/images/wolf_34.png)
 
-Blender file: `blender/beasts.blend`, scenes **Wolf**, **Rat**, **Rhino**, **Bear** and **Mammoth**. It is not in the repo, and neither are `export/`,
+Blender file: `blender/beasts.blend`, scenes **Wolf**, **Rat**, **Rhino**, **Bear**, **Mammoth** and **Deer**. It is not in the repo, and neither are `export/`,
 `textures/` or `renders/`. Everything in them is rebuilt from `src/`, starting from any Blender file.
 
 ## Rebuild
@@ -52,6 +53,12 @@ import mammoth_build
 mammoth_build.show()       # the Mammoth scene on screen (in its own call)
 mammoth_build.build_all()  # body -> rig -> weights -> UVs -> 2 coats -> 12 clips (~45 s)
 mammoth_build.export()     # export/Mammoth.fbx, Textures/T_Mammoth.png + T_Mammoth_Dark.png, Anims/Mammoth@<clip>.fbx + mammoth_clips.json
+
+import deer_build
+deer_build.show()          # the Deer scene on screen (in its own call)
+deer_build.build_all()     # body -> rig -> weights -> UVs -> coat -> 11 clips (~40 s); build_model() for the model alone
+deer_build.export()        # export/Deer.fbx, Textures/T_Deer.png, Anims/Deer@<clip>.fbx + deer_clips.json
+deer_build.review()        # renders/deer_<view>.png; review_test_pose(), review_joins(), clip_sheets() (deer_clip_<Name>.png)
 ```
 
 Builds are not bit-identical from run to run: the voxel remesh varies slightly, which moves the decimated mesh and
@@ -64,7 +71,7 @@ the UVs. Always export after a rebuild, so the FBX and the textures in `textures
 | `wolf_paint.py` | Seams and unwrap; per-texel painted coats (grey, black, white) |
 | `wolf_anim.py` | Clips keyed from computed bone matrices: trunk/spine/neck/tail bends, 2-bone leg IK + pastern/hock angle, gaits |
 | `rat_body.py`, `rat_rig.py`, `rat_paint.py`, `rat_anim.py`, `rat_build.py` | The same for the giant rat; the tail is a separate ringed shell weighted along its length |
-| `rhino_*.py`, `bear_*.py`, `mammoth_*.py` | The same for the woolly rhino, the cave bear and the woolly mammoth (body, rig, paint, anim, build) |
+| `rhino_*.py`, `bear_*.py`, `mammoth_*.py`, `deer_*.py` | The same for the woolly rhino, the cave bear, the woolly mammoth and the red deer (body, rig, paint, anim, build) |
 | `beast_coat.py` | Long coats: coat volumes (lofts), hem fringes snapped to their volume or dropped onto the body, clumps, the hair's root-to-tip `t` |
 | `beast_body.py` | Mesh helpers and the body pipeline: `fuse_body` (voxel fuse, fillet, sculpts, decimate, edge flips, fold relaxing), `build_tufts`, `sculpt_fur`, `join_pieces` |
 | `beast_paint.py` | Seams from the skin weights plus the creature's cuts, unwrap (with a guard against blown-up degenerate islands), data bakes, fur strokes, texture writing |
@@ -360,3 +367,48 @@ Bones: the wolf's names with 2 tail bones, no tongue, Trunk1-6; sockets `Socket_
 tips). Unity: **Tools > Beasts > Rebuild Mammoth** (`Logs/MammothSetup`): `M_Mammoth`, `M_Mammoth_Dark`,
 `Prefabs/Mammoth` (Animator, BeastAppearance rolling the two coats 2:1 and the size 0.92-1.06, BeastEvents),
 `Animation/MammothAnims` (Sleep leads into Wake), and one mammoth in `Scenes/Beasts_Test`.
+
+## Red deer stag
+
+Cervus elaphus, a mature stag in autumn: prey for the hunting grounds (hide and venison), asked for on 2026-10-11.
+1.20 m at the withers, 2.0 m nose to rump, 2.37 m to the antler tips; a deep chest, a slim waist, a rounded rump,
+long thin legs on cloven hooves with dewclaws, a long thick neck with a full, shaggy rut mane under the throat, a long
+head with a blunt, deep muzzle and a broad nose pad, big ears, large eyes (~1.5x), a short tail over a pale rump
+patch, and antlers 0.93 m across (brow, bez and trez tines and a crown of three each side, the tines angled forward
+and up). Blender scene **Deer** (`DER_*`), with an instance of the wolf beside it for scale.
+
+| Part | Triangles |
+|---|---|
+| Fused body (trunk, neck, mane, head, shoulders and leg stumps, haunches, tail; incl. nose) | 2,522 |
+| Lower legs (clean tubes grafted onto the stumps), hooves' claws and dewclaws | 864, 336 |
+| Lower jaw, eyes, ears | 144, 120, 156 |
+| **Body without antlers** | **4,142** |
+| Antlers (lofted tubes, rigid on Head) | 1,248 |
+| **DeerBody** | **5,390** |
+
+One 1024² coat, `T_Deer`: grey-brown flanks with russet over the back, a grey-brown neck and a darker mane in long
+locks, buff to cream belly, inner legs and rump patch (the tail's upper side dark), darker lower legs, a dark muzzle
+and nose with a pale chin, a dark preorbital gland, brown grooved antlers with pale tips. The material is matte
+(`deer_paint.matte`).
+
+How it differs: **each leg is one surface in two parts**, a fused stump (upper arm to mid forearm, stifle to mid
+gaskin) and a clean lofted lower leg stitched onto it (`deer_body._graft_legs`: fused and decimated, legs this thin
+twist into diagonal facets), skinned down the leg by height; the **antlers** are lofted tubes (`PART['antler']`).
+Bones: the wolf's names with **3 neck bones** (`Species(neck_n=3)`), 2 tail bones, no tongue; sockets `Socket_Head`,
+`Socket_Mouth`, `Socket_Back`, `Socket_AntlerL` / `Socket_AntlerR` (the beams' tips). `deer_build.review_joins()`
+renders the leg joins close up in the stress-test stride.
+
+| Clip | Length | Notes |
+|---|---|---|
+| Idle | 4.0 s loop | breathing, a weight shift with a hind foot cocked, ear flicks, a tail flick, a slow look round |
+| Graze | 5.0 s loop | head down at the grass (three neck bones), chewing, ears turning, a slow step forward (root motion 0.16 m a loop) |
+| Alert | 1.5 s | head snaps up high, ears forward and stiff, tail up, a forefoot stamp; holds the end |
+| Walk / Trot | 1.2 / 0.67 s loops | four-beat lateral walk 1.1 m/s, the head nodding; diagonal trot 2.9 m/s (root motion) |
+| Run | 0.47 s loop | the flight gallop 8.1 m/s: long bounding strides, the back gathering and stretching, tail up over the rump patch, head forward (root motion) |
+| Attack | 1.2 s | head down, a lunge forward and up with a twist of the antlers, the right forefoot stepping in; event `Bite` at 0.5 s |
+| Hit | 0.5 s | a flinch sideways |
+| Death | 2.2 s | the legs fold, it falls onto its left side, the head last with the antlers turned up; event `Dead` at 1.9 s; holds |
+| Sleep / Wake | 4.0 s loop / 2.0 s | lying on its belly, legs folded under, the head low; rises hind end first |
+
+Hooves slide at most 8 mm in Walk, Trot and Run (`deer_anim.slide_report`); the lowest vertex stays within 2.4 cm of
+the ground in every clip (lying: the hooves).

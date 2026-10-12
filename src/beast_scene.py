@@ -131,7 +131,7 @@ def show_scene(scn):
     bpy.context.window_manager.windows[0].scene = scn
 
 
-def frame_viewports(obj_names=None, shading='MATERIAL', lift=0.0):
+def frame_viewports(obj_names=None, shading='MATERIAL', lift=0.0, distance=4.2):
     """Point every 3D viewport at the creature from the 3/4 view, in material preview."""
     for win in bpy.context.window_manager.windows:
         for area in win.screen.areas:
@@ -142,7 +142,7 @@ def frame_viewports(obj_names=None, shading='MATERIAL', lift=0.0):
                     sp.shading.type = shading
                     r3 = sp.region_3d
                     r3.view_location = Vector((0, -0.25, 0.5 + lift))
-                    r3.view_distance = 4.2
+                    r3.view_distance = distance
                     r3.view_rotation = Vector((2.6, -3.35, 1.2)).normalized().to_track_quat('Z', 'Y')
                     r3.view_perspective = 'PERSP'
 
