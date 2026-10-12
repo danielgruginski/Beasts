@@ -558,6 +558,7 @@ The Hit clip also has an event, `Hurt` at 0.07 s, for a splash.
 
 ![Colour presets in Unity, with a giant black pudding, a small grey ooze and a goblin](docs/images/ooze_unity_presets.png)
 ![Split from the front, from above and at 3/4](docs/images/ooze_clip_split.png)
+![Split in Unity: the giant just before the snap (the fold in its middle), and the two oozes it becomes](docs/images/ooze_unity_split.png)
 ![The effects: acid glob, puddle, splash and drips](docs/images/ooze_unity_fx.png)
 
 ## Warg
