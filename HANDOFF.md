@@ -278,7 +278,7 @@ Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 
 motion is traced over 3 loops for both: steady head offset, no loop snap.
 
 Repo: github.com/danielgruginski/Beasts (private, `main`). It holds the scripts and docs only; the .blend, the
-exports, the textures and the renders are regenerated (see `.gitignore`). Commit in batches when Daniel asks.
+exports, the textures and the renders are regenerated (see `.gitignore`). Commit and push each piece of work as soon as it is finished and checked (Daniel, 2026-10-12).
 
 ## Open / next
 
