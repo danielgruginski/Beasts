@@ -5,7 +5,7 @@ namespace Beasts
 {
     /// <summary>
     /// The ooze's effects, built in code (no particle prefabs to keep in sync), coloured by its <see cref="OozeLook"/>:
-    ///   a wet slime trail on the floor while it moves (a TrailRenderer lying flat);
+    ///   a wet slime trail on the floor while it moves (an <see cref="OozeTrail"/>: a ribbon that can't fold);
     ///   drips falling from the raised pods' tips (Reach, Side, Probe);
     ///   splashes on the clips' events: Hit (Lash's slam, Grab's catch: at the pod's tip), Hurt, Grab, Engulf, Dead,
     ///   Split, Risen, and a spray at the mouth on Spit;
@@ -28,7 +28,7 @@ namespace Beasts
         BeastEvents events;
         OozeLook look;
         Transform fxRoot, mouth;
-        TrailRenderer trailR;
+        OozeTrail trailR;
         ParticleSystem splash;
         readonly List<(ParticleSystem ps, Transform tip)> drippers = new List<(ParticleSystem, Transform)>();
         readonly Dictionary<string, Transform> bones = new Dictionary<string, Transform>();
@@ -95,10 +95,11 @@ namespace Beasts
             if (trailR != null)
             {
                 var p = transform.position;
-                trailR.transform.SetPositionAndRotation(p + Vector3.up * 0.012f, Quaternion.Euler(-90, 0, 0));   // Z up
                 float v = (p - lastPos).magnitude / Mathf.Max(Time.deltaTime, 1e-4f);
+                trailR.target = transform;
                 trailR.emitting = v > 0.08f * Size;
-                trailR.widthMultiplier = 1.5f * Size;
+                trailR.width = 1.5f * Size;
+                trailR.step = 0.25f * Size;
                 lastPos = p;
             }
             float floor = transform.position.y;
@@ -191,21 +192,16 @@ namespace Beasts
         {
             var go = new GameObject("Trail");
             go.transform.SetParent(fxRoot, false);
-            trailR = go.AddComponent<TrailRenderer>();
-            trailR.alignment = LineAlignment.TransformZ;              // lying flat: the object's Z points up
-            trailR.sharedMaterial = trailMaterial;
-            trailR.time = 9f;
-            trailR.minVertexDistance = 0.25f;
-            trailR.widthMultiplier = 1.5f * Size;
-            trailR.widthCurve = new AnimationCurve(new Keyframe(0, 0.9f), new Keyframe(0.15f, 1f), new Keyframe(1, 0.35f));
+            trailR = go.AddComponent<OozeTrail>();
+            trailR.Init(trailMaterial);
+            trailR.target = transform;
+            trailR.life = 9f;
+            trailR.step = 0.25f * Size;
+            trailR.width = 1.5f * Size;
             var g = new Gradient();
             g.SetKeys(new[] { new GradientColorKey(c, 0), new GradientColorKey(c, 1) },
                       new[] { new GradientAlphaKey(0.55f, 0), new GradientAlphaKey(0.35f, 0.4f), new GradientAlphaKey(0, 1) });
-            trailR.colorGradient = g;
-            trailR.textureMode = LineTextureMode.Stretch;
-            trailR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            trailR.receiveShadows = true;
-            trailR.numCapVertices = 4;
+            trailR.colour = g;
             trailR.emitting = false;
         }
 

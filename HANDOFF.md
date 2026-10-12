@@ -236,7 +236,10 @@ checks.
         the particle systems, render, then close the scene unsaved;
       - place it far from the open scene's creatures, since the camera renders every loaded scene;
       - `Destroy` logs an error in edit mode, which is harmless there;
-      - a TrailRenderer builds no geometry in edit mode, so **the trail is still unverified**: look at it in play.
+      - a TrailRenderer builds no geometry in edit mode. It also folded over itself on every turn (1.5 m wide: Daniel
+        saw it in play, 2026-10-12), so the trail is now `OozeTrail`, a ribbon mesh of its own that can't fold. Its
+        `Step(now)` takes a clock, so an edit-mode test drives it along a path and renders it (a bend tighter than the
+        half-width, a 118° corner and an S-curve: continuous, only a small dent inside the tightest S-turn).
     - **Split leaves a sharp V-shaped fold in the middle just before the snap** (seen from the front; from above the
       hourglass reads well). The splash covers the swap.
 
@@ -305,7 +308,7 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   pipeline: parts, tufts, fuse, heat weights, and the painter's flow strokes.
 - **Ooze, Unity side:**
   - The pending `OozeFx.cs` / `OozeSetup.cs` fixes went in with the warg's install (2026-10-12).
-  - Look at the effects in play (`Beasts_Test`), the trail especially.
+  - Look at the effects in play (`Beasts_Test`): the fold-free trail is checked in edit mode only so far.
   - Maybe a puddle decal under a resting ooze.
 - **Ooze, game side:**
   - It is not in the game yet: no `Creature` definition and no dungeon spawns. Read the GDD first.

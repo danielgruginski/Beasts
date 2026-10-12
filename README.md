@@ -529,7 +529,9 @@ The Hit clip also has an event, `Hurt` at 0.07 s, for a splash.
   - a colour preset (fixed, or random from a list), a size, which remains are hidden;
   - in an ooze bigger than 1x the remains keep their real size (done after the Animator, idempotently).
 - **`OozeFx`** (built in code):
-  - a slime trail lying flat on the floor while it moves;
+  - a slime trail lying flat on the floor while it moves (`OozeTrail`: a ribbon mesh built each frame; on the inside of
+    a bend its half is never wider than the bend's radius and no edge runs backward, so it can't fold over itself on a
+    turn, which the TrailRenderer it replaced did at 1.5 m wide);
   - drips from under the raised pods' tips;
   - splashes on Hit, Hurt, Grab, Engulf, Dead, Split and Risen;
   - on Spit, an `OozeGlob` arcs from `Socket_Spit` to a target, splashes, and leaves a fizzing acid puddle.
