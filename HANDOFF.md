@@ -277,7 +277,7 @@ checks.
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
 
-Repo: github.com/danielgruginski/Beasts (private, `main`). It holds the scripts and docs only; the .blend, the
+Repo: github.com/danielgruginski/Beasts (`main`; public since 2026-10-06, CC0, for the itch.io packs). It holds the scripts and docs only; the .blend, the
 exports, the textures and the renders are regenerated (see `.gitignore`). Commit and push each piece of work as soon as it is finished and checked (Daniel, 2026-10-12).
 
 ## Open / next
