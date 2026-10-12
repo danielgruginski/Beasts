@@ -138,6 +138,41 @@ checks.
     little. Dead on its left side, the head rolls +45 so the antlers stand up (rolled with the trunk, one antler
     went 0.4 m into the ground). Running, the neck goes level and the head pitches up 50 to keep the face forward.
 
+- **Dungeon ooze (2026-10-12):**
+  - It was started as its own `Oozes/` project the same day. Daniel suggested moving it into Beasts, so it lives here
+    now: scene **Ooze**, `ooze_*` modules.
+  - These are my design calls, not reviewed by him yet:
+    - green acid-ooze colours;
+    - an adventurer's remains inside, with the sword sticking out of its back;
+    - a dark-red nucleus as the weak spot;
+    - hip-high, 3 m across.
+  - **Everything the Ooze scene adds is prefixed `OOZ_`** (cameras, floor, rim light, the scale human). It reuses the
+    shared KEY, FILL and world without changing them, and hides its cameras and lights in its own view layer only.
+  - **No faces in the floor's plane, and none facing down near it.** A flat sole shadow-acned into dark wedges seen
+    through the jelly, and so did tilted slivers along its rim. `ooze_body._clean` deletes them in passes.
+  - **No undercut at the floor.** Floor pods curving back in below their equator rendered dark; a spreading "foot"
+    flare decimated into a ragged paper edge. Below `FOOT[1]` the field takes that height's cross-section and leans
+    out.
+  - **Don't spare the pods in the decimation:** once they were fat, a sparing vertex group gave one pod a third of
+    the triangles and left the dome faceted.
+  - **UVs:**
+    - A UV slit must start on its chart's border; an inner slit is a hole that `fill_holes` closes again.
+    - A single ABF island over the whole top gave a 20x density spread.
+    - Painted images need `img.update()`, or renders keep the stale GPU copy.
+  - **Through the jelly, colours mix layer by layer**: two or three shell layers turn the red nucleus green-brown.
+  - **Rim on the floor:** weight smoothing spread Dome and the raised pods down to the rim, which rose 15 cm in Crawl.
+    `ooze_rig._pin_floor` hands their weight below 16 cm to Body.
+  - **Non-uniform scale only on leaf bones** (Dome, the tips, Nucleus, Vac*), so Unity never inherits a shear. Body
+    has children and is never scaled that way. Pods stretch by sliding their child bones along the chain.
+  - **Sinking things must use their real lowest point, not the centroid:** a rotated helm sank through the floor
+    (`_sink_z` reads it from the mesh).
+  - **The containment check votes over three rays:** one ray grazing an edge called a skull vertex 34 cm deep
+    "outside".
+  - **The sheet cameras must not follow Motion:** the mesh plays in place, so following it walked Crawl out of the
+    frame.
+  - **Rebuild from clean:** `build_model` deletes the old meshes first, or the Armature modifier left on the shell
+    would be applied together with the decimation, in whatever pose the rig holds.
+
 ## State (2026-09-26)
 
 - **Grey wolf:** model, rig, three coats and 12 clips.
@@ -157,6 +192,31 @@ checks.
   travels 3.8 m a Run loop, 1.3 m a Walk loop). Installed in MedievalSetting 2026-10-11 (`DeerSetup.cs`, Tools > Beasts >
   Rebuild Deer: avatar valid, Run 8.14 m/s, Walk 1.08, Trot 2.93 root speed; 3 deer in `Beasts_Test`); the game's
   `red_deer` (prey: skittish, flees) in the hunting grounds.
+- **Dungeon ooze (2026-10-12):**
+  - model: shell 2.8k + contents 1.85k tris, `T_Ooze` 1024² (A = opacity), `T_OozeContents` 512²;
+  - rig: 41 bones, 3 sockets;
+  - 10 clips (Idle, Crawl, Lash, Grab, Engulf, Spit, Hit, Death, Puddle, Rise), all passing `ooze_anim.report()`;
+    sheets in `renders/ooze_clip_*.png`, plus `ooze_clip_Engulf_victim.png` with the scale human in front.
+  - Exported: checked in a background Blender (41 bones, 2 skinned meshes with 21 and 14 groups, one UV layer each;
+    Motion travels 1.2 m per Crawl loop).
+  - Installed in MedievalSetting on 2026-10-12, not checked in:
+    - `OozeSetup.cs`, the `Beasts/OozeJelly` shader, M_Ooze and M_OozeContents, `Prefabs/Ooze`, `OozeAnims`;
+    - two oozes in `Beasts_Test`;
+    - `Logs/OozeSetup`: avatar valid, Crawl 0.60 m/s `dir=(0, 0, 1)`, 1.200 m per loop over 3 loops, no snap.
+  - Gotchas from that install:
+    - **The first render after an import can skip a transparent shader** whose variants are still compiling
+      asynchronously; only the contents and the shadows showed. Set `ShaderUtil.allowAsyncCompilation = false`
+      around verification renders.
+    - **Other sessions work in the same editor.** This means:
+      - don't switch scenes: `BeastsTestScene.Build` now fills the scene additively and restores the active scene,
+        and the ooze's renders use a preview scene;
+      - compile-check the scripts offline first (the editor `.rsp` with the new files swapped in);
+      - copy the assets before the scripts, so there is one compile;
+      - check `GetState` before every write;
+      - don't enter play mode for a check.
+    - **`EditorApplication.delayCall` doesn't tick while Unity is in the background,** so `AutoBuild` never ran. Run
+      `OozeSetup.Build()` with RunCommand. The RunCommand sandbox rejects `using System.Reflection`; write
+      `(System.Reflection.BindingFlags)40` inline.
 
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
@@ -182,6 +242,20 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
 - **Warg** (goblin raider mount): scale about 1.4x, heavier ruff, saddle prop on `Socket_Saddle`, darker coat.
 - **More beasts:** a war mammoth (howdah on `Socket_Back`), warg, giant elk, boar and dire variants can reuse the pipeline: parts, tufts, fuse, heat weights, and the
   painter's flow strokes.
+- **Ooze, Unity side:**
+  - **Pending install:** the repo's `OozeSetup.cs` has one change the installed copy lacks: its renders turn off
+    async shader compilation, because the first lineup after the install drew only the contents. It wasn't installed
+    because other sessions were in the editor and it would have cost a second recompile. The next
+    `install_to_unity.ps1` (or copying that one file) brings it.
+  - Maybe a slime-trail or puddle decal to ground it.
+- **Ooze, game side:**
+  - It is not in the game yet: no `Creature` definition and no dungeon spawns. Read the GDD first.
+  - Engulf hands the victim from `Socket_Mouth` to `Socket_Gut`. A 1.7 m person doesn't fit in a 1.1 m dome, so
+    hide them or crouch them inside.
+  - Puddle + Rise make an ambush; Spit needs a glob projectile.
+- **Ooze, later:**
+  - colour variants via `paint_shell(pal=...)`: grey ooze, black pudding, ochre jelly;
+  - a Split clip (it divides when cut), a ceiling Drop, a turn in place.
 
 ## Checks
 
@@ -197,3 +271,12 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   from the GameObject must stay steady across loops.
 - To check the export, import `export/Wolf.fbx` in a background Blender: 41 bones including Root/Motion/sockets,
   one mesh with 35 groups, one UV layer.
+- **Ooze:**
+  - `ooze_build.build_model()` report: `contents.outside == []`, `weights` with `unweighted == 0` and `over4 == 0`,
+    and the alpha range (about 0.18–0.51).
+  - After changing clips: `ooze_anim.report()` per clip:
+    - `rim_high` within a few cm (the open bottom stays on the floor);
+    - `lowest` no lower than -0.05;
+    - `contents_out == 0`;
+    - `contents_low >= 0`.
+  - Then `ooze_build.clip_sheets()`, and check `renders/check_tex_*.png` (the UV layout over the texture).

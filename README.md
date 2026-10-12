@@ -9,11 +9,13 @@ in Unity (MedievalSetting, `Assets/Beasts`), with shared code in the `beast_*` m
   [Woolly rhino](#woolly-rhino));
 - the **cave bear**: model, rig, two coats and 13 clips (see [Cave bear](#cave-bear));
 - the **woolly mammoth**: model, rig with a six-bone trunk, two coats and 12 clips (see [Woolly mammoth](#woolly-mammoth));
-- the **red deer stag** (prey): model, rig, one coat and 11 clips, exported, not yet in Unity (see [Red deer stag](#red-deer-stag)).
+- the **red deer stag** (prey): model, rig, one coat and 11 clips, exported, not yet in Unity (see [Red deer stag](#red-deer-stag));
+- the **dungeon ooze**, an amoeba-like jelly with pseudopods that eats what it finds, adventurers included: model,
+  see-through shell with the remains inside, rig and 10 clips, in Unity with its own jelly shader (see [Dungeon ooze](#dungeon-ooze)).
 
 ![The wolf in the bind pose](docs/images/wolf_34.png)
 
-Blender file: `blender/beasts.blend`, scenes **Wolf**, **Rat**, **Rhino**, **Bear**, **Mammoth** and **Deer**. It is not in the repo, and neither are `export/`,
+Blender file: `blender/beasts.blend`, scenes **Wolf**, **Rat**, **Rhino**, **Bear**, **Mammoth**, **Deer** and **Ooze**. It is not in the repo, and neither are `export/`,
 `textures/` or `renders/`. Everything in them is rebuilt from `src/`, starting from any Blender file.
 
 ## Rebuild
@@ -59,6 +61,12 @@ deer_build.show()          # the Deer scene on screen (in its own call)
 deer_build.build_all()     # body -> rig -> weights -> UVs -> coat -> 11 clips (~40 s); build_model() for the model alone
 deer_build.export()        # export/Deer.fbx, Textures/T_Deer.png, Anims/Deer@<clip>.fbx + deer_clips.json
 deer_build.review()        # renders/deer_<view>.png; review_test_pose(), review_joins(), clip_sheets() (deer_clip_<Name>.png)
+
+import ooze_build
+ooze_build.show()          # the Ooze scene on screen (in its own call)
+ooze_build.build_all()     # shell -> contents -> UVs -> 2 textures -> materials -> rig + weights -> 10 clips (~45 s)
+ooze_build.export()        # export/Ooze.fbx (OozeBody + OozeContents), Textures/T_Ooze*.png, Anims/Ooze@<clip>.fbx + ooze_clips.json
+ooze_build.review()        # renders/ooze_<view>.png (EEVEE); clip_sheets() -> ooze_clip_<Name>.png; ooze_anim.report()
 ```
 
 Builds are not bit-identical from run to run: the voxel remesh varies slightly, which moves the decimated mesh and
@@ -72,6 +80,7 @@ the UVs. Always export after a rebuild, so the FBX and the textures in `textures
 | `wolf_anim.py` | Clips keyed from computed bone matrices: trunk/spine/neck/tail bends, 2-bone leg IK + pastern/hock angle, gaits |
 | `rat_body.py`, `rat_rig.py`, `rat_paint.py`, `rat_anim.py`, `rat_build.py` | The same for the giant rat; the tail is a separate ringed shell weighted along its length |
 | `rhino_*.py`, `bear_*.py`, `mammoth_*.py`, `deer_*.py` | The same for the woolly rhino, the cave bear, the woolly mammoth and the red deer (body, rig, paint, anim, build) |
+| `ooze_body.py`, `ooze_contents.py`, `ooze_paint.py`, `ooze_rig.py`, `ooze_anim.py`, `ooze_scene.py`, `ooze_build.py` | The dungeon ooze: a distance-field shell meshed with openvdb, the contents, charted UVs and per-texel paint without Cycles bakes, the rig, the clips and their checks, EEVEE review renders (see [Dungeon ooze](#dungeon-ooze)) |
 | `beast_coat.py` | Long coats: coat volumes (lofts), hem fringes snapped to their volume or dropped onto the body, clumps, the hair's root-to-tip `t` |
 | `beast_body.py` | Mesh helpers and the body pipeline: `fuse_body` (voxel fuse, fillet, sculpts, decimate, edge flips, fold relaxing), `build_tufts`, `sculpt_fur`, `join_pieces` |
 | `beast_paint.py` | Seams from the skin weights plus the creature's cuts, unwrap (with a guard against blown-up degenerate islands), data bakes, fur strokes, texture writing |
@@ -412,3 +421,99 @@ renders the leg joins close up in the stress-test stride.
 
 Hooves slide at most 8 mm in Walk, Trot and Run (`deer_anim.slide_report`); the lowest vertex stays within 2.4 cm of
 the ground in every clip (lying: the hooves).
+
+## Dungeon ooze
+
+An amoeba-like jelly that crawls through dungeons eating what it finds, adventurers included, asked for on
+2026-10-12. It has a lumpy, see-through dome that spreads where it meets the floor, six blunt pseudopods, and a
+wrinkled knot at the rear (the uroid, where a crawling amoeba's tail end bunches up). Inside it you can see a
+dark-red nucleus (the weak spot), food vacuoles, and a half-digested adventurer: skull, two bones, a nasal helm,
+coins, and a rusty sword that went in through its back and still sticks out. It is 3.0 x 2.9 m across with the pods
+out and 1.2 m tall, hip-high on a person (`renders/ooze_scale.png` has a Humans body beside it). Blender scene
+**Ooze** (`OOZ_*` cameras, floor and rim light).
+
+![The ooze, 3/4 view](docs/images/ooze_34.png)
+
+| Part | Triangles | Texture |
+|---|---|---|
+| `OozeBody`: the shell (dome, skirt, 6 pseudopods, uroid), open at the floor | 2,844 | `T_Ooze` 1024²: RGB colour, A opacity |
+| `OozeContents`: nucleus, 7 vacuoles, skull, femur, shin, helm, 7 coins, sword | 1,850 | `T_OozeContents` 512²: RGB colour, A smoothness |
+
+How it differs from the furred beasts:
+
+- **The shell is one distance field** (`ooze_body.field`), meshed with openvdb like the Humans skeleton's skull and
+  decimated uniformly. Its parts: three ellipsoids for the mass plus a skirt; round cones along splines for the pods
+  (`POD`, each 4 control points `(x, y, z, r)`, a swollen tip); balls for the uroid; low-frequency noise.
+  - Below 10 cm the wall is carried straight down and leans out to the floor, so there is no undercut and no paper
+    edge.
+  - The sole is cut away, together with every down-facing sliver near the floor.
+- **The contents sit at least 7 cm inside the field** (`ooze_contents`), except the sword.
+- **UVs**: 14 charts (each pod, a top cap, four sides), plus a slit along each raised pod's underside. Texel density
+  stays within 0.4–1.5x of the median.
+- **Paint without Cycles**: `ooze_paint.texel_bake` rasterises the UVs in numpy. The shell's colour and opacity come
+  from the field:
+  - thickness: the thick core is darker and more opaque, the tips and the skirt's edge clearer;
+  - AO;
+  - streaks along the pods (cytoplasm streaming).
+- **Materials** (the Blender preview of the planned Unity look):
+  - `M_Ooze`: dithered alpha. Opacity is the texture plus a fresnel rim. It has a faint emission, is two-sided,
+    smoothness 0.9, and casts a transparent shadow.
+  - `M_OozeContents`: opaque.
+
+**Rig** (`ooze_rig`, 41 bones):
+- Root, Motion;
+- Body, then Dome (a leaf: squash, stretch and lean) and Tail (the uroid);
+- `<Pod>1–3` for Reach, Lead, Side, Back, Bud and Probe;
+- Gut, with one bone per floating piece (Nucleus, Skull, Femur, Shin, Helm, Sword, Coins, Vac1–7);
+- sockets: `Socket_Gut` (a swallowed victim), `Socket_Mouth` (a grabbed one, carried in by Engulf) and `Socket_Spit`
+  (the Probe's tip).
+
+How the shell is weighted:
+- by a soft minimum over the shape's pieces (`ooze_body.parts`);
+- along each pod, by hat weights on the chain, so a stretched pod stretches along its whole length;
+- in the mass, Dome by height;
+- smoothed;
+- below 16 cm handed back to Body, so the rim stays on the floor.
+
+Pods are posed by bending, by stretching (child bones slide along the chain) or by laying the chain along a curve to a
+target (`OozePose.curve`). Whatever sits in the domed part of the mass follows the Dome by the skin's own weight.
+
+| Clip | Length | Notes |
+|---|---|---|
+| Idle | 3.0 s loop | the dome breathes, a wave runs down each pod, the uroid wags, the contents drift, the nucleus pulses |
+| Crawl | 2.0 s loop | amoeboid flow at 0.6 m/s (root motion 1.2 m a loop): the leading pods reach out, the mass surges into them, the rear pods and the uroid trail, the contents slosh |
+| Lash | 1.33 s | the Probe rears back and slams down in front; event `Hit` at 0.67 s |
+| Grab | 1.47 s | Reach shoots out 0.5 m, swells round what it caught and hauls it back; event `Hit` at 0.6 s |
+| Engulf | 2.67 s | Reach and Lead close round a victim in front, the dome rolls over it and the Probe comes down on top; `Socket_Mouth` carries the victim in to `Socket_Gut`; events `Grab` at 0.73 s, `Engulf` at 1.53 s |
+| Spit | 1.47 s | the Probe aims forward and up, the dome contracts and pumps; event `Spit` at 0.7 s (from `Socket_Spit`) |
+| Hit | 0.8 s | a jolt: a damped wobble, the pods flinch |
+| Death | 2.33 s | collapses into a puddle with a last shudder: raised pods flop, the vacuoles pop one by one, the remains sink to the floor; event `Dead` at 1.87 s; holds |
+| Puddle / Rise | 3.0 s loop / 1.67 s | lying flat and alive (an ambush), rippling; rises from it with an overshoot; event `Risen` at 1.0 s |
+
+`ooze_anim.report()` checks every clip. Last run:
+- the rim stays within 4 cm of the floor;
+- the shell goes at most 4.4 cm under the floor (the Lead pod in Engulf);
+- no content vertex leaves the shell (a majority vote of three upward rays);
+- the remains lie on the floor in Death and Puddle (`_sink_z` reads their lowest points from the mesh: a centroid
+  target sank the rotated helm through the floor).
+
+**In Unity** (2026-10-12):
+- **Rebuild:** Tools > Beasts > Rebuild Ooze (`OozeSetup.cs`). It writes a report, renders and a root-motion trace
+  to `Logs/OozeSetup`. It needs `Shaders/OozeJelly.shader` + `OozeJellyForward.hlsl`, which the install script now
+  copies.
+- **The jelly shader (`Beasts/OozeJelly`):**
+  - two passes over the shell, the far side (back faces) first, then the near side;
+  - premultiplied alpha: the diffuse fades with the opacity, the highlights don't;
+  - opacity = the texture's alpha + a fresnel rim, a faint glow of its own colour, a small vertex wobble;
+  - a shadow dithered by the opacity;
+  - Forward+ lighting through `UniversalFragmentPBR`, so torches light it.
+- **The contents** use URP Lit (`M_OozeContents`).
+- **The prefab** is the Animator, `BeastAppearance` (size 0.85–1.15; no skin swap, since there are two meshes) and
+  `BeastEvents`. Its renderer bounds are padded 0.8 m for the reaching pods.
+- **The clip pools:** Puddle leads into Rise, and so does Death. `Beasts_Test` has two oozes.
+- **Checked:** avatar valid; Crawl 0.60 m/s, `dir=(0, 0, 1)`; 1.200 m per loop over 3 loops, with the Body's offset
+  unchanged at every loop start.
+- **The test scene and the renders no longer change the scenes open in the editor:** `BeastsTestScene.Build` fills
+  the scene additively, and the ooze's renders use a preview scene.
+
+![The ooze in Unity: the clips posed, a goblin for scale](docs/images/ooze_unity_lineup.png)

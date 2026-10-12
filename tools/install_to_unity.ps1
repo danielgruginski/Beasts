@@ -1,6 +1,7 @@
 <#
 Copies the beasts into a Unity project, under Assets/Beasts:
   unity/Beasts/Runtime, Editor        -> Assets/Beasts/Scripts/Runtime, Editor
+  unity/Beasts/Shaders                -> Assets/Beasts/Shaders (the ooze's jelly)
   export/<Creature>.fbx (Wolf)    -> Assets/Beasts/Models
   export/Anims/<Creature>@*.fbx, *.json   -> Assets/Beasts/Models/Anims
   textures/T_*.png                        -> Assets/Beasts/Textures
@@ -31,6 +32,8 @@ function Copy-Into([string]$from, [string]$filter, [string]$to) {
 
 Copy-Into (Join-Path $root 'unity\Beasts\Runtime') '*.cs' (Join-Path $dst 'Scripts\Runtime')
 Copy-Into (Join-Path $root 'unity\Beasts\Editor') '*.cs' (Join-Path $dst 'Scripts\Editor')
+Copy-Into (Join-Path $root 'unity\Beasts\Shaders') '*.shader' (Join-Path $dst 'Shaders')
+Copy-Into (Join-Path $root 'unity\Beasts\Shaders') '*.hlsl' (Join-Path $dst 'Shaders')
 if (-not $ScriptsOnly) {
     Copy-Into (Join-Path $root 'export') '*.fbx' (Join-Path $dst 'Models')
     Copy-Into (Join-Path $root 'export\Anims') '*@*.fbx' (Join-Path $dst 'Models\Anims')

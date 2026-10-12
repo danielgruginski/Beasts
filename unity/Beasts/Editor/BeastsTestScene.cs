@@ -10,8 +10,8 @@ using static Beasts.EditorTools.BeastSetupUtil;
 namespace Beasts.EditorTools
 {
     /// <summary>
-    /// Scenes/Beasts_Test: a wolf pack, a rat swarm and the woolly rhino on random clips, and goblins around them (if
-    /// Assets/Goblins is installed).
+    /// Scenes/Beasts_Test: a wolf pack, a rat swarm, the woolly rhino, bears, a mammoth, deer and two oozes on random
+    /// clips, and goblins around them (if Assets/Goblins is installed).
     /// Press Play. Tools > Beasts > Build Test Scene; the beast setups rebuild it too.
     /// </summary>
     public static class BeastsTestScene
@@ -28,15 +28,41 @@ namespace Beasts.EditorTools
 
         static bool AnyDirty() => Enumerable.Range(0, SceneManager.sceneCount).Any(i => SceneManager.GetSceneAt(i).isDirty);
 
+        /// <summary>Built beside whatever is open (other tools and sessions keep their scenes): the test scene is
+        /// created additively (or rebuilt in place if it is open), active only while it is filled, saved, and closed
+        /// again if it wasn't open.</summary>
         public static void Build(StringBuilder log)
         {
-            if (AnyDirty())
+            var target = SceneManager.GetSceneByPath(ScenePath);
+            bool wasOpen = target.IsValid() && target.isLoaded;
+            if (wasOpen && target.isDirty)
             {
-                log.AppendLine("  test scene skipped: an open scene has unsaved changes (save it, then Tools > Beasts > Build Test Scene)");
+                log.AppendLine("  test scene skipped: it is open with unsaved changes (save it, then Tools > Beasts > Build Test Scene)");
                 return;
             }
-            var previousPath = SceneManager.GetActiveScene().path;
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var previous = SceneManager.GetActiveScene();
+            Scene scene;
+            if (wasOpen)
+            {
+                scene = target;
+                foreach (var r in scene.GetRootGameObjects()) Object.DestroyImmediate(r);
+            }
+            else scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            SceneManager.SetActiveScene(scene);
+            try
+            {
+                Fill(scene, log);
+                EditorSceneManager.SaveScene(scene, ScenePath);
+            }
+            finally
+            {
+                if (previous.IsValid() && previous.isLoaded && previous != scene) SceneManager.SetActiveScene(previous);
+                if (!wasOpen) EditorSceneManager.CloseScene(scene, true);
+            }
+        }
+
+        static void Fill(Scene scene, StringBuilder log)
+        {
             Lighting(60f);
             var rng = new System.Random(11);
             var taken = new List<Vector3>();
@@ -58,6 +84,7 @@ namespace Beasts.EditorTools
                 (BearSetup.PrefabPath, BearSetup.SetPath, "Bear", "bears", 2, 5.0f, 2.0f, 3.0f),
                 (MammothSetup.PrefabPath, MammothSetup.SetPath, "Mammoth", "mammoths", 1, 8.0f, 3.5f, 5.0f),
                 (DeerSetup.PrefabPath, DeerSetup.SetPath, "Deer", "deer", 3, 4.5f, 2.6f, 3.0f),
+                (OozeSetup.PrefabPath, OozeSetup.SetPath, "Ooze", "oozes", 2, 6.0f, 1.6f, 3.5f),
             })
             {
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
@@ -89,10 +116,7 @@ namespace Beasts.EditorTools
             var ui = cam.gameObject.AddComponent<BeastTestUI>();
             ui.distance = 26f;
             ui.pitch = 36f;
-            EditorSceneManager.SaveScene(scene, ScenePath);
             log.AppendLine($"  test scene: {ScenePath} ({string.Join(", ", counts)}, {goblins} goblins)");
-            if (!string.IsNullOrEmpty(previousPath) && AssetDatabase.LoadAssetAtPath<SceneAsset>(previousPath) != null)
-                EditorSceneManager.OpenScene(previousPath, OpenSceneMode.Single);
         }
 
         /// <summary>Verification renders (not saved): the creature posed from its clips in a row, a goblin for scale.</summary>
