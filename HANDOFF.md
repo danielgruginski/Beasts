@@ -311,11 +311,14 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - Look at the effects in play (`Beasts_Test`): the splat trail is checked in edit mode only so far.
   - Maybe a puddle decal under a resting ooze.
 - **Ooze, game side:**
-  - It is not in the game yet: no `Creature` definition and no dungeon spawns. Read the GDD first.
-  - Engulf hands the victim from `Socket_Mouth` to `Socket_Gut`. A 1.7 m person doesn't fit in a 1.1 m dome, so
-    hide them or crouch them inside.
-  - Puddle + Rise make an ambush.
-  - Spit's glob exists (`OozeGlob.Landed` for the damage; set `OozeFx.spitTarget`).
+  - In the game since 2026-10-16 (MedievalSetting, Daniel's design; see its README "Oozes and wasps"): creatures
+    `ooze`, `ooze_small` and `giant_ooze` (Ooze, SmallOoze and GiantOoze prefabs, colour by `OozeLook.Apply`) under
+    the hamlet's well and deep in Greywall's sewers. The spit is hooked on the `BeastEvents` "Spit" event: the game
+    points `OozeFx.spitTarget` at a mark that follows its target and times the hit itself (the glob's 0.7 s flight),
+    so `OozeGlob.Landed` is not used. Lash and Grab are its blows; Crawl stands in for Walk and Run.
+  - Still unused: Engulf hands the victim from `Socket_Mouth` to `Socket_Gut`. A 1.7 m person doesn't fit in a
+    1.1 m dome, so hide them or crouch them inside.
+  - Still unused: Puddle + Rise make an ambush.
   - Split: hook `OozeSplit.SplitInto` to make the two halves real creatures. Splitting again (halves of halves) is
     up to the game.
   - Sounds (squelch, splat, spit) via the game's SoundBank; the SFX pack has none.
