@@ -41,6 +41,11 @@ def solve(rig, rot=None, aim=None, lift=0.0, key_frame=None):
             m = here @ q.to_4x4()
         world[n] = m
         basis[n] = here.inverted() @ m
+    if "WingMem11L" in R:                                    # the arm panels' helper bones ride on the pose
+        D.membrane_pose(world, R)
+        for n in [n for n in world if n.startswith("WingMem")]:
+            par = rig.data.bones[n].parent.name
+            basis[n] = (world[par] @ (R[par].inverted() @ R[n])).inverted() @ world[n]
     for n, m in basis.items():
         pb = rig.pose.bones[n]
         pb.matrix_basis = m
@@ -60,10 +65,10 @@ FOLD = {
     "WingForearm": ((0.02, -0.90, 0.44), (0.99, 0.0, 0.10)),
     "WingHand": ((0.02, -0.25, 0.97), (1.0, 0.0, 0.0)),
     "WingThumb": ((0.15, -0.75, 0.64), (1.0, 0.0, 0.0)),
-    "F1": ((-0.02, 0.99, -0.08), (0.99, 0.0, 0.12)),
-    "F2": ((-0.03, 0.96, -0.25), (0.99, 0.0, 0.12)),
-    "F3": ((-0.04, 0.91, -0.40), (0.99, 0.0, 0.12)),
-    "F4": ((-0.05, 0.84, -0.53), (0.99, 0.0, 0.12)),
+    "F1": ((-0.02, 0.99, -0.08), (0.99, 0.0, 0.12)),      # a tight bundle (the last finger pointing down hung
+    "F2": ((-0.03, 0.98, -0.17), (0.99, 0.0, 0.12)),      # its panel over the thigh like a plate)
+    "F3": ((-0.04, 0.96, -0.26), (0.99, 0.0, 0.12)),
+    "F4": ((-0.05, 0.94, -0.34), (0.99, 0.0, 0.12)),
 }
 
 

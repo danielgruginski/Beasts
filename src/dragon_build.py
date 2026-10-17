@@ -236,3 +236,48 @@ def clip_frames(name, cam="34", res=540, step=2):
     scn.camera, scn.render.resolution_x, scn.render.resolution_y, scn.render.filepath = old
     dragon_anim.clear()
     return folder
+
+
+def membrane_helpers():
+    """The arm panels' helper bones (dragon_body.membrane_pose) on the built rig, and DragonWingMembrane re-weighted
+    in place: the same vertices, so its UVs and paint stay. -> report"""
+    reload_all()
+    rig = bpy.data.objects["DragonRig"]
+    B = dragon_body.rest_bones()
+    new = [n for n in B if n.startswith("WingMem") and n not in rig.data.bones]
+    if new:
+        vl = bpy.context.view_layer
+        for o in bpy.context.selected_objects:
+            o.select_set(False)
+        vl.objects.active = rig
+        rig.select_set(True)
+        bpy.ops.object.mode_set(mode='EDIT')
+        eb = rig.data.edit_bones
+        for n in new:
+            h, fr, L, par, deform = B[n]
+            b = eb.new(n)
+            b.head = h
+            b.tail = h + fr.col[1] * L
+            b.align_roll(fr.col[2])
+            b.use_deform = deform
+            b.parent = eb[par]
+            b.use_connect = False
+        bpy.ops.object.mode_set(mode='OBJECT')
+        dragon_body.wing_collections(rig)
+    mem = dragon_body.Acc()
+    for s_, sfx in dragon_body.SIDES:
+        dragon_body.build_membranes(mem, B, s_, sfx)
+    ob = bpy.data.objects["DragonWingMembrane"]
+    P = np.array([v.co[:] for v in mem.bm.verts])
+    Q = np.array([v.co[:] for v in ob.data.vertices])
+    mem.bm.free()
+    if P.shape != Q.shape or np.abs(P - Q).max() > 1e-4:
+        raise RuntimeError("DragonWingMembrane no longer matches build_membranes: rebuild the body")
+    ob.vertex_groups.clear()
+    groups = {}
+    for i, w in enumerate(mem.W):
+        for bone, x in w.items():
+            g = groups.get(bone) or ob.vertex_groups.new(name=bone)
+            groups[bone] = g
+            g.add([i], x, 'REPLACE')
+    return dict(new_bones=len(new), bones=len(rig.data.bones), membrane=beast_rig.weight_report(ob))

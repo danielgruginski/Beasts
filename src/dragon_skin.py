@@ -404,7 +404,8 @@ def body_colors(P, rgb):
 
 # ----------------------------------------------------------------------------------------- weights
 def _exclude(n):
-    return n in ("Root", "Motion", "Jaw") or n.startswith("Socket_") or (n.startswith("WingF") and n[5].isdigit())
+    return n in ("Root", "Motion", "Jaw") or n.startswith(("Socket_", "WingMem")) or \
+        (n.startswith("WingF") and n[5].isdigit())
 
 
 def heat(ob, rig):

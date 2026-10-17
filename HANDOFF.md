@@ -508,8 +508,23 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       `p.wing_lift`.
     - Neck (7 bones) and tail (14) move as waves (`_neck_wave`, `_tail_wave`): each bone a little after the one
       before.
-    - Clips so far: Idle (4 s loop), Walk (1.6 s loop, 1.25 m/s), Run (0.8 s loop, rotary gallop, 5.5 m/s). `dragon_build.build_clips()`;
-      `dragon_anim.report()` gives the lowest vertex per clip (-3.4 cm: the claw tips).
+    - Clips so far: Idle (4 s loop), Walk (1.6 s loop, 1.25 m/s), Run (0.8 s loop, rotary gallop, 5.5 m/s), Bite
+      (1.4 s), Claw (1.2 s), TailSweep (1.8 s). The attacks fire event 'Bite' at impact, as the other beasts' do.
+      `dragon_build.build_clips()`; `dragon_anim.report()` gives the lowest vertex per clip (-3.4 cm standing: the
+      claw tips; Claw -11 cm, its raking foreleg).
+    - **The folded wing** (Daniel: "Something is wrong with the folded wing, it has a bad geometry"):
+      - The panel between the wing arm and the flank was skinned straight to those bones. In the fold the arm
+        turns ~150 degrees from the flank, and linear blend skinning swung the panel's middle out from the side like
+        a saddlebag.
+      - Now 12 helper bones per wing (`WingMem<i><j>L/R`, children of WingScap) sit on that panel. Each pose places
+        them on the Coons surface spanned by the panel's posed edges (`dragon_body.membrane_pose`, called by
+        `dragon_anim._wings` and `dragon_pose.solve`). The inside and the trailing edge are weighted to them;
+        arm, flank and last finger keep their own bones.
+      - `dragon_build.membrane_helpers()` adds the bones to a built rig and re-weights DragonWingMembrane in place
+        (same vertices: the UVs and paint stay). `rest_bones()` includes them, and `_exclude` keeps them out of the
+        body's heat weights.
+      - The fold's fingers are a tighter bundle (`dragon_pose.FOLD`): the last finger pointing down hung its panel
+        over the thigh like a plate.
   - **Head to-do, for a later pass** (Daniel 2026-10-17: "It is not perfect, but it is good enough"; body first, head
     later). The head is code, so a change is a rebuild plus re-export:
     - Teeth: open, from the side, they form one perfectly straight, even row. Vary size, spacing, lean and height

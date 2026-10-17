@@ -213,6 +213,9 @@ def rest_bones():
                 name = f"WingF{i + 1}_{k + 1}{sfx}"
                 _bone(B, name, m(P[k]), m(P[k + 1]), UP, par)
                 par = name
+        P, _ = coons(*arm_panel(B, s, sfx))                  # the arm panel's helper bones (membrane_pose)
+        for n, (h, fr) in _mem_frames(P, sfx).items():
+            B[n] = (Vector(h), fr, 0.25, f"WingScap{sfx}", True)
     mouth = Vector(DH.to_body(DH.MOUTH))                     # sockets: head = attach point, +Y up, +Z forward
     _bone(B, "Socket_Mouth", mouth, mouth + Vector((0, 0, 0.2)), FWD, "Head")
     return B
@@ -552,31 +555,146 @@ def build_blockout(rig, old_head=False, frill_fused=None):
     return (ob_body, ob_mem), rep
 
 
-def build_membranes(mem, B, s_, sfx):
-    """One wing's membranes into an Acc: Coons patches whose boundaries run along the bones' joints, so a patch edge
-    rides on its bone."""
+# The arm + flank membrane (arm, flank, the last finger and the trailing edge between them) is not skinned to those
+# bones directly: in the fold the arm turns ~150 degrees from the flank, and blending the two swung the middle of the
+# panel out from the side like a saddlebag (Daniel: "Something is wrong with the folded wing, it has a bad
+# geometry"). Instead a grid of helper bones (WingMem<i><j>) sits on the Coons surface spanned by the panel's edges
+# as they are posed (membrane_pose, every frame of every clip), and the panel's inside is weighted to them.
+NU_ARM, NV_ARM = 15, 10
+MEM_I = (3, 6, 9, 12)            # helper bones at these grid columns (along the arm) ...
+MEM_J = (3, 6, 9)                # ... and rows (arm -> trailing edge; 9 = on the trailing edge itself)
+_PANEL = {}
+
+
+def arm_panel(B, s_, sfx):
+    """The arm + flank membrane's edges (rest): bottom = shoulder, elbow, wrist, knuckle; top = the trailing edge
+    from the flank to the last finger's tip; left = the flank; right = the last finger. Each (P, weights)."""
     m = lambda p: _m(p, s_)
     W = WING
     sh, el, wr, kn, att = (np.array(m(W[k])) for k in ("sho", "elb", "wri", "knu", "att"))
-    fingers = [np.array([m(p) for p in finger_pts(i)]) for i in range(4)]
-    fbones = [[f"WingF{i + 1}_{k + 1}{sfx}" for k in range(FINGER_SEGS[i])] for i in range(4)]
-    tips_ = [f[-1] for f in fingers]
-    last = [fb_[-1] for fb_ in fbones]
-    arm_bones = [f"WingArm{sfx}", f"WingForearm{sfx}", f"WingHand{sfx}"]
+    f4 = np.array([m(p) for p in finger_pts(3)])
+    fb4 = [f"WingF4_{k + 1}{sfx}" for k in range(FINGER_SEGS[3])]
     trunk = _bones_of(B, ["Chest", "Spine2", "Spine1", "Hips"])
-    nu, nv = 15, 10
-
-    # arm + flank membrane: arm (bottom), trailing edge flank -> F4 tip (top), flank (left), F4 (right)
-    bottom = polyline([sh, el, wr, kn], arm_bones, nu, start=f"WingScap{sfx}")
-    topP = _sag(att, tips_[3], el, nu, 0.12)
-    top = (topP, [_wmix([(1 - u, chain_weights(att[None], trunk)[0]), (u, {last[3]: 1.0})])
+    nu, nv = NU_ARM, NV_ARM
+    bottom = polyline([sh, el, wr, kn], [f"WingArm{sfx}", f"WingForearm{sfx}", f"WingHand{sfx}"], nu,
+                      start=f"WingScap{sfx}")
+    topP = _sag(att, f4[-1], el, nu, 0.12)
+    top = (topP, [_wmix([(1 - u, chain_weights(att[None], trunk)[0]), (u, {fb4[-1]: 1.0})])
                   for u in np.linspace(0, 1, nu)])
     leftP = np.linspace(sh, att, nv)
     lw = chain_weights(leftP, trunk)
     left = (leftP, [_wmix([(1 - smoothstep(0, 0.35, v), {f"WingScap{sfx}": 1.0}), (smoothstep(0, 0.35, v), w)])
                     for v, w in zip(np.linspace(0, 1, nv), lw)])
-    right = polyline(fingers[3], fbones[3], nv, start=f"WingHand{sfx}")
-    mem.add(lambda bm: _patch(bm, *coons(bottom, top, left, right)))
+    right = polyline(f4, fb4, nv, start=f"WingHand{sfx}")
+    return bottom, top, left, right
+
+
+def coons_P(Pb, Pt, Pl, Pr):
+    """Coons surface positions only (see coons). -> (nu, nv, 3)"""
+    nu, nv = len(Pb), len(Pl)
+    u = np.linspace(0, 1, nu)[:, None, None]
+    v = np.linspace(0, 1, nv)[None, :, None]
+    return ((1 - v) * Pb[:, None] + v * Pt[:, None] + (1 - u) * Pl[None] + u * Pr[None]
+            - ((1 - u) * (1 - v) * Pb[0] + u * (1 - v) * Pb[-1] + (1 - u) * v * Pt[0] + u * v * Pt[-1]))
+
+
+def _mem_frames(P, sfx):
+    """Helper bone frames on a Coons grid P: at each (MEM_I, MEM_J) node, +Y along the arm, +Z the surface normal."""
+    out = {}
+    for a, i in enumerate(MEM_I):
+        for b, j in enumerate(MEM_J):
+            du = P[i + 1, j] - P[i - 1, j]
+            dv = P[i, min(j + 1, len(P[0]) - 1)] - P[i, j - 1]
+            out[f"WingMem{a + 1}{b + 1}{sfx}"] = (P[i, j], _frame(du, np.cross(du, dv)))
+    return out
+
+
+def _mem_weights(W, sfx):
+    """The arm panel's weights: its edges keep their own; inside, bilinear over a lattice of nodes, the edge nodes
+    carrying the edge weights there and the inner ones a helper bone each."""
+    nu, nv = len(W), len(W[0])
+    I = [0, *MEM_I, nu - 1]
+    J = [0, *MEM_J] + ([nv - 1] if MEM_J[-1] != nv - 1 else [])
+    top_helpers = MEM_J[-1] == nv - 1              # the trailing edge rides on helpers too
+
+    def node(a, b):
+        i, j = I[a], J[b]
+        if a in (0, len(I) - 1) or b == 0 or (b == len(J) - 1 and not top_helpers):
+            return W[i][j]
+        return {f"WingMem{a}{b}{sfx}": 1.0}
+    out = [[None] * nv for _ in range(nu)]
+    for i in range(nu):
+        for j in range(nv):
+            if i in (0, nu - 1) or j == 0 or (j == nv - 1 and not top_helpers):
+                out[i][j] = W[i][j]
+                continue
+            if j == nv - 1:                         # on the trailing edge: along it, between its helpers
+                a = max(k for k in range(len(I) - 1) if I[k] <= i)
+                s = (i - I[a]) / (I[a + 1] - I[a])
+                out[i][j] = _wmix([(1 - s, node(a, len(J) - 1)), (s, node(a + 1, len(J) - 1))])
+                continue
+            a = max(k for k in range(len(I) - 1) if I[k] <= i)
+            b = max(k for k in range(len(J) - 1) if J[k] <= j)
+            s = (i - I[a]) / (I[a + 1] - I[a])
+            t = (j - J[b]) / (J[b + 1] - J[b])
+            out[i][j] = _wmix([((1 - s) * (1 - t), node(a, b)), (s * (1 - t), node(a + 1, b)),
+                               ((1 - s) * t, node(a, b + 1)), (s * t, node(a + 1, b + 1))])
+    return out
+
+
+def membrane_pose(Wm, R):
+    """Add the arm panels' helper bones to a pose. Wm: armature-space matrices of (at least) the trunk, wing and
+    finger bones; R: rest matrices. The panel's edges ride on their bones -- except the trailing edge, which spans
+    its posed ends with its rest sag (blending trunk and finger there swung it out too) -- and the helpers sit on the
+    Coons surface between them."""
+    for s_, sfx in SIDES:
+        if sfx not in _PANEL:
+            _PANEL[sfx] = arm_panel(rest_bones_cached(), s_, sfx)
+        bottom, top, left, right = _PANEL[sfx]
+
+        def lbs(P, Ws):
+            out = np.zeros((len(P), 3))
+            for k, (p, w) in enumerate(zip(P, Ws)):
+                v = Vector(p)
+                acc = Vector()
+                for n, wt in w.items():
+                    acc += float(wt) * ((Wm[n] @ R[n].inverted()) @ v)
+                out[k] = acc
+            return out
+        Pb, Pl, Pr = lbs(*bottom), lbs(*left), lbs(*right)
+        el = np.array(Wm[f"WingForearm{sfx}"].translation)
+        Pt = _sag(Pl[-1], Pr[-1], el, len(Pb), 0.12)
+        P = coons_P(Pb, Pt, Pl, Pr)
+        for n, (h, fr) in _mem_frames(P, sfx).items():
+            Wm[n] = Matrix.Translation(Vector(h)) @ fr.to_4x4()
+    return Wm
+
+
+_REST = {}
+
+
+def rest_bones_cached():
+    if not _REST:
+        _REST.update(rest_bones())
+    return _REST
+
+
+def build_membranes(mem, B, s_, sfx):
+    """One wing's membranes into an Acc: Coons patches whose boundaries run along the bones' joints, so a patch edge
+    rides on its bone; the arm panel's inside rides on its helper bones (arm_panel, membrane_pose)."""
+    m = lambda p: _m(p, s_)
+    W = WING
+    sh, el, wr, kn = (np.array(m(W[k])) for k in ("sho", "elb", "wri", "knu"))
+    fingers = [np.array([m(p) for p in finger_pts(i)]) for i in range(4)]
+    fbones = [[f"WingF{i + 1}_{k + 1}{sfx}" for k in range(FINGER_SEGS[i])] for i in range(4)]
+    tips_ = [f[-1] for f in fingers]
+    last = [fb_[-1] for fb_ in fbones]
+    arm_bones = [f"WingArm{sfx}", f"WingForearm{sfx}", f"WingHand{sfx}"]
+
+    # arm + flank membrane: arm (bottom), trailing edge flank -> F4 tip (top), flank (left), F4 (right)
+    P, Wc = coons(*arm_panel(B, s_, sfx))
+    Wc = _mem_weights(Wc, sfx)
+    mem.add(lambda bm: _patch(bm, P, Wc))
     # between the fingers: finger i (bottom), finger i+1 (top), the knuckle (left), trailing edge (right)
     for i in range(3):
         fb0 = polyline(fingers[i], fbones[i], 12, start=f"WingHand{sfx}")
