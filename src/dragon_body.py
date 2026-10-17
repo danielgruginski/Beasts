@@ -540,41 +540,7 @@ def build_blockout(rig, old_head=False, frill_fused=None):
                 body.add(lambda bm: _seg(bm, m(P[k]), m(P[k + 1]), r[k], r[k + 1], up=UP, cap=0.5),
                          f"WingF{i + 1}_{k + 1}{sfx}", back)
 
-        # membranes: Coons patches. Boundaries run along the bones' joints, so a patch edge rides on its bone.
-        sh, el, wr, kn, att = (np.array(m(W[k])) for k in ("sho", "elb", "wri", "knu", "att"))
-        fingers = [np.array([m(p) for p in finger_pts(i)]) for i in range(4)]
-        fbones = [[f"WingF{i + 1}_{k + 1}{sfx}" for k in range(FINGER_SEGS[i])] for i in range(4)]
-        tips_ = [f[-1] for f in fingers]
-        last = [fb_[-1] for fb_ in fbones]
-        arm_bones = [f"WingArm{sfx}", f"WingForearm{sfx}", f"WingHand{sfx}"]
-        trunk = _bones_of(B, ["Chest", "Spine2", "Spine1", "Hips"])
-        nu, nv = 15, 10
-
-        # arm + flank membrane: arm (bottom), trailing edge flank -> F4 tip (top), flank (left), F4 (right)
-        bottom = polyline([sh, el, wr, kn], arm_bones, nu, start=f"WingScap{sfx}")
-        topP = _sag(att, tips_[3], el, nu, 0.12)
-        top = (topP, [_wmix([(1 - u, chain_weights(att[None], trunk)[0]), (u, {last[3]: 1.0})])
-                      for u in np.linspace(0, 1, nu)])
-        leftP = np.linspace(sh, att, nv)
-        lw = chain_weights(leftP, trunk)
-        left = (leftP, [_wmix([(1 - smoothstep(0, 0.35, v), {f"WingScap{sfx}": 1.0}), (smoothstep(0, 0.35, v), w)])
-                        for v, w in zip(np.linspace(0, 1, nv), lw)])
-        right = polyline(fingers[3], fbones[3], nv, start=f"WingHand{sfx}")
-        mem.add(lambda bm: _patch(bm, *coons(bottom, top, left, right)))
-        # between the fingers: finger i (bottom), finger i+1 (top), the knuckle (left), trailing edge (right)
-        for i in range(3):
-            fb0 = polyline(fingers[i], fbones[i], 12, start=f"WingHand{sfx}")
-            fb1 = polyline(fingers[i + 1], fbones[i + 1], 12, start=f"WingHand{sfx}")
-            leftK = (np.repeat(kn[None], 6, axis=0), [{f"WingHand{sfx}": 1.0}] * 6)
-            te = _sag(tips_[i], tips_[i + 1], kn, 6, 0.18)
-            rightT = (te, [{last[i]: 1 - v, last[i + 1]: v} for v in np.linspace(0, 1, 6)])
-            mem.add(lambda bm: _patch(bm, *coons(fb0, fb1, leftK, rightT), weld_u0=True))
-        # leading edge: shoulder -> elbow -> wrist (bottom), the straight shoulder -> wrist line pushed forward (top)
-        armP = polyline([sh, el, wr], arm_bones[:2], 10, start=f"WingScap{sfx}", end=f"WingHand{sfx}")
-        lead = np.linspace(sh, wr, 10) + np.array((0, -0.12, 0.02)) * np.sin(np.linspace(0, math.pi, 10))[:, None]
-        topL = (lead, armP[1])
-        mem.add(lambda bm: _patch(bm, *coons(armP, topL, (np.array([sh, sh, sh]), [armP[1][0]] * 3),
-                                             (np.array([wr, wr, wr]), [armP[1][-1]] * 3)), weld_u0=True, weld_u1=True))
+        build_membranes(mem, B, s_, sfx)
 
     ob_body = body.finish("DragonBlockout", coll, mat)
     mem.C = [c if c is not None else _rgb(COL["membrane"]) for c in mem.C]
@@ -584,6 +550,47 @@ def build_blockout(rig, old_head=False, frill_fused=None):
     rep["tris"] = {o.name: sum(len(p.vertices) - 2 for p in o.data.polygons) for o in (ob_body, ob_mem)}
     rep["head"] = rep_head
     return (ob_body, ob_mem), rep
+
+
+def build_membranes(mem, B, s_, sfx):
+    """One wing's membranes into an Acc: Coons patches whose boundaries run along the bones' joints, so a patch edge
+    rides on its bone."""
+    m = lambda p: _m(p, s_)
+    W = WING
+    sh, el, wr, kn, att = (np.array(m(W[k])) for k in ("sho", "elb", "wri", "knu", "att"))
+    fingers = [np.array([m(p) for p in finger_pts(i)]) for i in range(4)]
+    fbones = [[f"WingF{i + 1}_{k + 1}{sfx}" for k in range(FINGER_SEGS[i])] for i in range(4)]
+    tips_ = [f[-1] for f in fingers]
+    last = [fb_[-1] for fb_ in fbones]
+    arm_bones = [f"WingArm{sfx}", f"WingForearm{sfx}", f"WingHand{sfx}"]
+    trunk = _bones_of(B, ["Chest", "Spine2", "Spine1", "Hips"])
+    nu, nv = 15, 10
+
+    # arm + flank membrane: arm (bottom), trailing edge flank -> F4 tip (top), flank (left), F4 (right)
+    bottom = polyline([sh, el, wr, kn], arm_bones, nu, start=f"WingScap{sfx}")
+    topP = _sag(att, tips_[3], el, nu, 0.12)
+    top = (topP, [_wmix([(1 - u, chain_weights(att[None], trunk)[0]), (u, {last[3]: 1.0})])
+                  for u in np.linspace(0, 1, nu)])
+    leftP = np.linspace(sh, att, nv)
+    lw = chain_weights(leftP, trunk)
+    left = (leftP, [_wmix([(1 - smoothstep(0, 0.35, v), {f"WingScap{sfx}": 1.0}), (smoothstep(0, 0.35, v), w)])
+                    for v, w in zip(np.linspace(0, 1, nv), lw)])
+    right = polyline(fingers[3], fbones[3], nv, start=f"WingHand{sfx}")
+    mem.add(lambda bm: _patch(bm, *coons(bottom, top, left, right)))
+    # between the fingers: finger i (bottom), finger i+1 (top), the knuckle (left), trailing edge (right)
+    for i in range(3):
+        fb0 = polyline(fingers[i], fbones[i], 12, start=f"WingHand{sfx}")
+        fb1 = polyline(fingers[i + 1], fbones[i + 1], 12, start=f"WingHand{sfx}")
+        leftK = (np.repeat(kn[None], 6, axis=0), [{f"WingHand{sfx}": 1.0}] * 6)
+        te = _sag(tips_[i], tips_[i + 1], kn, 6, 0.18)
+        rightT = (te, [{last[i]: 1 - v, last[i + 1]: v} for v in np.linspace(0, 1, 6)])
+        mem.add(lambda bm: _patch(bm, *coons(fb0, fb1, leftK, rightT), weld_u0=True))
+    # leading edge: shoulder -> elbow -> wrist (bottom), the straight shoulder -> wrist line pushed forward (top)
+    armP = polyline([sh, el, wr], arm_bones[:2], 10, start=f"WingScap{sfx}", end=f"WingHand{sfx}")
+    lead = np.linspace(sh, wr, 10) + np.array((0, -0.12, 0.02)) * np.sin(np.linspace(0, math.pi, 10))[:, None]
+    topL = (lead, armP[1])
+    mem.add(lambda bm: _patch(bm, *coons(armP, topL, (np.array([sh, sh, sh]), [armP[1][0]] * 3),
+                                         (np.array([wr, wr, wr]), [armP[1][-1]] * 3)), weld_u0=True, weld_u1=True))
 
 
 def _ventral(P, rows, per_seg=12):

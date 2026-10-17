@@ -400,6 +400,49 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     - `dragon_body.build_blockout()` uses it (`old_head=True` brings back the lofted head). The Jaw bone and
       `Socket_Mouth` come from `dragon_head.HINGE / CHIN_TIP / MOUTH`. `dragon_build.face_sheet()` renders the head
       shut and open (`renders/dragon_face_sheet.png`).
+  - **Stage 3, the real body (2026-10-17):** `dragon_skin.py`, `dragon_build.build_body()`. Daniel OK'd about 32k
+    tris for the whole dragon. One skin, snout to tail tip:
+    - **Body field:** like the head, melted primitives on a 2.5 cm grid (`Grid`, each primitive evaluated only
+      inside its own box plus its melting margin, `pad`). It holds:
+      - the spine chain: ~150 overlapping ellipsoids along `BODY_ROWS`, each hanging below the spine like the
+        loft's section;
+      - muscles: chest, shoulders, upper arms, forearms, haunches, calves, wing roots, the wings' biceps;
+      - legs and wing arms as round cones per bone with joint knobs;
+      - toes, four per foot, raised at the knuckle.
+    - **Seam:** the body is meshed and decimated to 12.5k, the head as before (12k). They meet at a plane square to
+      the neck's spine, `CUT_ARC` = 45 cm down from the poll.
+      - Both fields hold the neck chain and the head near it (`head_field_with_neck`; the body grid unions
+        `DH.head_field` in `head_region`), so the two cut loops lie on one surface. `zipper()` stitches them.
+      - A plane square to the head's axis sliced the curving neck from the throat almost to the chest: the head's
+        grid edge became a flat cap and the zip a 39 cm skirt (a box corner under the throat).
+    - **Weights:** Blender's heat map on the skin (`heat`: deform bones minus Root/Motion/Jaw/sockets/wing
+      fingers). The head's own weights (`DH.head_weights`) fade into it over the last 30 cm before the seam. Empty
+      vertices fall back to `chain_weights` (none so far), then smoothing and 4 influences.
+    - **Shells** (`build_shells`): the head's (`DH.head_shells`); the horns; dorsal spikes from behind the crown to
+      the tail tip; claws on the toes and thumbs, seated on the skin and weighted from the nearest skin vertex; the
+      wing fingers (lofts, chain weights). The membranes are `dragon_body.build_membranes` (Coons, unchanged).
+    - **Objects:** `DragonBody` (skin + shells, 29.6k tris) and `DragonWingMembrane` (1.2k) in `DRG_Body`. The
+      blockout's collection is excluded from the view layer.
+    - **Checks:**
+      - `rep["loops"]` is (1, 1, ...): exactly one cut loop on each side;
+      - no non-manifold edges except the frill and membrane sheets;
+      - `body.unweighted == 0`;
+      - the head's `bridges == 0`;
+      - renders: `pose_sheet(out="dragon_body_poses")`, `face_sheet(out="dragon_face_on_body")`.
+    - **Decimation lessons** (`DH._decimate`, shared by head and body):
+      - the collapse must triangulate itself (`use_collapse_triangulate`): bmesh triangulating its leftover quads
+        made non-manifold edges;
+      - no symmetric collapse: it left "pillows" on the centre line (two triangles on the same three vertices,
+        hanging off the surface), which broke the skin's copy;
+      - `_drop_pillows` still runs first, before the edge flips (beautify_fill turned them into cracks);
+      - mirroring the dense mesh first (`symmetrize`) made it worse.
+    - **Not done:**
+      - Colours are still blockout vertex colours; the gold blotches up the neck and legs go when the paint is
+        per-texel.
+      - Dorsal spikes poke through the folded membrane.
+      - Raising the wings (fire pose) tents the shoulder skin with a fold down the flank.
+      - The membranes' flank edge was laid out for the blockout's body.
+      - Shells are about 7.5k of the total: eyes at 24x14 and teeth at 6 sides could be cheaper.
   - **Head to-do, for a later pass** (Daniel 2026-10-17: "It is not perfect, but it is good enough"; body first, head
     later). The head is code, so a change is a rebuild plus re-export:
     - Teeth: open, from the side, they form one perfectly straight, even row. Vary size, spacing, lean and height
@@ -410,7 +453,7 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       edge (root inside the hanging lip, further in and down).
     - Mine: the pupil is a vertex-colour blob. The eye's detail and the scales come with the paint and normal map.
   - **Next:**
-    - the real body (the beasts' fuse/sculpt recipe; the head joins the neck there);
+    - the real body: done (stage 3); next its paint (masks + presets, normal map with scales);
     - scales: brow plates, face scales and the belly plates in the normal map;
     - paint masks plus presets;
     - clips;

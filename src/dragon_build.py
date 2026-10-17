@@ -1,16 +1,17 @@
 """Rebuild the dragon (2026-10-17). Stage 1, the blockout: skeleton + rough volumes + wing membranes, posed in the
-test poses (dragon_pose). Its own file, blender/dragon.blend (scene Dragon); run with that scene on screen
-(dragon_build.show() puts it there)."""
+test poses (dragon_pose). Stage 2, the face (dragon_head). Stage 3, the real body (dragon_skin): build_body().
+Its own file, blender/dragon.blend (scene Dragon); run with that scene on screen (dragon_build.show() puts it
+there)."""
 import bpy, importlib, os
 import numpy as np
-import beast_common, beast_scene, beast_rig, dragon_body, dragon_pose, dragon_head
+import beast_common, beast_scene, beast_rig, dragon_body, dragon_pose, dragon_head, dragon_skin
 
 RIG = dragon_body.RIG
 BLEND = os.path.join(beast_common.ROOT, "blender", "dragon.blend")
 
 
 def reload_all():
-    for m in (beast_common, beast_scene, beast_rig, dragon_head, dragon_body, dragon_pose):
+    for m in (beast_common, beast_scene, beast_rig, dragon_head, dragon_body, dragon_pose, dragon_skin):
         importlib.reload(m)
 
 
@@ -62,6 +63,20 @@ def build_blockout(frill_fused=None):
     rig = beast_rig.build_armature(dragon_body.rest_bones(), name=RIG, coll_name="DRG_Rig")
     dragon_body.wing_collections(rig)
     objs, rep = dragon_body.build_blockout(rig, frill_fused=frill_fused)
+    rep["bones"] = len(rig.data.bones)
+    rig.hide_render = True
+    return rig, objs, rep
+
+
+def build_body():
+    """Skeleton -> the real body (dragon_skin): skin, shells, membranes, weighted and bound; the blockout's
+    collection is excluded from the view layer. -> (rig, objects, report)"""
+    assert bpy.context.scene.name == "Dragon", "put the Dragon scene on screen first: dragon_build.show()"
+    reload_all()
+    setup_scene()
+    rig = beast_rig.build_armature(dragon_body.rest_bones(), name=RIG, coll_name="DRG_Rig")
+    dragon_body.wing_collections(rig)
+    objs, rep = dragon_skin.build(rig)
     rep["bones"] = len(rig.data.bones)
     rig.hide_render = True
     return rig, objs, rep

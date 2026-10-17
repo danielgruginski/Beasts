@@ -85,8 +85,9 @@ JAW_KEYS = (
     (-1.35, 0.135, -0.162, -0.350),      # a wide, flat front, not a knob
     (-1.39, 0.105, -0.137, -0.290),
     (-1.41, 0.050, -0.115, -0.220),
-    (0.08, 0.200, -0.100, -0.420),       # behind the hinge it closes in under the neck
-    (0.14, 0.100, -0.140, -0.320),
+    (0.08, 0.200, -0.100, -0.410),       # behind the hinge it tapers into the throat under the neck (its flat
+    (0.20, 0.140, -0.120, -0.360),       # end cap showed as a box corner once the real neck replaced the loft)
+    (0.32, 0.060, -0.140, -0.300),
 )
 JAW_ROUND = (0.040, 0.55)           # the lower lip edge: metres (crisp); the underside: fraction (round)
 JAWLINE = ((0.200, -0.25, -0.40), (0.150, -1.05, -0.34), 0.050)     # the mandible's edge along each side
@@ -280,7 +281,7 @@ def parts(P):
     socket = sd_ellipsoid(np.stack(_eye_local(Pm), -1), (0, 0, 0), EYE["socket"])
     # upper and lower meet hard in front of the corner and blend behind it: a 3 cm blend there filled the 1.6 cm
     # channel between the hanging lip and the jaw's side with a web, which stretched into a curtain on opening
-    k_ul = 0.004 + 0.026 * smoothstep(Y_CORNER - 0.06, Y_CORNER + 0.06, y)
+    k_ul = 0.004 + 0.026 * smoothstep(Y_CORNER - 0.06, Y_CORNER + 0.06, y) + 0.06 * smoothstep(-0.05, 0.20, y)
     return dict(up=up, lo=lo, lids=lids, spk=spk, slit=slit, nostril=nostril, socket=socket, k_ul=k_ul)
 
 
@@ -330,8 +331,24 @@ def _bm_from(V, F):
     return bm
 
 
+def _drop_pillows(bm):
+    """The symmetric collapse leaves a few "pillows" on the centre line: two triangles on the same three vertices,
+    attached to nothing. They broke the skin's copy (a second face on the same vertices can't be made); drop them."""
+    from collections import defaultdict
+    bm.verts.index_update()
+    groups = defaultdict(list)
+    for f in bm.faces:
+        groups[frozenset(v.index for v in f.verts)].append(f)
+    dup = [f for fs in groups.values() if len(fs) > 1 for f in fs]
+    if dup:
+        bmesh.ops.delete(bm, geom=dup, context='FACES_ONLY')
+        bmesh.ops.delete(bm, geom=[e for e in bm.edges if not e.link_faces], context='EDGES')
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_edges], context='VERTS')
+    return len(dup)
+
+
 def _decimate(bm, target, weight=None):
-    """Collapse to `target` triangles, symmetric in x, then even out slivers (the beasts' fuse_body clean-up).
+    """Collapse to `target` triangles, then even out slivers (the beasts' fuse_body clean-up).
     weight(P) -> 0..1 per vertex: lower keeps more (the decimate modifier's vertex group)."""
     import bpy
     me = bpy.data.meshes.new("_drg_dec")
@@ -343,8 +360,8 @@ def _decimate(bm, target, weight=None):
     mod = ob.modifiers.new("dec", 'DECIMATE')
     mod.decimate_type = 'COLLAPSE'
     mod.ratio = min(1.0, target / max(n, 1))
-    mod.use_symmetry = True
-    mod.symmetry_axis = 'X'
+    mod.use_symmetry = False             # symmetric collapse left "pillows" on the centre line (see _drop_pillows)
+    mod.use_collapse_triangulate = True   # (left to bmesh, a few odd quads triangulated into non-manifold edges)
     if weight is not None:
         P = np.array([v.co[:] for v in me.vertices])
         w = weight(P)
@@ -358,22 +375,30 @@ def _decimate(bm, target, weight=None):
     out.from_mesh(ob.data)
     bpy.data.objects.remove(ob)
     bpy.data.meshes.remove(me)
+    _drop_pillows(out)                 # first: beautify_fill flipped the pillows' edges into the surface (cracks)
     bmesh.ops.triangulate(out, faces=out.faces[:])
     bmesh.ops.beautify_fill(out, faces=out.faces[:], edges=out.edges[:])
     bmesh.ops.recalc_face_normals(out, faces=out.faces[:])
     from beast_body import unfold
     unfold(out)                        # folds (one at the chin's centre line took the belly colour)
+    holes = [e for e in out.edges if e.is_boundary]      # the symmetric collapse leaves a few pinholes on x = 0
+    if holes:
+        bmesh.ops.holes_fill(out, edges=holes, sides=8)
+        bmesh.ops.triangulate(out, faces=out.faces[:])
+        bmesh.ops.recalc_face_normals(out, faces=out.faces[:])
     return out, n
 
 
-def build_head_mesh(target=TARGET_TRIS):
-    """The melted head in head space: sampled, meshed, smoothed a little (voxel steps), decimated."""
-    V, F = _mesh_field(head_field, (-0.75, -1.50, -0.74), (0.75, 0.72, 0.74))
+def build_head_mesh(target=TARGET_TRIS, field=None, dec_weight=None):
+    """The melted head in head space: sampled, meshed, smoothed a little (voxel steps), decimated. field: the
+    distance field to mesh (head space; default head_field; dragon_skin melts the neck in); dec_weight: the
+    decimation's keep-more map (default _dec_weight)."""
+    V, F = _mesh_field(field or head_field, (-0.75, -1.50, -0.85), (0.75, 0.85, 0.74))
     bm = _bm_from(V, F)
     for _ in range(2):
         bmesh.ops.smooth_laplacian_vert(bm, verts=bm.verts[:], lambda_factor=0.3, lambda_border=0.0,
                                         use_x=True, use_y=True, use_z=True, preserve_volume=True)
-    return _decimate(bm, target, _dec_weight)
+    return _decimate(bm, target, dec_weight or _dec_weight)
 
 
 def _dec_weight(P):
@@ -545,20 +570,37 @@ def build(acc, rgb, frill_fused=None):
     global FRILL_FUSED
     if frill_fused is not None:
         FRILL_FUSED = bool(frill_fused)
-    rep = {"frill_fused": FRILL_FUSED}
-    head, rep["dense_tris"] = build_head_mesh()
+    head, weights, cols, bvh, rep = head_skin(rgb)
+    _add(acc, head, weights, cols)
+    rep.update(head_shells(acc, rgb, bvh))
+    return rep
+
+
+def head_weights(P):
+    wj = jaw_weight(P)
+    return [{"Jaw": float(w), "Head": 1.0 - float(w)} if 0.0 < w < 1.0 else {("Jaw" if w >= 1.0 else "Head"): 1.0}
+            for w in wj]
+
+
+def head_skin(rgb, field=None, dec_weight=None):
+    """The melted head in head space with its weights and colours. -> (bmesh, weights, colours, bvh, report)"""
     from mathutils.bvhtree import BVHTree
+    rep = {"frill_fused": FRILL_FUSED}
+    head, rep["dense_tris"] = build_head_mesh(field=field, dec_weight=dec_weight)
     bvh = BVHTree.FromBMesh(head)
     rep["bridges"] = bridges(head)
     head.verts.ensure_lookup_table()
     head.normal_update()
     P = np.array([v.co[:] for v in head.verts])
     N = np.array([v.normal[:] for v in head.verts])
-    wj = jaw_weight(P)
     rep["tris"] = len(head.faces)
-    weights = [{"Jaw": float(w), "Head": 1.0 - float(w)} if 0.0 < w < 1.0 else {("Jaw" if w >= 1.0 else "Head"): 1.0}
-               for w in wj]
-    _add(acc, head, weights, head_colors(P, N, rgb))
+    return head, head_weights(P), head_colors(P, N, rgb), bvh, rep
+
+
+def head_shells(acc, rgb, bvh):
+    """The head's shells into an Acc (body space): spikes seated on the skin (bvh: the head skin, head space),
+    teeth, tongue, frill membranes, eyes. -> report"""
+    rep = {}
 
     def shell(fn, bone, color):
         tmp = bmesh.new()
