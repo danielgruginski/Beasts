@@ -167,7 +167,7 @@ def wing_arm(s):
     m = lambda p: _m(p, s)
     return [rcone(m(W["root"]), m(W["sho"]), 0.24, 0.23, k=0.12), rcone(m(W["sho"]), m(W["elb"]), 0.21, 0.14, k=0.06),
             rcone(m(W["elb"]), m(W["wri"]), 0.13, 0.10, k=0.04), rcone(m(W["wri"]), m(W["knu"]), 0.11, 0.10, k=0.03),
-            rcone(m(W["wri"]), m(W["thumb"]), 0.075, 0.045, k=0.025),
+            rcone(m(W["wri"]), m(W["thumb"]), 0.088, 0.058, k=0.03),
             ell(m(W["elb"]), (0.15, 0.15, 0.15), k=0.04),
             ell((m(W["wri"]) + m(W["knu"])) / 2, (0.13, 0.12, 0.11), k=0.03)]
 
@@ -262,7 +262,18 @@ def _dec_weight(P):
     toe = P[:, 2] < 0.30
     leg = (P[:, 2] < 1.5) & (np.abs(P[:, 0]) > 0.35)
     wing = np.abs(P[:, 0]) > 1.0
-    return np.where(seam, 0.6, np.where(toe, 0.35, np.where(leg, 0.6, np.where(wing, 0.8, 1.0))))
+    w = np.where(seam, 0.6, np.where(toe, 0.35, np.where(leg, 0.6, np.where(wing, 0.8, 1.0))))
+    # the thumb and the wrist (a stub with a notch at the wrist at 0.8), and the thin end of the tail (too few
+    # triangles twisted it into a flat ribbon, a pinch two thirds down: Daniel's "strangulation")
+    Wd = DB.WING
+    for s_ in (1, -1):
+        th = np.linalg.norm(P - _m(Wd["wri"], s_), axis=1) < 0.40
+        w = np.where(th, np.minimum(w, 0.2), w)
+    R, s = spine_rows(6)
+    i = np.argmin(np.abs(R[:, 1][None, :] - P[:, 1][:, None]), axis=1)
+    thin_tail = (P[:, 1] > 2.5) & (np.abs(P[:, 0]) < 0.6) & (P[:, 2] < 2.2)
+    keep = np.clip(0.25 + 1.6 * R[i, 3], 0.25, 1.0)          # the thinner the section, the more it keeps
+    return np.where(thin_tail, np.minimum(w, keep), w)
 
 
 def _head_dec_weight(P):

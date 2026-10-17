@@ -463,10 +463,41 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       - The materials are `M_Dragon` and `M_DragonWing`; `dragon_paint.use_preset(name)` swaps them in Blender.
       - The scale shading fades out where the plates take over; the plates showed scales in the colour otherwise.
     - **Not done:**
-      - the plate grooves alias a little at 2048;
       - a few stray texels where island margins meet (part interpolates to "mouth");
       - the pupil is still a slit of vertex resolution on the eyeball (the iris paint is per texel);
       - no export to Unity yet.
+  - **Stage 4b, paint at 4096 (2026-10-17)**, after Daniel's "we need more pixels for the texture, I can see it is
+    pixelated", "specifically, the wings texture isn't that good" and the nostrils note:
+    - **Sizes:** body 4096 (66% coverage, ~2.4 mm a texel), wings 4096 with both wings on one mirrored planar layout
+      (~2 mm a texel; 29% coverage, the wing's outline in its square). `RELIEF` 5.0 / `RELIEF_WING` 4.0
+      (`height_normals` works per texel, so the strength doubles with the size). Textures: four 4096 body maps, four
+      4096 wing maps.
+    - **What "pixelated" turned out to be** (look at the height and normal maps at texel scale before raising the
+      size again):
+      - every plate's and scute's free edge dropped in one texel, so the edges drew stair-steps. `EDGE` now ramps
+        each cliff over 8 mm;
+      - the plates' phase came from the nearest spine row plus a projection, and jumped wherever that row changed,
+        all over the chest (teeth along every plate edge). `_spine` now blends the ~10 nearest rows, each weighted by
+        how close the point is to the row's plane;
+      - measured from the spine, the chest's plates fanned out to 40 cm (it sits far out on the outside of the
+        neck's bend). The plates' phase now runs along the belly's own line (each section's lowest point).
+    - **Plates:** no fine parallel lines (they read as corduroy); a firm edge against the flank scales, each plate
+      ending a little further in or out (a wide blend ran the grooves through the scales); pitch = 0.3 x the
+      section's half-width (neck ~10 cm, trunk 20 cm).
+    - **Nostrils:** a dark matte cavity (a gloss there read as an eye), a smooth lip, then two staggered rows of
+      small scales (`ring_cells`: log-polar Voronoi, each row 1.4x further out), ending in a groove where the face's
+      own scales take over.
+    - **Scales:** size and direction blend over the shoulders and hips (they switched at a line), finer down to the
+      toes, trunk scales at most 9 cm.
+    - **Wings:** capillaries only at the ridged noise's crests (a wide threshold made blotches like map borders);
+      broken, softer elastic fibres; a broad thick-to-thin gradient from the bones and a darker band along the edges
+      (at a distance the wing was one flat orange); fine creases drawn out along the span (round ones read as a maze).
+    - **Iterating:** `bake_data` and `body_fields` take ~3.5 min at 4096. In Blender, keep `dragon_paint._D` (the
+      bake) and rerun `body_fields`, then `paint_body` per preset (~10 s each). The wings: bake once, `wing_fields`
+      ~85 s. Calls over ~3 min drop the MCP connection, but Blender finishes the work.
+    - **Geometry fixes in the same round:** Daniel saw the decimation starve the wing thumb and a "strangulation" on
+      the tail. `dragon_skin._dec_weight` now keeps more around the wrist and thumb, and more the thinner the tail's
+      section; the thumb cone is thicker.
   - **Head to-do, for a later pass** (Daniel 2026-10-17: "It is not perfect, but it is good enough"; body first, head
     later). The head is code, so a change is a rebuild plus re-export:
     - Teeth: open, from the side, they form one perfectly straight, even row. Vary size, spacing, lean and height
@@ -477,11 +508,10 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       edge (root inside the hanging lip, further in and down).
     - Mine: the pupil is a vertex-colour blob. The eye's detail and the scales come with the paint and normal map.
   - **Next:**
-    - the real body: done (stage 3); the paint: done (stage 4);
-    - scales: brow plates, face scales and the belly plates in the normal map;
-    - paint masks plus presets;
+    - the real body: done (stage 3); the paint: done (stages 4 and 4b: scales, plates, presets, normal maps);
+    - Unity export (textures: 4096 in Blender; the import size is Unity's call);
     - clips;
-    - Unity.
+    - the head to-do above; membrane fit to the bulkier body; shoulder tenting with raised wings.
   - **Gotcha:** `dragon_body.Acc` builds each piece in its own bmesh. `create_uvsphere` deletes vertices, and the
     freed slots let later vertices sort ahead of the per-vertex lists (the horn bases took the eye's colour).
     Budget proposal (mine, unreviewed): about 20k tris, 2048² body texture, 1024² membranes.
