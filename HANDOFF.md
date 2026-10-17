@@ -509,9 +509,12 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     - Neck (7 bones) and tail (14) move as waves (`_neck_wave`, `_tail_wave`): each bone a little after the one
       before.
     - Clips so far: Idle (4 s loop), Walk (1.6 s loop, 1.25 m/s), Run (0.8 s loop, rotary gallop, 5.5 m/s), Bite
-      (1.4 s), Claw (1.2 s), TailSweep (1.8 s). The attacks fire event 'Bite' at impact, as the other beasts' do.
-      `dragon_build.build_clips()`; `dragon_anim.report()` gives the lowest vertex per clip (-3.4 cm standing: the
-      claw tips; Claw -11 cm, its raking foreleg).
+      (1.4 s), Claw (1.2 s), TailSweep (1.8 s), Fire (2.5 s), Roar (2.2 s). The attacks fire event 'Bite' at
+      impact, as the other beasts' do. Fire has 'Fire' (0.9 s) and 'FireEnd' (2.0 s) for the flames at
+      Socket_Mouth; Roar has 'Roar'. `dragon_build.build_clips()`; `dragon_anim.report()` gives the lowest vertex
+      per clip (all within 4.4 cm: the claw tips).
+    - The tail's floor is per bone, measured from the mesh (`dragon_anim.tail_floor`): a flat 10 cm let the 30 cm
+      thick tail root sink 18 cm into the ground when it reared.
     - **The folded wing** (Daniel: "Something is wrong with the folded wing, it has a bad geometry"):
       - The panel between the wing arm and the flank was skinned straight to those bones. In the fold the arm
         turns ~150 degrees from the flank, and linear blend skinning swung the panel's middle out from the side like

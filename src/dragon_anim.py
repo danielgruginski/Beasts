@@ -21,6 +21,9 @@ Clips (30 fps, the dragon faces -Y; Unity +Z):
   Claw       1.2 s        rises on its haunches, rakes the right foreleg down across the front (event 'Bite' 0.53 s)
   TailSweep  1.8 s        winds the tail out left, whips it round to the right (event 'Bite' at 0.8 s), head
                           watching it go
+  Fire       2.5 s        a deep breath, then fire from Socket_Mouth, the head sweeping side to side (events 'Fire'
+                          at 0.9 s, 'FireEnd' at 2.0 s)
+  Roar       2.2 s        rears onto its haunches, wings thrown up, roars (event 'Roar' at 0.6 s), comes down
 """
 import math
 from mathutils import Vector, Matrix
@@ -72,7 +75,8 @@ def _wings(sp, p, Wm, rel):
 SPEC = BA.Species(DB.rest_bones, (0.0, 0.35, 2.3), "Dragon", RIG, neck_n=DB.NECK_N, tail_n=DB.TAIL_N, tongue=False,
                   ears=False, tail_floor=[0.10] * DB.TAIL_N, extra=_wings)
 LEGS = BA.LEGS
-EVENTS = {"Bite": [("Bite", 0.63)], "Claw": [("Bite", 0.53)], "TailSweep": [("Bite", 0.80)]}
+EVENTS = {"Bite": [("Bite", 0.63)], "Claw": [("Bite", 0.53)], "TailSweep": [("Bite", 0.80)],
+          "Fire": [("Fire", 0.90), ("FireEnd", 2.00)], "Roar": [("Roar", 0.60)]}
 MOVING = {"Walk", "Run"}
 
 
@@ -303,8 +307,73 @@ def _clip_tail():
     return N, fn, False
 
 
+# ----------------------------------------------------------------------------------------- fire and roar
+def _clip_fire():
+    """Fire breath: draws a deep breath (neck back, chest swelling, wings half raised), lunges into it -- the neck
+    low and the head level, dragon_pose's fire pose -- and breathes fire from Socket_Mouth, sweeping its head from
+    side to side (events 'Fire' at 0.9 s and 'FireEnd' at 2.0 s), then closes its jaws and settles."""
+    N = 75
+
+    def fn(f):
+        p = DragonPose()
+        inhale = K([(0, 0), (22, 1), (27, 0.2), (30, 0), (75, 0)], f)
+        breathe = K([(0, 0), (22, 0), (28, 1), (60, 1), (70, 0), (75, 0)], f)
+        sweep = math.sin(2 * math.pi * (f - 28) / 32) * breathe
+        p.body = Vector((0, 0.20 * inhale - 0.25 * breathe, 0.02 * inhale - 0.06 * breathe))
+        p.pitch = 3 * inhale - 4 * breathe
+        p.spine[2][0] = 4 * inhale - 6 * breathe                        # the chest swells, then drives the breath
+        for i, a in enumerate(DP.NECK_FIRE):
+            p.neck[i][0] += a * breathe
+        _neck_wave(p, 16 * inhale, 10 * sweep)
+        p.head = [30 * breathe - 14 * inhale, 6 * sweep, 3 * sweep]
+        p.jaw = 8 * inhale + 40 * breathe + 1.5 * math.sin(2 * math.pi * f / 4) * breathe
+        p.wing_open = 0.45 * max(inhale, breathe)
+        p.wing_lift = 3 * inhale
+        _tail_wave(p, 1.0, 2 * math.pi * f / 37, lift=6 * inhale - 3 * breathe)
+        for s_ in (1, -1):                                              # braced: the forepaws spread a little
+            F0 = neutral(('F', s_))
+            lp = LegPose(target=F0 + Vector((0.10 * s_ * breathe, -0.10 * breathe, 0)))
+            lp.scap = -6 * breathe
+            p.legs[('F', s_)] = lp
+        return p
+    return N, fn, False
+
+
+def _clip_roar():
+    """Rears up onto its haunches, throws its wings up and out, and roars at the sky then down at you (event
+    'Roar' at 0.6 s); comes back down onto its forefeet with a thud."""
+    N = 66
+
+    def fn(f):
+        p = DragonPose()
+        up = K([(0, 0), (16, 1), (46, 1), (56, -0.08), (60, 0), (66, 0)], f)
+        u = max(up, 0.0)
+        pivot(p, 18 * u)
+        p.body += Vector((0, 0.10 * u, 0.8 * min(up, 0.0)))                # (the landing thud)
+        p.hips = [-6 * u, 0, 0]
+        roar = K([(0, 0), (16, 0), (19, 1), (44, 1), (50, 0), (66, 0)], f)
+        look = K([(0, 0), (19, 1), (30, 1), (40, 0), (66, 0)], f)          # at the sky first, then down at you
+        _neck_wave(p, -14 * u + 14 * roar * look - 6 * roar * (1 - look), 4 * math.sin(2 * math.pi * f / 22) * roar)
+        p.head = [-12 * u + 22 * roar - 10 * look * roar, 0, 4 * math.sin(2 * math.pi * f / 22) * roar]
+        p.jaw = 46 * roar + 2.5 * math.sin(2 * math.pi * f / 5) * roar + 8 * K([(0, 0), (8, 1), (16, 0)], f)
+        p.wing_open = 0.9 * K([(0, 0), (8, 0.2), (18, 1), (44, 1), (56, 0), (66, 0)], f)
+        p.wing_lift = 4 * roar * math.sin(2 * math.pi * f / 11)
+        _tail_wave(p, 1.4, 2 * math.pi * f / 33, lift=-4 * u)            # the tail braces on the ground
+        air = min(1.0, u * 2.0)
+        for s_ in (1, -1):
+            lp = LegPose(target=neutral(('F', s_)), wb=air)
+            lp.boff = Vector((0.15 * s_, -0.25, 0.25)) * air             # forefeet drawn up before the chest
+            lp.flex = -35 * air
+            lp.toe = 15 * air
+            lp.scap = 12 * air
+            p.legs[('F', s_)] = lp
+            p.legs[('H', s_)] = LegPose(target=neutral(('H', s_)), flex=-8 * u)
+        return p
+    return N, fn, False
+
+
 CLIPS = {"Idle": _clip_idle, "Walk": _clip_walk, "Run": _clip_run, "Bite": _clip_bite, "Claw": _clip_claw,
-         "TailSweep": _clip_tail}
+         "TailSweep": _clip_tail, "Fire": _clip_fire, "Roar": _clip_roar}
 
 
 # ----------------------------------------------------------------------------------------- build
@@ -316,9 +385,27 @@ def build_clip(name, rig_ob=None):
     return BA.build_clip(SPEC, CLIPS, EVENTS, name, rig_ob)
 
 
+def tail_floor(mesh="DragonBody", margin=0.03):
+    """Per tail bone: how high its end must stay so the tail's underside stays on the ground -- the skin's depth
+    below the bone's end (rest), plus a margin. (A flat 10 cm let the 30 cm thick tail root sink into the ground
+    when it reared.)"""
+    import numpy as np
+    B = BA.rest_data(SPEC)['B']
+    co = np.array([v.co[:] for v in bpy.data.objects[mesh].data.vertices])
+    out = []
+    for i in range(SPEC.tail_n):
+        h, fr, L, par, d = B[f"Tail{i + 1}"]
+        end = np.array(h + fr.col[1] * L)
+        near = (np.abs(co[:, 1] - end[1]) < 0.15) & (np.abs(co[:, 0]) < 1.0)
+        depth = end[2] - co[near, 2].min() if near.any() else 0.1
+        out.append(float(depth + margin))
+    return out
+
+
 def build_clips(names=None):
     SPEC.rest.clear()
     _AIMS.clear()
+    SPEC.tail_floor = tail_floor()
     return {n: build_clip(n) for n in (names or CLIPS)}
 
 
