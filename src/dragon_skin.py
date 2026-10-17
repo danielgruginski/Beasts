@@ -107,11 +107,13 @@ def muscles(s):
     F, H, W = DB.FRONT, DB.HIND, DB.WING
     m = lambda p: _m(p, s)
     d = lambda a, b: m(b) - m(a)
-    out = [ell(m((0.40, -1.62, 1.72)), (0.38, 0.42, 0.55), k=0.20)]                    # chest (pectorals)
+    # no pectoral: the chest is the spine chain's own deep section. (A round ellipsoid read as a ball on the chest,
+    # Daniel: "this bulge that I assume is muscle, but does not feel right"; a flat sheet stuck out like a shelf.)
+    out = []
     sc = m(F["scap"]) + (m(F["sho"]) - m(F["scap"])) * 0.55
     out.append(ell(sc, (0.30, 0.52, 0.40), axes_along(d(F["scap"], F["sho"]), FWD), k=0.15))   # shoulder
     ua = (m(F["sho"]) + m(F["elb"])) / 2 + np.array((0, 0.05, 0))
-    out.append(ell(ua, (0.30, 0.46, 0.33), axes_along(d(F["sho"], F["elb"]), FWD), k=0.10))     # upper arm
+    out.append(ell(ua, (0.27, 0.46, 0.30), axes_along(d(F["sho"], F["elb"]), FWD), k=0.14))     # upper arm
     fa = m(F["elb"]) + (m(F["wri"]) - m(F["elb"])) * 0.30
     out.append(ell(fa, (0.21, 0.32, 0.23), axes_along(d(F["elb"], F["wri"]), FWD), k=0.06))     # forearm
     hc = m((0.76, 1.00, 1.78))
@@ -146,12 +148,11 @@ def legs(s):
     m = lambda p: _m(p, s)
     out = [rcone(m(F["sho"]), m(F["elb"]), 0.27, 0.20, k=0.08), rcone(m(F["elb"]), m(F["wri"]), 0.20, 0.14, k=0.05),
            rcone(m(F["wri"]), m(F["paw"]), 0.14, 0.12, k=0.04),
-           ell(m(F["elb"]) + np.array((0, 0.04, 0)), (0.19, 0.19, 0.19), k=0.05),
+           ell(m(F["elb"]) + np.array((0, 0.04, 0)), (0.16, 0.16, 0.16), k=0.06),
            ell(m(F["wri"]), (0.15, 0.15, 0.14), k=0.04),
            ell(m(F["paw"]) + np.array((0, -0.06, -0.02)), (0.18, 0.22, 0.09), k=0.05),
-           rcone(m(H["hip"]), m(H["knee"]), 0.34, 0.23, k=0.10), rcone(m(H["knee"]), m(H["hock"]), 0.22, 0.13, k=0.05),
+           rcone(m(H["hip"]), m(H["knee"]), 0.34, 0.19, k=0.10), rcone(m(H["knee"]), m(H["hock"]), 0.18, 0.13, k=0.05),
            rcone(m(H["hock"]), m(H["paw"]), 0.13, 0.11, k=0.04),
-           ell(m(H["knee"]), (0.22, 0.22, 0.22), k=0.06),
            ell(m(H["hock"]) + np.array((0, 0.05, 0)), (0.13, 0.14, 0.13), k=0.04),
            ell(m(H["paw"]) + np.array((0, -0.06, -0.02)), (0.19, 0.24, 0.09), k=0.05)]
     for base, knuckle, tip, r, dd, bone in toes(s):
@@ -380,7 +381,10 @@ def body_colors(P, rgb):
     a, b, c = R[idx, 3], R[idx, 4], R[idx, 5]
     e = np.sqrt((u / a) ** 2 + (v / np.where(v > 0, b, c)) ** 2)
     ventral = -v / np.maximum(np.linalg.norm(d, axis=1), 1e-6)
-    k = smoothstep(0.45, 0.80, ventral) * smoothstep(1.80, 1.30, e)     # (wide: the jowls widen the throat)
+    # how far out from the section the gold may reach: wide at the throat (the jowls widen it), tight along the
+    # trunk so it stops at the legs (the hind knee lit up as a gold ball behind the front leg)
+    lim = np.interp(s[idx], (0.0, 1.8, 2.6, s[-1]), (1.8, 1.8, 1.2, 1.3))
+    k = smoothstep(0.45, 0.80, ventral) * smoothstep(lim, lim - 0.3, e)
     back, belly = np.array(rgb(DB.COL["back"])), np.array(rgb(DB.COL["belly"]))
     return [tuple(back * (1 - x) + belly * x) for x in k]
 

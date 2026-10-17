@@ -406,7 +406,9 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       inside its own box plus its melting margin, `pad`). It holds:
       - the spine chain: ~150 overlapping ellipsoids along `BODY_ROWS`, each hanging below the spine like the
         loft's section;
-      - muscles: chest, shoulders, upper arms, forearms, haunches, calves, wing roots, the wings' biceps;
+      - muscles: shoulders, upper arms, forearms, haunches, calves, wing roots, the wings' biceps. No pectoral:
+        Daniel saw the round chest muscle as "this bulge ... does not feel right", and a flat sheet stuck out like
+        a shelf. The chest is the spine chain's own deep section, widened a little at the front;
       - legs and wing arms as round cones per bone with joint knobs;
       - toes, four per foot, raised at the knuckle.
     - **Seam:** the body is meshed and decimated to 12.5k, the head as before (12k). They meet at a plane square to
