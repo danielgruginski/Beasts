@@ -508,7 +508,7 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       `p.wing_lift`.
     - Neck (7 bones) and tail (14) move as waves (`_neck_wave`, `_tail_wave`): each bone a little after the one
       before.
-    - Clips so far: Idle (4 s loop), Walk (1.6 s loop, 1.25 m/s). `dragon_build.build_clips()`;
+    - Clips so far: Idle (4 s loop), Walk (1.6 s loop, 1.25 m/s), Run (0.8 s loop, rotary gallop, 5.5 m/s). `dragon_build.build_clips()`;
       `dragon_anim.report()` gives the lowest vertex per clip (-3.4 cm: the claw tips).
   - **Head to-do, for a later pass** (Daniel 2026-10-17: "It is not perfect, but it is good enough"; body first, head
     later). The head is code, so a change is a rebuild plus re-export:

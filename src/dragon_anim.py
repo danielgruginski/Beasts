@@ -15,6 +15,7 @@ Clips (30 fps, the dragon faces -Y; Unity +Z):
                           a snort, the tail tip curling
   Walk       1.6 s loop   heavy lateral-sequence walk, shoulders rolling, the spine and tail swinging in an S,
                           head steady; root motion 1.25 m/s
+  Run        0.8 s loop   heavy rotary gallop, back gathering and stretching, tail streaming; root motion 5.5 m/s
 """
 import math
 from mathutils import Vector, Matrix
@@ -65,7 +66,7 @@ SPEC = BA.Species(DB.rest_bones, (0.0, 0.35, 2.3), "Dragon", RIG, neck_n=DB.NECK
                   ears=False, tail_floor=[0.10] * DB.TAIL_N, extra=_wings)
 LEGS = BA.LEGS
 EVENTS = {}
-MOVING = {"Walk"}
+MOVING = {"Walk", "Run"}
 
 
 def DragonPose():
@@ -151,7 +152,34 @@ def _clip_walk():
     return N, fn, True
 
 
-CLIPS = {"Idle": _clip_idle, "Walk": _clip_walk}
+def _clip_run():
+    """A heavy rotary gallop: the back gathers and stretches, the neck reaches forward and low with the head held
+    level, the tail streams out and lifts against the bounds, the folded wings bounce."""
+    N = 24
+
+    def fn(f):
+        p = DragonPose()
+        gait(p, f, N, 4.4, 0.36, 0.42, GALLOP, front_fold=80, hind_flex=40, scap=22)
+        a = 2 * math.pi * f / N
+        gather = math.cos(a - 0.5)
+        p.body = Vector((0, 0, -0.06 + 0.10 * math.sin(a - 1.2)))
+        p.pitch = -2 + 4 * math.sin(a - 0.3)
+        p.spine[0][0] = 7 * gather
+        p.spine[1][0] = 3 * gather
+        p.spine[2][0] = -6 * gather
+        p.hips = [-8 * gather, 0, 0]
+        _neck_wave(p, lambda ph: -16 - 5 * math.sin(ph - 0.3), 0.0, phase=a, lag=0.3)
+        p.head = [12 + 5 * math.sin(a - 0.9), 0, 0]
+        p.jaw = 6 + 4 * math.sin(a - 1.5)                                  # panting
+        p.wing_lift = 4.0 * math.sin(a - 1.8)
+        for i in range(SPEC.tail_n):
+            p.tail[i][0] += 1.0 + 0.6 * math.sin(a - 1.0 - 0.35 * i)       # streams out, lifting against the bounds
+        _tail_wave(p, 0.8, a, lag=0.5)
+        return p
+    return N, fn, True
+
+
+CLIPS = {"Idle": _clip_idle, "Walk": _clip_walk, "Run": _clip_run}
 
 
 # ----------------------------------------------------------------------------------------- build
