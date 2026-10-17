@@ -517,9 +517,24 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     - Death collapses onto the belly, not onto a side: rolling would drive the folded wing into the ground. With
       the shoulders that low, the forefeet stay close in (`DEATH_FORE`): further forward, the leg IK put the
       elbows into the ground.
-    - **Not done:** flight clips (Takeoff, Flap loop, Glide, Land; they need the shoulder tenting looked at with
-      the wings raised); no Unity export yet (`beast_export.export_clips(dragon_anim, "DragonRig", "Dragon")` as
-      the other beasts do; the export will carry the WingMem helper bones); no turn-in-place.
+    - **Flight set (2026-10-17, after Daniel's "Start the flight clips"):** Takeoff (2.2 s, event 'TakeOff' at
+      0.63 s), Fly (1.2 s wingbeat loop, 10 m/s), Glide (2 s loop, 14 m/s), Land (2.4 s, event 'Land' at 1.4 s).
+      - Flight plays at the Root's height like the rest. The Motion bone carries the travel: forward, and in
+        Takeoff (+7 m) and Land (-7 m) up and down. The game must let root motion move the dragon vertically.
+        Fly and Glide are in-air loops (the Root is in the air); `report()` skips them.
+      - Wings in flight: `p.wing = dict(turns, curl, fold)`, the spread wing turned about the shoulder (`_turned`:
+        'Y' up/down, 'Z' sweep, 'X' pitch), drawn part way back to the fold. Every wing pose blends bone by bone
+        along the shortest rotation (slerp); a straight blend of directions folded the forearm through itself.
+        The beat is `STROKE`/`SWEEP`/`PITCH`/`FOLD_UP`/`CURL` keyed over `FLY_N`, down fast, up slower with the hand
+        drawn in.
+      - `_depth_cap` limits a downstroke near the ground to what the 7.5 m wing can reach without touching it (the
+        first takeoff beats dug the tips in; after touchdown the braking stroke hung the wings through the ground).
+      - Previews: `clip_frames(..., travel=True)` moves the rig along its root motion with the camera following;
+        `end_home=True` lands it in the middle of the ground; `lift=5` raises Fly and Glide.
+    - **Not done:** no Unity export yet (`beast_export.export_clips(dragon_anim, "DragonRig", "Dragon")` as the other
+      beasts do; it will carry the WingMem helper bones, and the flight clips need vertical root motion); no
+      turn-in-place, no banking turns or hover in flight; the shoulder tenting with the wings raised is still there
+      (visible in Roar and at the top of each beat).
     - The tail's floor is per bone, measured from the mesh (`dragon_anim.tail_floor`): a flat 10 cm let the 30 cm
       thick tail root sink 18 cm into the ground when it reared.
     - **The folded wing** (Daniel: "Something is wrong with the folded wing, it has a bad geometry"):

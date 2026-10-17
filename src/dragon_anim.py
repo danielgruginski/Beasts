@@ -27,6 +27,12 @@ Clips (30 fps, the dragon faces -Y; Unity +Z):
   Hit        0.6 s        head snapped away, body rocked back, wings twitching open, a small rebound
   Death      3.0 s        a last cry, forelegs then hind legs buckle onto its belly, the neck falls and the head
                           hits the ground (event 'Dead' at 2.0 s), a last breath and tail twitch; holds the end
+  Takeoff    2.2 s        crouch, wings swept up, leap (event 'TakeOff' at 0.63 s), three climbing beats; root
+                          motion 10 m forward, 7 m up
+  Fly        1.2 s loop   one slow, deep wingbeat, legs tucked, neck stretched, head level; 10 m/s
+  Glide      2.0 s loop   wings out with a slight dihedral, a slow bank; 14 m/s
+  Land       2.4 s        glide in, flare and brake, hind feet first (event 'Land' at 1.4 s), wings folding;
+                          root motion 15.6 m forward, 7 m down
 """
 import math
 from mathutils import Vector, Matrix
@@ -53,14 +59,41 @@ def _aims(key):
     return _AIMS[key]
 
 
+def _turned(turns, curl=0.0):
+    """Aims for the spread wing turned rigidly about the shoulder (dragon_pose.wing_turned, from the rest data):
+    turns = [(axis, deg)] for the left wing -- 'Y' + turns it down / - up, 'Z' + sweeps it back, 'X' + pitches the
+    leading edge down -- mirrored for the right; curl bends each finger joint down (a cupped stroke)."""
+    R = BA.rest_data(SPEC)['R']
+    aim = {}
+    for s, sfx in DB.SIDES:
+        M = Matrix.Identity(3)
+        for ax, deg in turns:
+            M = Matrix.Rotation(math.radians(deg if (s > 0 or ax == 'X') else -deg), 3, ax) @ M
+        for n in DB.wing_chain(sfx):
+            d, z = M @ R[n].col[1].xyz, M @ R[n].col[2].xyz
+            if curl and n.startswith("WingF") and n[5].isdigit():
+                k = int(n.split("_")[1][0])
+                c = Matrix.Rotation(math.radians(-curl * k), 3, d.cross(z).normalized())
+                d, z = c @ d, c @ z
+            aim[n] = (d, z)
+    return aim
+
+
 def _wings(sp, p, Wm, rel):
-    """The wing bones, riding on the chest: folded, opened toward p.wing_to by p.wing_open, lifted by p.wing_lift."""
+    """The wing bones, riding on the chest. Standing: folded, opened toward p.wing_to by p.wing_open, lifted by
+    p.wing_lift. Flying: p.wing = dict(turns=[(axis, deg)], curl=deg, fold=0..1), the spread wing turned about the
+    shoulder (_turned) and drawn part way back toward the fold. Each bone turns from one pose to the other along
+    the shortest rotation (a straight blend of the directions folded the forearm through itself)."""
     R = BA.rest_data(sp)['R']
     B = BA.rest_data(sp)['B']
     turn = Wm["Chest"].to_3x3() @ R["Chest"].to_3x3().inverted()
     fold = _aims("fold")
-    t = getattr(p, "wing_open", 0.0)
-    alt = _aims(getattr(p, "wing_to", "raised")) if t else fold
+    w = getattr(p, "wing", None)
+    if w is not None:
+        alt, t = _turned(w.get("turns", ()), w.get("curl", 0.0)), 1.0 - w.get("fold", 0.0)
+    else:
+        t = getattr(p, "wing_open", 0.0)
+        alt = _aims(getattr(p, "wing_to", "raised")) if t else fold
     lift = Matrix.Rotation(math.radians(getattr(p, "wing_lift", 0.0)), 3, 'X')
     for s, sfx in DB.SIDES:
         n = f"WingScap{sfx}"
@@ -68,9 +101,10 @@ def _wings(sp, p, Wm, rel):
         for n in DB.wing_chain(sfx):
             par = B[n][3]
             here = Wm[par] @ rel(n, par)
-            d = Vector(fold[n][0]).lerp(Vector(alt[n][0]), t)
-            z = Vector(fold[n][1]).lerp(Vector(alt[n][1]), t)
-            Wm[n] = Matrix.Translation(here.translation) @ DB._frame(turn @ (lift @ d), turn @ (lift @ z)).to_4x4()
+            q = DB._frame(*fold[n]).to_quaternion()
+            if t:
+                q = q.slerp(DB._frame(*alt[n]).to_quaternion(), min(max(t, 0.0), 1.0))
+            Wm[n] = Matrix.Translation(here.translation) @ (turn @ lift @ q.to_matrix()).to_4x4()
     if "WingMem11L" in R:
         DB.membrane_pose(Wm, R)                                  # the arm panels' helper bones
 
@@ -79,8 +113,9 @@ SPEC = BA.Species(DB.rest_bones, (0.0, 0.35, 2.3), "Dragon", RIG, neck_n=DB.NECK
                   ears=False, tail_floor=[0.10] * DB.TAIL_N, extra=_wings)
 LEGS = BA.LEGS
 EVENTS = {"Bite": [("Bite", 0.63)], "Claw": [("Bite", 0.53)], "TailSweep": [("Bite", 0.80)],
-          "Fire": [("Fire", 0.90), ("FireEnd", 2.00)], "Roar": [("Roar", 0.60)], "Death": [("Dead", 2.0)]}
-MOVING = {"Walk", "Run"}
+          "Fire": [("Fire", 0.90), ("FireEnd", 2.00)], "Roar": [("Roar", 0.60)], "Death": [("Dead", 2.0)],
+          "Takeoff": [("TakeOff", 0.63)], "Land": [("Land", 1.40)]}
+MOVING = {"Walk", "Run", "Fly", "Glide", "Takeoff", "Land"}
 
 
 def DragonPose():
@@ -449,8 +484,200 @@ def _clip_death():
     return 90, _death_pose, False
 
 
+# ----------------------------------------------------------------------------------------- flight
+# Flight clips play at the Root's height like the rest (the skeleton stays where it stands); the Motion bone carries
+# the travel, forward and -- in Takeoff and Land -- up and down, so the game must let root motion move it vertically.
+FLY_N = 36                         # one wingbeat: 1.2 s (a 16 m span beats slowly)
+FLY_SPEED = 10.0                   # m/s
+GLIDE_SPEED = 14.0
+STROKE = [(0, -55.0), (15, 38.0), (36, -55.0)]          # 'Y': up at the top of the beat, down at the bottom
+SWEEP = [(0, 10.0), (15, -12.0), (36, 10.0)]            # 'Z': back at the top, forward through the downstroke
+PITCH = [(0, -6.0), (8, 8.0), (15, 6.0), (36, -6.0)]    # 'X': leading edge down while it pushes
+FOLD_UP = [(0, 0.10), (15, 0.0), (26, 0.40), (36, 0.10)]  # the hand drawn in on the way up
+CURL = [(0, 2.0), (8, 9.0), (15, 6.0), (36, 2.0)]
+
+
+def _beat(f, loop=FLY_N):
+    """The wing's stroke at frame f of a beat (looped). -> p.wing dict"""
+    return dict(turns=[('Y', K(STROKE, f, loop)), ('Z', K(SWEEP, f, loop)), ('X', K(PITCH, f, loop))],
+                fold=K(FOLD_UP, f, loop), curl=K(CURL, f, loop))
+
+
+def _mix_wing(a, b, t):
+    """Blend two wing dicts (turn by turn, same axes in the same order)."""
+    return dict(turns=[(ax, x * (1 - t) + y * t) for (ax, x), (_, y) in zip(a["turns"], b["turns"])],
+                fold=a["fold"] * (1 - t) + b["fold"] * t, curl=a["curl"] * (1 - t) + b["curl"] * t)
+
+
+GLIDE_WING = dict(turns=[('Y', -7.0), ('Z', 2.0), ('X', 3.0)], fold=0.0, curl=2.0)
+WING_REACH = 7.5                   # shoulder to wingtip, m
+SHOULDER_Z = 2.95                  # the wing's shoulder over the ground, standing
+
+
+def _depth_cap(w, height, margin=0.4):
+    """Near the ground the downstroke may only go as deep as the wingtips can without touching it: caps the 'Y'
+    turn by the shoulder's height over the ground (m)."""
+    cap = math.degrees(math.asin(max(-1.0, min(1.0, (height - margin) / WING_REACH))))
+    w = dict(w)
+    w["turns"] = [(ax, min(v, cap) if ax == 'Y' else v) for ax, v in w["turns"]]
+    return w
+FOLDED = dict(turns=[('Y', -7.0), ('Z', 2.0), ('X', 3.0)], fold=1.0, curl=0.0)
+
+
+def _airborne(p, k=1.0, phase=0.0):
+    """Flying posture by k (0 standing .. 1 flying): neck stretched forward and low, head level, legs tucked -- the
+    forelegs folded up under the chest, the hind legs trailing -- tail streaming with a slow wave."""
+    for i, a in enumerate(DP.NECK_FLY):
+        p.neck[i][0] += a * k
+    p.head[0] += 12 * k
+    for i, a in enumerate((14, 6, 2)):
+        p.tail[i][0] += a * k
+    for i in range(SPEC.tail_n):
+        p.tail[i][0] += 0.8 * k * math.sin(phase - 0.5 * i)
+        p.tail[i][1] += 0.5 * k * math.sin(0.5 * phase - 0.4 * i)
+    for kind, s_ in LEGS:
+        lp = LegPose(target=p.root + neutral((kind, s_)), wb=k)
+        if kind == 'F':
+            lp.boff = Vector((0.0, 0.35, 0.70))
+            lp.flex, lp.toe, lp.scap = -70 * k, -30 * k, -10 * k
+        else:
+            lp.boff = Vector((-0.10 * s_, 0.95, 0.75))
+            lp.flex, lp.toe = 30 * k, -25 * k
+        p.legs[(kind, s_)] = lp
+
+
+def _clip_fly():
+    """The flap loop: a slow, deep wingbeat (down fast, up slower with the hand drawn in), the body rising on each
+    downstroke, the neck soaking it up so the head stays level; root motion 10 m/s."""
+    N = FLY_N
+
+    def fn(f):
+        p = DragonPose()
+        p.root = Vector((0, -FLY_SPEED * f / FPS, 0))
+        a = 2 * math.pi * f / N
+        _airborne(p, 1.0, a)
+        bob = K([(0, -0.22), (17, 0.22), (36, -0.22)], f, N)
+        p.body = Vector((0, 0, bob))
+        p.pitch = K([(0, 1.5), (12, -2.0), (36, 1.5)], f, N)
+        _neck_wave(p, -10 * bob, 0.0)
+        p.head[0] += -8 * bob
+        p.wing = _beat(f)
+        return p
+    return N, fn, True
+
+
+def _clip_glide():
+    """Gliding: wings held out with a slight dihedral, small corrections, a slow bank from side to side; root
+    motion 14 m/s."""
+    N = 60
+
+    def fn(f):
+        p = DragonPose()
+        p.root = Vector((0, -GLIDE_SPEED * f / FPS, 0))
+        a = 2 * math.pi * f / N
+        _airborne(p, 1.0, a)
+        p.roll = 3 * math.sin(a)
+        p.body = Vector((0, 0, 0.05 * math.sin(2 * a)))
+        _neck_wave(p, 0.0, -3 * math.sin(a))
+        p.head[2] += -2 * math.sin(a)
+        w = dict(GLIDE_WING)
+        w["turns"] = [('Y', -7 + 2.5 * math.sin(2 * a + 0.5)), ('Z', 2 + 1.5 * math.sin(a)), ('X', 3 + math.sin(2 * a))]
+        p.wing = w
+        for i in range(SPEC.tail_n):
+            p.tail[i][1] += 1.0 * math.sin(a - 0.3 * i)                 # the tail steers the bank
+        return p
+    return N, fn, True
+
+
+def _clip_takeoff():
+    """Crouches with the wings swept up, leaps (event 'TakeOff' at 0.63 s, the feet leave the ground), and climbs
+    on three deep beats, the legs tucking up; ends at the top of a beat, as Fly starts. Root motion: 10 m forward,
+    7 m up."""
+    N = 66
+
+    def fn(f):
+        p = DragonPose()
+        p.root = Vector((0, K([(0, 0), (16, 0), (22, -0.8), (34, -3.0), (48, -6.2), (66, -10.0)], f),
+                         K([(0, 0), (16, 0), (22, 0.8), (34, 2.4), (48, 4.4), (66, 7.0)], f)))
+        air = K([(0, 0), (17, 0), (30, 1), (66, 1)], f)
+        crouch = K([(0, 0), (12, 1), (16, 1), (20, -0.3), (26, 0), (66, 0)], f)
+        p.body = Vector((0, 0.10 * crouch, -0.35 * crouch))
+        p.pitch = -4 * max(crouch, 0) + K([(0, 0), (16, 0), (20, 12), (36, 3), (66, 0)], f)
+        _airborne(p, air, 2 * math.pi * f / FLY_N)
+        for kind, s_ in LEGS:                                       # before the leap: feet planted, then pushing off
+            if air < 1e-3:
+                lp = LegPose(target=neutral((kind, s_)))
+                lp.flex = (-20 if kind == 'H' else 10) * max(crouch, 0)
+                p.legs[(kind, s_)] = lp
+        p.neck[0][0] += 8 * max(crouch, 0)
+        p.head[0] += -10 * max(crouch, 0)
+        p.jaw = 10 * K([(0, 0), (16, 0), (20, 1), (30, 0), (66, 0)], f)
+        up = dict(turns=[('Y', -55.0), ('Z', 10.0), ('X', -6.0)], fold=0.1, curl=2.0)
+        if f <= 14:                                                  # opening and sweeping up out of the fold
+            k = ease(f / 14)
+            p.wing = dict(turns=up["turns"], fold=1 - 0.9 * k, curl=2.0)
+        else:                                                        # three beats, the first the deepest
+            beat = K([(14, 0), (24, 15), (40, 36), (50, 51), (66, 72)], f)
+            p.wing = _depth_cap(_beat(beat), SHOULDER_Z + p.root.z + p.body.z)
+        return p
+    return N, fn, False
+
+
+def _clip_land():
+    """Glides in, flares -- nose up, wings swept forward and back-beating to brake -- reaches down with the hind
+    feet (event 'Land' at 1.4 s), then the forefeet, sinks into the landing and folds its wings. Root motion: 15.6 m
+    forward, 7 m down."""
+    N = 72
+    anchor = Vector((0, -15.6, 0))
+
+    def fn(f):
+        p = DragonPose()
+        p.root = Vector((0, K([(0, 0), (20, -9.0), (36, -14.0), (44, -15.4), (48, -15.6), (72, -15.6)], f),
+                         K([(0, 7.0), (20, 4.2), (32, 1.6), (42, 0.0), (72, 0.0)], f)))
+        air = K([(0, 1), (30, 1), (46, 0), (72, 0)], f)
+        a = 2 * math.pi * f / FLY_N
+        _airborne(p, air, a)
+        flare = K([(0, 0), (18, 0), (30, 1), (42, 0.6), (50, 0), (72, 0)], f)
+        sink = K([(0, 0), (42, 0), (48, 1), (58, 0.3), (72, 0)], f)
+        p.pitch = 22 * flare - 4 * sink
+        p.body = Vector((0, 0, -0.35 * sink))
+        _neck_wave(p, -10 * flare, 0.0)
+        p.head[0] += -14 * flare
+        hind = K([(0, 1), (32, 1), (42, 0), (72, 0)], f)
+        front = K([(0, 1), (38, 1), (47, 0), (72, 0)], f)
+        for kind, s_ in LEGS:                                        # legs reach down for the ground
+            k = hind if kind == 'H' else front
+            lp = p.legs[(kind, s_)]
+            lp.target = anchor + neutral((kind, s_))
+            lp.wb = k
+            if kind == 'H':
+                lp.flex = 30 * k - 15 * sink
+            else:
+                lp.flex = -70 * k + 12 * sink
+            lp.toe = -25 * k
+            lp.scap = -10 * k
+        brake = dict(turns=[('Y', 30.0), ('Z', -28.0), ('X', -14.0)], fold=0.0, curl=10.0)
+        top = dict(turns=[('Y', -40.0), ('Z', -20.0), ('X', -10.0)], fold=0.2, curl=4.0)
+        settle = dict(turns=[('Y', -35.0), ('Z', 4.0), ('X', 0.0)], fold=0.25, curl=2.0)
+        if f < 20:
+            w = dict(GLIDE_WING)
+        elif f < 44:                                                  # two braking beats
+            ph = K([(20, 0), (30, 1), (36, 0), (44, 1)], f)
+            w = _mix_wing(_mix_wing(GLIDE_WING, top, min(1.0, (f - 20) / 6)), brake, ph)
+        elif f < 52:                                                  # down: the wings lift clear of the ground ...
+            w = _mix_wing(brake, settle, ease((f - 44) / 8))
+        else:                                                         # ... and fold away
+            k = ease((f - 52) / 16)
+            w = _mix_wing(settle, FOLDED, k)
+            w["fold"] = settle["fold"] * (1 - k) + k
+        p.wing = _depth_cap(w, SHOULDER_Z + p.root.z + p.body.z)
+        return p
+    return N, fn, False
+
+
 CLIPS = {"Idle": _clip_idle, "Walk": _clip_walk, "Run": _clip_run, "Bite": _clip_bite, "Claw": _clip_claw,
-         "TailSweep": _clip_tail, "Fire": _clip_fire, "Roar": _clip_roar, "Hit": _clip_hit, "Death": _clip_death}
+         "TailSweep": _clip_tail, "Fire": _clip_fire, "Roar": _clip_roar, "Hit": _clip_hit, "Death": _clip_death,
+         "Takeoff": _clip_takeoff, "Fly": _clip_fly, "Glide": _clip_glide, "Land": _clip_land}
 
 
 # ----------------------------------------------------------------------------------------- build
@@ -498,6 +725,31 @@ def still(p, rig_ob=None):
     BA.still(SPEC, p, rig_ob)
 
 
-def report(names=None):
-    """Lowest vertex per clip (sampled): nothing should go much under the ground."""
-    return BA.ground_report(SPEC, names or CLIPS, "DragonBody")
+AIRBORNE = {"Fly", "Glide"}         # played with the Root up in the air: no ground to check
+
+
+def report(names=None, step=16):
+    """Lowest point per clip (sampled) over the ground, counting the root motion's height (Takeoff and Land climb
+    and descend on the Motion bone): nothing should go much under the ground. The wing membrane counts too."""
+    import numpy as np
+    rig = bpy.data.objects[RIG]
+    scn = bpy.context.scene
+    res = {}
+    for name in [n for n in (names or CLIPS) if n not in AIRBORNE]:
+        use(name)
+        N = int(bpy.data.actions[SPEC.action_name(name)]["frames"])
+        lo = 1e9
+        for f in range(0, N + 1, max(1, N // step)):
+            scn.frame_set(f)
+            up = rig.pose.bones["Motion"].head.z
+            dg = bpy.context.evaluated_depsgraph_get()
+            for mesh in ("DragonBody", "DragonWingMembrane"):
+                ob = bpy.data.objects[mesh]
+                me = ob.evaluated_get(dg).to_mesh()
+                co = np.empty(len(me.vertices) * 3)
+                me.vertices.foreach_get('co', co)
+                lo = min(lo, float(co.reshape(-1, 3)[:, 2].min()) + up)
+                ob.evaluated_get(dg).to_mesh_clear()
+        res[name] = round(lo, 3)
+    clear()
+    return res

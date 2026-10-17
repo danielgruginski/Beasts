@@ -4,6 +4,7 @@ Its own file, blender/dragon.blend (scene Dragon); run with that scene on screen
 there)."""
 import bpy, importlib, os
 import numpy as np
+from mathutils import Vector
 import beast_common, beast_scene, beast_rig, dragon_body, dragon_pose, dragon_head, dragon_skin, dragon_paint
 
 RIG = dragon_body.RIG
@@ -214,9 +215,12 @@ def build_clips(names=None):
     return out
 
 
-def clip_frames(name, cam="34", res=540, step=2):
+def clip_frames(name, cam="34", res=540, step=2, travel=False, follow_z=0.6, lift=0.0, end_home=False):
     """Render a clip's frames (the scene's engine, textured) into renders/clip_<name>_<cam>/; `py` + PIL turn them
-    into a GIF (tools: see HANDOFF). -> folder"""
+    into a GIF (tools: see HANDOFF). travel: the rig moves along its root motion (the Motion bone) and the camera
+    follows it forward and `follow_z` of the way up, so a takeoff climbs in the picture; lift raises it all (Fly and
+    Glide play at the Root's height: in the game the Root is in the air); end_home: the travel ends where the rig
+    stands (a landing comes down in the middle of the ground). -> folder"""
     import dragon_anim
     clip_cameras()
     scn = bpy.data.scenes["Dragon"]
@@ -229,10 +233,23 @@ def clip_frames(name, cam="34", res=540, step=2):
     old = scn.camera, scn.render.resolution_x, scn.render.resolution_y, scn.render.filepath
     scn.camera = bpy.data.objects[CLIP_CAMS[cam][0]]
     scn.render.resolution_x = scn.render.resolution_y = res
+    rig = bpy.data.objects[dragon_anim.RIG]
+    rig_home, cam_home = rig.location.copy(), scn.camera.location.copy()
+    end = Vector()
+    if end_home:
+        scn.frame_set(N)
+        end = rig.pose.bones["Motion"].head.copy()
     for f in range(0, N + (0 if bpy.data.actions[dragon_anim.SPEC.action_name(name)]["loop"] else 1), step):
         scn.frame_set(f)
+        if travel or lift:
+            mo = rig.pose.bones["Motion"].head.copy() - end if travel else Vector()
+            mo.z += lift
+            rig.location = rig_home + mo
+            scn.camera.location = cam_home + Vector((0, mo.y, follow_z * mo.z))
+            bpy.context.view_layer.update()
         scn.render.filepath = os.path.join(folder, f"{f:04d}.png")
         bpy.ops.render.render(write_still=True, scene=scn.name)
+    rig.location, scn.camera.location = rig_home, cam_home
     scn.camera, scn.render.resolution_x, scn.render.resolution_y, scn.render.filepath = old
     dragon_anim.clear()
     return folder
