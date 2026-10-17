@@ -326,6 +326,39 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - a ceiling Drop, a Squeeze (under doors and grates), a turn in place;
   - a softer neck in Split (it folds into a V just before the snap);
   - more colours: add one to both `ooze_paint.PRESETS` and `OozeLook.Presets`.
+- **Dragon (started 2026-10-17, Daniel's "big test"):** a six-limbed fire dragon from his two references (perched
+  on a rock; in flight). These are his calls:
+  - six limbs (front legs plus a separate pair of wings);
+  - about 12 m nose to tail, 2.8 m at the shoulder, 16 m wingspan;
+  - "dragons will come in many colors", so the paint will be masks plus colour presets; the first is rusty red with
+    a golden belly, dark horns and spikes, amber eyes;
+  - a higher budget than the other beasts (one on screen, usually alone);
+  - the wings attach on top of the shoulders, right above the front legs (after the first blockout: "a tad up, to
+    the shoulders"; the whole wing moved 0.3 m forward and 0.2 m up, while the flank attachment `att` stayed).
+
+  It lives in its own file, `blender/dragon.blend` (scene Dragon): `dragon_body` / `dragon_pose` / `dragon_build`.
+  - **Stage 1, the blockout (done):** `dragon_build.build_blockout()` makes the 78-bone rig (`DragonRig`; the
+    beasts' leg, spine and tail names, plus `WingScap/Arm/Forearm/Hand/Thumb` and `WingF{1-4}_{k}` per side, in a
+    Wings bone collection) and two skinned meshes:
+    - `DragonBlockout`: one loft for neck, trunk and tail with chain weights; rigid per-bone segments for the legs,
+      wing arms and fingers;
+    - `DragonMembrane`: Coons patches between arm, fingers and flank, with Coons-blended weights.
+
+    `dragon_build.pose_sheet()` renders the test poses (folded, spread, downstroke, fire) into
+    `renders/dragon_blockout_poses.png`. Wing poses aim each bone (direction plus membrane normal) in the chest's
+    frame (`dragon_pose.solve`). The fold works: humerus back, wrist up front, fingers swept back along the flank.
+  - **Daniel on the blockout:** "I actually love the horns, but the face will need a lot of work. Since the dragon
+    is large, the face will actually be visible on the game." So the face gets real modelling and a bigger share of
+    the budget.
+  - **Next:**
+    - the face;
+    - the real body (the beasts' fuse/sculpt recipe);
+    - paint masks plus presets;
+    - clips;
+    - Unity.
+  - **Gotcha:** `dragon_body.Acc` builds each piece in its own bmesh. `create_uvsphere` deletes vertices, and the
+    freed slots let later vertices sort ahead of the per-vertex lists (the horn bases took the eye's colour).
+    Budget proposal (mine, unreviewed): about 20k tris, 2048² body texture, 1024² membranes.
 
 ## Checks
 
