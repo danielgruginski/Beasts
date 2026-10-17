@@ -498,6 +498,18 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     - **Geometry fixes in the same round:** Daniel saw the decimation starve the wing thumb and a "strangulation" on
       the tail. `dragon_skin._dec_weight` now keeps more around the wrist and thumb, and more the thinner the tail's
       section; the thumb cone is thicker.
+  - **Stage 5, clips (2026-10-17, ground set first):** Daniel: "You can do things in small parts, so ground set
+    first" (flight waits on the membrane fit and the shoulder tenting). He was on his phone, so each part is shown
+    as GIFs: `dragon_build.clip_frames(clip, cam="34"|"side"|"front")` renders the frames into
+    `renders/clip_<Clip>_<cam>/`, then `py tools/frames_to_gif.py renders/clip_Walk_34 renders/dragon_Walk.gif --step 2`.
+    - `dragon_anim.py` on `beast_anim`. The rig already uses the quadrupeds' bone names. beast_anim gained
+      `Species(ears=False)` and an `extra` hook; the dragon's `_wings` uses it to keep the wings folded on the
+      chest (`dragon_pose.FOLD`), opened toward another wing pose by `p.wing_open` / `p.wing_to`, lifted by
+      `p.wing_lift`.
+    - Neck (7 bones) and tail (14) move as waves (`_neck_wave`, `_tail_wave`): each bone a little after the one
+      before.
+    - Clips so far: Idle (4 s loop), Walk (1.6 s loop, 1.25 m/s). `dragon_build.build_clips()`;
+      `dragon_anim.report()` gives the lowest vertex per clip (-3.4 cm: the claw tips).
   - **Head to-do, for a later pass** (Daniel 2026-10-17: "It is not perfect, but it is good enough"; body first, head
     later). The head is code, so a change is a rebuild plus re-export:
     - Teeth: open, from the side, they form one perfectly straight, even row. Vary size, spacing, lean and height

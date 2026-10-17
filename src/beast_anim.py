@@ -34,7 +34,8 @@ def rad(d):
 
 
 class Species:
-    def __init__(self, rest_bones, body_c, prefix, rig, neck_n=2, tail_n=5, tongue=True, tail_floor=None, trunk_n=0):
+    def __init__(self, rest_bones, body_c, prefix, rig, neck_n=2, tail_n=5, tongue=True, tail_floor=None, trunk_n=0,
+                 ears=True, extra=None):
         self.rest_bones = rest_bones
         self.body_c = Vector(body_c)
         self.prefix = prefix
@@ -44,6 +45,8 @@ class Species:
         self.tongue = tongue
         self.tail_floor = tail_floor      # per tail bone: lowest z of its end (a tail lying on the ground drags)
         self.trunk_n = trunk_n            # the mammoth's trunk: Trunk1.. from Head
+        self.ears = ears                  # EarL/R (the dragon has none)
+        self.extra = extra                # extra(sp, p, Wm, rel): adds bones of its own (the dragon's wings)
         self.rest = {}
 
     def action_name(self, clip):
@@ -158,7 +161,7 @@ def pose_matrices(sp, p):
         n = f"Trunk{i + 1}"
         Wm[n] = Wm[par] @ rel(n, par) @ _rot(*p.trunk[i])
         par = n
-    for s, sfx in ((1, "L"), (-1, "R")):
+    for s, sfx in ((1, "L"), (-1, "R")) if sp.ears else ():
         e = p.ears[s]
         Wm[f"Ear{sfx}"] = Wm["Head"] @ rel(f"Ear{sfx}", "Head") @ _rot(e[0], -s * e[1])
     par = "Hips"
@@ -171,6 +174,8 @@ def pose_matrices(sp, p):
     Mr = M.to_3x3()
     for key in LEGS:
         _leg(sp, p, key, Wm, MB, Mr, R, B, rel)
+    if sp.extra is not None:
+        sp.extra(sp, p, Wm, rel)
     # the skeleton plays in place; only the Motion bone travels (Unity turns it into root motion)
     Minv = M.inverted()
     out = {k: Minv @ v for k, v in Wm.items()}

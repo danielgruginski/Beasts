@@ -11,9 +11,9 @@ BLEND = os.path.join(beast_common.ROOT, "blender", "dragon.blend")
 
 
 def reload_all():
-    import beast_paint
-    for m in (beast_common, beast_scene, beast_rig, beast_paint, dragon_head, dragon_body, dragon_pose, dragon_skin,
-              dragon_paint):
+    import beast_paint, beast_anim
+    for m in (beast_common, beast_scene, beast_rig, beast_paint, beast_anim, dragon_head, dragon_body, dragon_pose,
+              dragon_skin, dragon_paint):
         importlib.reload(m)
 
 
@@ -190,3 +190,49 @@ def frill_compare(res=640, out="dragon_frill_compare", engine='BLENDER_EEVEE_NEX
 def save():
     bpy.ops.wm.save_as_mainfile(filepath=BLEND, compress=True)
     return BLEND
+
+
+# ----------------------------------------------------------------------------------------- clips
+CLIP_CAMS = {"side": ("DRG_CAM_ClipSide", (20, 1.3, 4.2), (0, 1.3, 2.3), dict(lens=48)),
+             "34": ("DRG_CAM_Clip34", (13.0, -8.5, 5.2), (0, 1.4, 1.7), dict(lens=38)),
+             "front": ("DRG_CAM_ClipFront", (2.5, -16, 3.2), (0, 0, 2.2), dict(lens=45))}
+
+
+def clip_cameras():
+    scn = bpy.data.scenes["Dragon"]
+    for name, loc, tgt, kw in CLIP_CAMS.values():
+        beast_scene._cam(scn, name, loc, tgt, **kw)
+
+
+def build_clips(names=None):
+    """dragon_anim's clips onto DragonRig. -> {clip: frames}"""
+    reload_all()
+    import dragon_anim
+    importlib.reload(dragon_anim)
+    out = {n: int(a["frames"]) for n, a in dragon_anim.build_clips(names).items()}
+    dragon_anim.clear()
+    return out
+
+
+def clip_frames(name, cam="34", res=540, step=2):
+    """Render a clip's frames (the scene's engine, textured) into renders/clip_<name>_<cam>/; `py` + PIL turn them
+    into a GIF (tools: see HANDOFF). -> folder"""
+    import dragon_anim
+    clip_cameras()
+    scn = bpy.data.scenes["Dragon"]
+    dragon_anim.use(name)
+    N = int(bpy.data.actions[dragon_anim.SPEC.action_name(name)]["frames"])
+    folder = os.path.join(beast_scene.RENDERS, f"clip_{name}_{cam}")
+    os.makedirs(folder, exist_ok=True)
+    for fn in os.listdir(folder):
+        os.remove(os.path.join(folder, fn))
+    old = scn.camera, scn.render.resolution_x, scn.render.resolution_y, scn.render.filepath
+    scn.camera = bpy.data.objects[CLIP_CAMS[cam][0]]
+    scn.render.resolution_x = scn.render.resolution_y = res
+    for f in range(0, N + (0 if bpy.data.actions[dragon_anim.SPEC.action_name(name)]["loop"] else 1), step):
+        scn.frame_set(f)
+        scn.render.filepath = os.path.join(folder, f"{f:04d}.png")
+        bpy.ops.render.render(write_still=True, scene=scn.name)
+    scn.camera, scn.render.resolution_x, scn.render.resolution_y, scn.render.filepath = old
+    dragon_anim.clear()
+    return folder
