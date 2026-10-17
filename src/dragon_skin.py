@@ -38,6 +38,8 @@ CUT_ARC = 0.45                   # the seam: this far down the neck's spine from
 K_JOIN = 0.06                    # how the head melts into the neck
 BIG = 1.0
 LO, HI = (-4.25, -3.45, -0.05), (4.25, 7.55, 5.25)
+# what each vertex is, for the painter (the 'info' attribute's red channel, as the beasts' bake_data reads it)
+PART = dict(skin=1, mouth=2, horn=3, claw=4, tooth=5, tongue=6, eye=7, pupil=8, frill=9, membrane=10)
 COLL = "DRG_Body"
 UP, FWD = (0, 0, 1), (0, -1, 0)
 
@@ -563,6 +565,29 @@ def build_shells(acc, ob, rgb, head_bvh):
     return rep
 
 
+# ----------------------------------------------------------------------------------------- parts
+def write_info(ob, parts):
+    """The 'info' attribute (red = part id / 255) that beast_paint.bake_data bakes per texel."""
+    me = ob.data
+    if "info" in me.color_attributes:
+        me.color_attributes.remove(me.color_attributes["info"])
+    att = me.color_attributes.new("info", 'FLOAT_COLOR', 'POINT')
+    rgba = np.zeros((len(me.vertices), 4), np.float32)
+    rgba[:, 0] = np.asarray(parts, float) / 255.0
+    rgba[:, 3] = 1.0
+    att.data.foreach_set('color', rgba.ravel())
+
+
+def shell_parts(colors, rgb):
+    """Part per shell vertex from the exact palette colour its builder gave it."""
+    key = lambda c: tuple(round(float(x), 5) for x in c)
+    table = {key(rgb(DB.COL["horn"])): PART["horn"], key(rgb(DB.COL["claw"])): PART["claw"],
+             key(rgb(DH.COL["tooth"])): PART["tooth"], key(rgb(DH.COL["tongue"])): PART["tongue"],
+             key(rgb(DB.COL["eye"])): PART["eye"], key(rgb(DH.COL["pupil"])): PART["pupil"],
+             key(rgb(DB.COL["membrane"])): PART["frill"], key(rgb(DH.COL["eye"])): PART["eye"]}
+    return [table.get(key(c), PART["skin"]) for c in colors]
+
+
 # ----------------------------------------------------------------------------------------- assembly
 def build(rig):
     """The real body: skin (head + body, one mesh), shells joined onto it, membranes. -> (objects, report)"""
@@ -618,10 +643,13 @@ def build(rig):
     rep["skin_tris"] = sum(len(p.vertices) - 2 for p in me.polygons)
     rep["weights"] = skin_weights(ob, rig, n_head)
 
+    mouth = np.array(rgb(DH.COL["mouth"]))
+    write_info(ob, [PART["mouth"] if np.abs(np.array(c) - mouth).max() < 1e-4 else PART["skin"] for c in cols])
     acc = DB.Acc()
     rep["shells"] = build_shells(acc, ob, rgb, head_bvh)
     remove_obj("DRG_Shells")
     shells = acc.finish("DRG_Shells", coll, mat)
+    write_info(shells, shell_parts(acc.C, rgb))
     rep["shell_tris"] = sum(len(p.vertices) - 2 for p in shells.data.polygons)
     for o in bpy.context.selected_objects:
         o.select_set(False)
@@ -638,6 +666,7 @@ def build(rig):
     mem.C = [c if c is not None else DB._rgb(DB.COL["membrane"]) for c in mem.C]
     remove_obj("DragonWingMembrane")
     ob_mem = mem.finish("DragonWingMembrane", coll, mat)
+    write_info(ob_mem, [PART["membrane"]] * len(ob_mem.data.vertices))
     rep["membrane"] = beast_rig.bind(ob_mem, rig)
     rep["tris"] = {o.name: sum(len(p.vertices) - 2 for p in o.data.polygons) for o in (ob, ob_mem)}
     lc = bpy.context.view_layer.layer_collection.children.get(DB.COLL)    # the blockout steps aside

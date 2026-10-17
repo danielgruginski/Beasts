@@ -4,14 +4,16 @@ Its own file, blender/dragon.blend (scene Dragon); run with that scene on screen
 there)."""
 import bpy, importlib, os
 import numpy as np
-import beast_common, beast_scene, beast_rig, dragon_body, dragon_pose, dragon_head, dragon_skin
+import beast_common, beast_scene, beast_rig, dragon_body, dragon_pose, dragon_head, dragon_skin, dragon_paint
 
 RIG = dragon_body.RIG
 BLEND = os.path.join(beast_common.ROOT, "blender", "dragon.blend")
 
 
 def reload_all():
-    for m in (beast_common, beast_scene, beast_rig, dragon_head, dragon_body, dragon_pose, dragon_skin):
+    import beast_paint
+    for m in (beast_common, beast_scene, beast_rig, beast_paint, dragon_head, dragon_body, dragon_pose, dragon_skin,
+              dragon_paint):
         importlib.reload(m)
 
 
@@ -80,6 +82,12 @@ def build_body():
     rep["bones"] = len(rig.data.bones)
     rig.hide_render = True
     return rig, objs, rep
+
+
+def paint(**kw):
+    """UVs, bakes, the colour presets and normal maps (dragon_paint) on the built body. -> report"""
+    reload_all()
+    return dragon_paint.build(**kw)
 
 
 def pose(name):

@@ -445,6 +445,28 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       - Raising the wings (fire pose) tents the shoulder skin with a fold down the flank.
       - The membranes' flank edge was laid out for the blockout's body.
       - Shells are about 7.5k of the total: eyes at 24x14 and teeth at 6 sides could be cheaper.
+  - **Stage 4, the paint (2026-10-17):** `dragon_paint.py`, `dragon_build.paint()`. Daniel: normal maps are worth it
+    on a creature this big; other material properties are optional.
+    - The build writes a part id per vertex into the `info` attribute (`dragon_skin.PART`), which
+      `beast_paint.bake_data` bakes with position, normal and AO.
+    - **UVs:** smart project on `DragonBody` (one closed skin: no natural seams), one density, then the head x1.7,
+      the eyes x2.5, teeth and mouth smaller; packed (about 1,400 islands, 69% coverage). The membranes are a
+      planar projection from above in the bind pose (left wing on top, right below).
+    - **Relief, from 3D positions** (so it is continuous across islands); `RELIEF` is 2.6:
+      - pebbled scales: 3D Voronoi cells in four sizes, blended by region, grooved at the borders and raised
+        toward the tail-ward edge;
+      - belly plates: the pitch follows the section's depth; plates across the jaw's underside too. The underside
+        is measured within the cross-section; with the full offset the chest's front failed;
+      - horn rings; grain on spikes and claws; tongue papillae; frill veins; radial and fine veins on the wings.
+    - **Presets:** `PRESETS` holds rust (Daniel's), ash and bronze (mine). Each is its own albedo over one normal
+      map: `T_Dragon`, `T_Dragon_Ash`, `T_Dragon_Bronze`, `T_Dragon_Normal`, and the `T_DragonWing*` equivalents.
+      - The materials are `M_Dragon` and `M_DragonWing`; `dragon_paint.use_preset(name)` swaps them in Blender.
+      - The scale shading fades out where the plates take over; the plates showed scales in the colour otherwise.
+    - **Not done:**
+      - the plate grooves alias a little at 2048;
+      - a few stray texels where island margins meet (part interpolates to "mouth");
+      - the pupil is still a slit of vertex resolution on the eyeball (the iris paint is per texel);
+      - no export to Unity yet.
   - **Head to-do, for a later pass** (Daniel 2026-10-17: "It is not perfect, but it is good enough"; body first, head
     later). The head is code, so a change is a rebuild plus re-export:
     - Teeth: open, from the side, they form one perfectly straight, even row. Vary size, spacing, lean and height
@@ -455,7 +477,7 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       edge (root inside the hanging lip, further in and down).
     - Mine: the pupil is a vertex-colour blob. The eye's detail and the scales come with the paint and normal map.
   - **Next:**
-    - the real body: done (stage 3); next its paint (masks + presets, normal map with scales);
+    - the real body: done (stage 3); the paint: done (stage 4);
     - scales: brow plates, face scales and the belly plates in the normal map;
     - paint masks plus presets;
     - clips;
