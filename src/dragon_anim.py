@@ -24,6 +24,9 @@ Clips (30 fps, the dragon faces -Y; Unity +Z):
   Fire       2.5 s        a deep breath, then fire from Socket_Mouth, the head sweeping side to side (events 'Fire'
                           at 0.9 s, 'FireEnd' at 2.0 s)
   Roar       2.2 s        rears onto its haunches, wings thrown up, roars (event 'Roar' at 0.6 s), comes down
+  Hit        0.6 s        head snapped away, body rocked back, wings twitching open, a small rebound
+  Death      3.0 s        a last cry, forelegs then hind legs buckle onto its belly, the neck falls and the head
+                          hits the ground (event 'Dead' at 2.0 s), a last breath and tail twitch; holds the end
 """
 import math
 from mathutils import Vector, Matrix
@@ -76,7 +79,7 @@ SPEC = BA.Species(DB.rest_bones, (0.0, 0.35, 2.3), "Dragon", RIG, neck_n=DB.NECK
                   ears=False, tail_floor=[0.10] * DB.TAIL_N, extra=_wings)
 LEGS = BA.LEGS
 EVENTS = {"Bite": [("Bite", 0.63)], "Claw": [("Bite", 0.53)], "TailSweep": [("Bite", 0.80)],
-          "Fire": [("Fire", 0.90), ("FireEnd", 2.00)], "Roar": [("Roar", 0.60)]}
+          "Fire": [("Fire", 0.90), ("FireEnd", 2.00)], "Roar": [("Roar", 0.60)], "Death": [("Dead", 2.0)]}
 MOVING = {"Walk", "Run"}
 
 
@@ -372,8 +375,82 @@ def _clip_roar():
     return N, fn, False
 
 
+# ----------------------------------------------------------------------------------------- hit and death
+def _clip_hit():
+    """Struck from the front-right: the head snaps away up and to its left, the body rocks back, the wings twitch
+    open, a pained snarl; a small rebound."""
+    N = 18
+
+    def fn(f):
+        p = DragonPose()
+        k = K([(0, 0), (2, 1), (6, 0.8), (11, -0.2), (18, 0)], f)
+        kp = max(k, 0.0)
+        p.body = Vector((0.08 * k, 0.12 * k, -0.04 * kp))
+        p.roll, p.yaw, p.pitch = 4 * k, 6 * k, 3 * k
+        p.spine[2] = [-3 * k, 4 * k, 0]
+        _neck_wave(p, 10 * k, 18 * k, phase=0.0)
+        p.head = [12 * k, 16 * k, 12 * k]
+        p.jaw = K([(0, 0), (2, 30), (7, 14), (12, 4), (18, 0)], f)
+        p.wing_open = 0.25 * kp
+        p.wing_to = "raised"
+        for i in range(SPEC.tail_n):
+            p.tail[i][1] += K([(0, 0), (3, -1.5), (9, 1.0), (18, 0)], f - 0.5 * i)
+        for s_ in (1, -1):
+            p.legs[('F', s_)].scap = -8 * k
+            p.legs[('F', s_)].flex = 10 * kp
+        return p
+    return N, fn, False
+
+
+DEATH_DROP = 0.88                  # the belly on the ground
+DEATH_FORE = (0.15, -0.20, -30.0)  # forefeet: out, forward (m), paw flex (deg); further forward sank the elbows
+
+
+def _death_pose(f):
+    p = DragonPose()
+    cry = K([(0, 0), (4, 1), (14, 1), (22, 0), (90, 0)], f)               # a last cry, head thrown up
+    front = K([(0, 0), (16, 0), (30, 1), (90, 1)], f)                     # the forelegs buckle ...
+    hind = K([(0, 0), (30, 0), (46, 1), (90, 1)], f)                      # ... then the hind legs
+    neck = K([(0, 0), (40, 0), (58, 1), (62, 0.96), (90, 1)], f)          # the neck falls, the head hits the ground
+    sway = math.sin(2 * math.pi * f / 26) * K([(0, 0), (8, 1), (40, 1), (50, 0), (90, 0)], f)
+    p.body = Vector((0.10 * sway, 0.15 * cry,
+                     -DEATH_DROP * (0.55 * front + 0.45 * hind) + 0.06 * cry))
+    p.pitch = 6 * cry - 9 * front + 9 * hind                               # nose-down as the front drops first
+    p.roll = 3 * sway
+    p.spine[2][0] = -4 * neck
+    _neck_wave(p, 18 * cry - 58 * neck, 12 * neck + 6 * sway, spread=BASE)
+    p.head = [-16 * cry + 30 * neck, 10 * neck, 14 * neck]
+    breath = K([(0, 0), (70, 0), (76, 1), (84, 0), (90, 0)], f)           # a last breath out
+    p.jaw = 40 * cry + K([(0, 0), (22, 8), (58, 14), (64, 6), (90, 6)], f) + 6 * breath
+    p.spine[1][0] = 2 * breath
+    p.wing_open = 0.3 * cry
+    p.wing_lift = -6 * K([(0, 0), (40, 0), (60, 1), (90, 1)], f)          # the wings sag
+    twitch = K([(0, 0), (78, 0), (81, 1), (85, 0), (90, 0)], f)
+    for i in range(SPEC.tail_n):
+        p.tail[i][1] += 1.2 * sway + 3.0 * twitch * (i > 9)
+        p.tail[i][0] += -2.0 * hind * (i < 4)
+    for kind, s_ in LEGS:
+        k_ = front if kind == 'F' else hind
+        base = neutral((kind, s_))
+        if kind == 'F':                                                    # forefeet slide forward and out
+            lp = LegPose(target=base + Vector((DEATH_FORE[0] * s_, DEATH_FORE[1], 0)) * k_)
+            lp.flex = DEATH_FORE[2] * k_
+            lp.toe = 20 * k_
+            lp.scap = 10 * k_
+        else:                                                              # hind feet splay, hocks flat
+            lp = LegPose(target=base + Vector((0.25 * s_, -0.10, 0)) * k_)
+            lp.flex = -25 * k_
+            lp.toe = 10 * k_
+        p.legs[(kind, s_)] = lp
+    return p
+
+
+def _clip_death():
+    return 90, _death_pose, False
+
+
 CLIPS = {"Idle": _clip_idle, "Walk": _clip_walk, "Run": _clip_run, "Bite": _clip_bite, "Claw": _clip_claw,
-         "TailSweep": _clip_tail, "Fire": _clip_fire, "Roar": _clip_roar}
+         "TailSweep": _clip_tail, "Fire": _clip_fire, "Roar": _clip_roar, "Hit": _clip_hit, "Death": _clip_death}
 
 
 # ----------------------------------------------------------------------------------------- build
