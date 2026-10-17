@@ -59,9 +59,9 @@ MUZZLE_KEYS = (
 MUZZLE_ROUND = (0.80, 0.045)        # top corners: fraction of the section (round); the lip edge: metres (crisp)
 NOSE_RIDGES = ((0.115, -1.24, 0.135), (0.19, -0.42, 0.26), 0.040, 0.050)      # paired, nostril -> into the brow
 FANG_SWELL = ((0.165, -1.17, -0.06), (0.070, 0.125, 0.075))        # the upper lip bulges over the fang roots (above the slit)
-JOWL = ((0.24, -0.20, -0.08), (0.17, 0.30, 0.20))                   # wide cheeks behind the mouth corner
+JOWL = ((0.24, -0.12, -0.08), (0.17, 0.24, 0.20))                   # wide cheeks, ending at the mouth corner
 BROW = ((0.19, -0.26, 0.27), (0.26, -0.62, 0.18), 0.080, 0.040)     # the ridge over each eye (capsule a -> b)
-CHEEK_RIDGE = ((0.27, -0.36, 0.00), (0.25, -0.78, -0.03), 0.045)    # under the eye, down the side of the snout
+CHEEK_RIDGE = ((0.27, -0.36, 0.00), (0.24, -0.88, -0.03), 0.045, 0.012)   # under the eye, tapering into the snout (a blunt end folded into a dark notch)
 NOSTRIL = ((0.120, -1.29, 0.075), (0.068, 0.072, 0.052))            # the raised rim ...
 NOSTRIL_HOLE = ((0.150, -1.325, 0.085), (0.030, 0.048, 0.024))     # ... and the hole in it, opening out and forward
 STUB = ((0.0, 0.0, 0.02), (0.0, 0.25, -0.08), 0.28)                 # into the neck (hidden by the neck's end)
@@ -255,8 +255,8 @@ def parts(P):
     up = smin(up, sd_ellipsoid(Pm, *JOWL), 0.10)
     a, b, ra, rb = BROW
     up = smin(up, sd_capsule(Pm, np.array(a), np.array(b), ra, rb), 0.09)
-    a, b, r = CHEEK_RIDGE
-    up = smin(up, sd_capsule(Pm, np.array(a), np.array(b), r), 0.05)
+    a, b, ra, rb = CHEEK_RIDGE
+    up = smin(up, sd_capsule(Pm, np.array(a), np.array(b), ra, rb), 0.05)
     up = smin(up, sd_ellipsoid(Pm, *NOSTRIL), 0.04)
     up = smin(up, sd_capsule(P, np.array(STUB[0]), np.array(STUB[1]), STUB[2]), 0.12)
     y = P[..., 1]
@@ -408,17 +408,23 @@ def bridges(bm):
 
 # ----------------------------------------------------------------------------------------- weights and colours
 def jaw_weight(P):
-    """How much each head-space point follows the jaw: everything under the slit in front of the corner; behind
-    it, the jaw's angle under the jowl, fading up into the cheek and back into the neck."""
+    """How much each head-space point follows the jaw: everything under the slit in front of the corner. Behind it
+    the cheek is the masseter, stretched between the cheekbone and the jaw's angle: the jaw's share grows from
+    nothing at the mouth line's height to all of it at the jaw's lower edge, and fades out toward the hinge.
+    (A plain "below this height follows the jaw" dropped the lower cheek as a slab with a crease under the eye, and
+    behind the hinge the jaw's turn swung the skin up and back into the skull. Daniel: "the masseter muscle is
+    being pushed down in a weird way".)"""
     y, z = P[:, 1], P[:, 2]
     front = smoothstep(Y_CORNER + 0.10, Y_CORNER - 0.02, y)
-    # the upper lip hanging outside the jaw stays on the Head: outside the jaw's sides AND within the lip's own height
-    # (on |x| alone it also caught the jaw-line ridge further down, which then stretched into streaks on opening)
-    lip_hang = smoothstep(at(JAW, y, 1) + 0.3 * LIP_CLEAR, at(JAW, y, 1) + 0.6 * LIP_CLEAR, np.abs(P[:, 0])) * \
-        smoothstep(lip(y) - LIP_HANG - 0.025, lip(y) - LIP_HANG - 0.008, z)
-    below = smoothstep(lip(y) + 0.012, lip(y) - 0.012, z) * (1 - lip_hang)
-    back = smoothstep(-0.22, -0.40, z) * smoothstep(0.22, 0.02, y)
-    return np.clip(front * below + (1 - front) * back, 0, 1)
+    # in front of the corner: whichever half of the field the point lies on (the jaw's profile or the upper head with
+    # its hanging lip), so the weights follow how the halves are cut apart. (Height rules missed pieces: the lip's
+    # flap, the jaw-line ridge, the jowl's front.)
+    p = parts(P)
+    on_jaw = smoothstep(-0.008, 0.008, p["up"] - p["lo"])
+    mouth_line = lip(np.minimum(y, Y_CORNER))
+    cheek = smoothstep(mouth_line - 0.02, at(JAW, y, 3) + 0.06, z)
+    fade = smoothstep(HINGE[1] + 0.06, HINGE[1] - 0.14, y)
+    return np.clip(front * on_jaw + (1 - front) * cheek * fade, 0, 1)
 
 
 def head_colors(P, N, rgb):
@@ -567,8 +573,9 @@ def build(acc, rgb, frill_fused=None):
     for a, b, r, c in todo:
         tmp = bmesh.new()
         seat = seat_spike(tmp, bvh, a, b, r, c)
-        bone = "Jaw" if jaw_weight(seat[None])[0] > 0.5 else "Head"
-        _add(acc, tmp, [{bone: 1.0}] * len(tmp.verts), [rgb(COL["horn"])] * len(tmp.verts))
+        w = float(jaw_weight(seat[None])[0])             # the skin's own blend where it sits (a hook pinned to
+        wd = {k: v for k, v in (("Jaw", w), ("Head", 1 - w)) if v > 1e-3}   # one bone floated off the cheek)
+        _add(acc, tmp, [wd] * len(tmp.verts), [rgb(COL["horn"])] * len(tmp.verts))
     rep["spikes"] = len(todo)
 
     shell(lambda bm: build_teeth(bm, True), "Head", COL["tooth"])

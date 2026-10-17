@@ -376,6 +376,18 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       - `FANG_SWELL` stays above the slit (its sliver below the slit took jaw weights and became a rod).
       - Check: `bridges` 0. Only the mouth corners' edges stretch more than 3x when the jaw opens 34°; that is the
         lip corners.
+    - **Masseter** (Daniel: "pieces of the upper skull being pushed by the bones of the lower jaw ... the masseter
+      muscle is being pushed down in a weird way"):
+      - The jowl reached 14 cm in front of the mouth corner. Below the mouth line its front was joined to the jaw
+        inside and the upper cheek outside, so it tore between them whatever its weights. `JOWL` now ends at the
+        corner.
+      - `jaw_weight` in front of the corner takes the half of the field a point lies on (`parts`: up vs lo), so the
+        weights follow the cut. Behind the corner the cheek blends from no jaw at the mouth line to all of it at the
+        jaw's lower edge, and fades out toward the hinge. Behind the hinge the jaw's turn swung skin up into the
+        skull.
+      - Spikes take the skin's blended weight at their seat; a pinned hook floated off the cheek.
+      - Edges stretched more than 3x on a 34° opening: 128 down to 29, all at the lip corners.
+      - `CHEEK_RIDGE` tapers into the snout; its blunt end folded into a dark notch.
     - The snout and jaw are swept profiles keyed along y and Gaussian-smoothed (`MUZZLE_KEYS`, `JAW_KEYS`). That
       gives a dip at the brow, a waist and a flare round the fangs, and a lip line curling up to the corner. The jaw
       line drops to a deep angle and rises to a chin.
