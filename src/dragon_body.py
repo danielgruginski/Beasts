@@ -184,7 +184,8 @@ def rest_bones():
         _bone(B, f"Neck{i + 1}", neck[i], neck[i + 1], UP, par)
         par = f"Neck{i + 1}"
     _bone(B, "Head", HEAD[0], hk(HEAD[1]), UP, par)
-    _bone(B, "Jaw", hk(JAW[0]), hk(JAW[1]), UP, "Head")
+    import dragon_head as DH
+    _bone(B, "Jaw", DH.to_body(DH.HINGE), DH.to_body(DH.CHIN_TIP), UP, "Head")
     tail, par = tail_pts(), "Hips"
     for i in range(TAIL_N):
         _bone(B, f"Tail{i + 1}", tail[i], tail[i + 1], UP, par)
@@ -212,7 +213,7 @@ def rest_bones():
                 name = f"WingF{i + 1}_{k + 1}{sfx}"
                 _bone(B, name, m(P[k]), m(P[k + 1]), UP, par)
                 par = name
-    mouth = Vector(hk((0, -4.62, 4.40)))                     # sockets: head = attach point, +Y up, +Z forward
+    mouth = Vector(DH.to_body(DH.MOUTH))                     # sockets: head = attach point, +Y up, +Z forward
     _bone(B, "Socket_Mouth", mouth, mouth + Vector((0, 0, 0.2)), FWD, "Head")
     return B
 
@@ -358,7 +359,12 @@ class Acc:
                     ne.seam = True
         tmp.free()
         self.W += W
-        self.C += color(P) if callable(color) else [color] * len(P)
+        if callable(color):
+            color = color(P)
+        elif not isinstance(color, list):
+            color = [color] * len(P)
+        assert len(color) == len(P), (len(color), len(P))
+        self.C += color
 
     def finish(self, name, coll, mat):
         bm = self.bm
@@ -424,9 +430,10 @@ def _claw(bm, base, d, L, r):
     return cone(bm, base, base + d * L, r, seg=6, bend=tuple(np.array((0, 0, -1.0)) * L * 0.35))
 
 
-def build_blockout(rig):
+def build_blockout(rig, old_head=False, frill_fused=None):
     """The blockout meshes, skinned and bound to the rig: DragonBlockout (body, head, legs, wing bones) and
-    DragonMembrane. -> (objects, report)"""
+    DragonMembrane. The face is dragon_head's (old_head=True brings back the first blockout's lofted head; the horns
+    and the crown spikes are kept either way). -> (objects, report)"""
     B = rest_bones()
     coll = get_coll(COLL)
     mat = blockout_material()
@@ -459,33 +466,39 @@ def build_blockout(rig):
 
     # head
     back = _rgb(COL["back"])
-    body.add(lambda bm: loft(bm, hk_rows(SKULL_ROWS), seg=20, per_seg=4, cap0=0.8, cap1=0.5), "Head", back)
-    body.add(lambda bm: loft(bm, hk_rows(JAW_ROWS), seg=16, per_seg=4, cap0=0.8, cap1=0.5), "Jaw", _belly_jaw)
+    rep_head = {}
+    if old_head:
+        body.add(lambda bm: loft(bm, hk_rows(SKULL_ROWS), seg=20, per_seg=4, cap0=0.8, cap1=0.5), "Head", back)
+        body.add(lambda bm: loft(bm, hk_rows(JAW_ROWS), seg=16, per_seg=4, cap0=0.8, cap1=0.5), "Jaw", _belly_jaw)
+    else:
+        import dragon_head
+        rep_head = dragon_head.build(body, _rgb, frill_fused=frill_fused)
     for s_, sfx in SIDES:
         m = lambda p: _m(p, s_)
         K = HEAD_K
-        c, r = EYE
-        body.add(lambda bm: bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=r * K,
-                                                      matrix=Matrix.Translation(m(hk(c)))) and None, "Head", eye)
         body.add(lambda bm: _tube(bm, [(*m(hk(p)), p[3] * K) for p in HORN], seg=10), "Head", horn)
-        a, b, r = BROW
-        body.add(lambda bm: _seg(bm, m(hk(a)), m(hk(b)), r * K, r * K * 0.7, up=UP, cap=0.8), "Head", back)
-        for a, b, r0 in CROWN:
-            body.add(lambda bm: cone(bm, m(hk(a)), m(hk(b)), r0 * K, seg=6), "Head", horn)
-        for a, b, r0 in JAW_SPIKES:
-            body.add(lambda bm: cone(bm, m(hk(a)), m(hk(b)), r0 * K, seg=5), "Jaw", horn)
-        for a, b, r0 in FANGS:
-            body.add(lambda bm: cone(bm, m(hk(a)), m(hk(b)), r0 * K, seg=5), "Head", _rgb("e8dcc0"))
-        fb, tips = hk(FRILL[0]), [hk(t) for t in FRILL[1]]
-        for t in tips:
-            body.add(lambda bm: cone(bm, m(fb), m(t), 0.035 * K, seg=5), "Head", horn)
+        if old_head:                                     # (the new head melts the crown spikes in)
+            for a, b, r0 in CROWN:
+                body.add(lambda bm: cone(bm, m(hk(a)), m(hk(b)), r0 * K, seg=6), "Head", horn)
+            c, r = EYE
+            body.add(lambda bm: bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=r * K,
+                                                          matrix=Matrix.Translation(m(hk(c)))) and None, "Head", eye)
+            a, b, r = BROW
+            body.add(lambda bm: _seg(bm, m(hk(a)), m(hk(b)), r * K, r * K * 0.7, up=UP, cap=0.8), "Head", back)
+            for a, b, r0 in JAW_SPIKES:
+                body.add(lambda bm: cone(bm, m(hk(a)), m(hk(b)), r0 * K, seg=5), "Jaw", horn)
+            for a, b, r0 in FANGS:
+                body.add(lambda bm: cone(bm, m(hk(a)), m(hk(b)), r0 * K, seg=5), "Head", _rgb("e8dcc0"))
+            fb, tips = hk(FRILL[0]), [hk(t) for t in FRILL[1]]
+            for t in tips:
+                body.add(lambda bm: cone(bm, m(fb), m(t), 0.035 * K, seg=5), "Head", horn)
 
-        def frill(bm):
-            vb = bm.verts.new(m(fb))
-            vt = [bm.verts.new(m(t)) for t in tips]
-            for a, b in zip(vt[:-1], vt[1:]):
-                bm.faces.new((vb, a, b))
-        mem.add(frill, "Head", _rgb(COL["membrane"]))
+            def frill(bm):
+                vb = bm.verts.new(m(fb))
+                vt = [bm.verts.new(m(t)) for t in tips]
+                for a, b in zip(vt[:-1], vt[1:]):
+                    bm.faces.new((vb, a, b))
+            mem.add(frill, "Head", _rgb(COL["membrane"]))
 
         # legs: rigid segments per bone, toes with claws
         F, H = FRONT, HIND
@@ -569,6 +582,7 @@ def build_blockout(rig):
     import beast_rig
     rep = {o.name: beast_rig.bind(o, rig) for o in (ob_body, ob_mem)}
     rep["tris"] = {o.name: sum(len(p.vertices) - 2 for p in o.data.polygons) for o in (ob_body, ob_mem)}
+    rep["head"] = rep_head
     return (ob_body, ob_mem), rep
 
 

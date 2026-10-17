@@ -350,9 +350,47 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - **Daniel on the blockout:** "I actually love the horns, but the face will need a lot of work. Since the dragon
     is large, the face will actually be visible on the game." So the face gets real modelling and a bigger share of
     the budget.
+  - **Stage 2, the face (2026-10-17):** `dragon_head.py`, from the perched reference.
+    - **First pass:** separate skull and jaw fields with spikes as separate shells. Daniel: "an organic pass ...
+      that takes primitives and smoothes them out, creating a single piece"; "the jaw is a straight line, it should
+      have a proper jaw line"; "the snout is also flat, it should have some curves"; and no nose horn.
+    - **Second pass (Daniel: "the jaw looks much better"; done):** ONE distance field in head space, meshed with
+      ooze_body's `sdf_mesh` at 1 cm and decimated to 7.5k tris. Every primitive melts into the next with a fillet
+      (smin): cranium, jowls, brow and cheek ridges, paired nose ridges, the swell over the fangs, nostril rims, and
+      the lids (a ring round each almond eye).
+    - **Spikes are not melted in.** Daniel: "the spikes fused with the skull made things look weird". They are crisp
+      cones, seated by `seat_spike`: a ray from the tip back along the axis finds where the spike leaves the skin, and
+      the base sinks in by most of its radius. Each spike rides on Head or Jaw by `jaw_weight` at its seat. This
+      covers the brow, cheek, jaw and chin hooks, and the crown behind the horns.
+    - **Frill ribs separate too** (Daniel picked the separate version over melted; `FRILL_FUSED = False`;
+      `dragon_build.frill_compare()` renders both).
+    - **Jaw fixes** after Daniel's "uv issues in the lower jaw" (there are no UVs yet; it was the blockout colours and
+      faceting) and "you can use more polygons for the jaw, it is ok":
+      - The gold band follows the jaw's bottom contour; picked from the decimated normals it made staircase blotches.
+      - The head skin is 12k tris, the jaw kept more by `_dec_weight`. The head with its shells is 16.5k.
+      - The upper lip hangs `LIP_HANG` (3.2 cm) over the outside of the narrower jaw, clear of it by `LIP_CLEAR`, so
+        the slit no longer shows the inner teeth as a dashed line. The jaw swings down inside the lip.
+      - In front of the corner, upper and lower meet hard (`k_ul`). A 3 cm blend there webbed the channel between
+        the lip and the jaw side, and the web stretched into a curtain on opening.
+      - `_dec_weight` never collapses the slit's ends (one triangle there made a strand).
+      - `FANG_SWELL` stays above the slit (its sliver below the slit took jaw weights and became a rod).
+      - Check: `bridges` 0. Only the mouth corners' edges stretch more than 3x when the jaw opens 34°; that is the
+        lip corners.
+    - The snout and jaw are swept profiles keyed along y and Gaussian-smoothed (`MUZZLE_KEYS`, `JAW_KEYS`). That
+      gives a dip at the brow, a waist and a flare round the fangs, and a lip line curling up to the corner. The jaw
+      line drops to a deep angle and rises to a chin.
+    - The mouth is a slit carved into the field (`Y_CORNER`, `GAP`), so the head is one skin. `jaw_weight` splits it
+      along the slit and blends behind the corners, which stretch when the jaw opens.
+    - `_dec_weight` keeps the lip edges (the collapse otherwise bridged the slit with a sheet from snout to chin);
+      `bridges()` counts any left (0). `unfold()` runs after the decimate (a fold at the chin took the belly colour).
+    - Shells: teeth (four upper per side hang outside the narrower jaw, the rest bite into it), tongue, eyeballs
+      with a slit pupil, frill membranes. Horns stay `dragon_body.HORN`.
+    - `dragon_body.build_blockout()` uses it (`old_head=True` brings back the lofted head). The Jaw bone and
+      `Socket_Mouth` come from `dragon_head.HINGE / CHIN_TIP / MOUTH`. `dragon_build.face_sheet()` renders the head
+      shut and open (`renders/dragon_face_sheet.png`).
   - **Next:**
-    - the face;
-    - the real body (the beasts' fuse/sculpt recipe);
+    - the real body (the beasts' fuse/sculpt recipe; the head joins the neck there);
+    - scales: brow plates, face scales and the belly plates in the normal map;
     - paint masks plus presets;
     - clips;
     - Unity.

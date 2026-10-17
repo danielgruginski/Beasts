@@ -3,14 +3,14 @@ test poses (dragon_pose). Its own file, blender/dragon.blend (scene Dragon); run
 (dragon_build.show() puts it there)."""
 import bpy, importlib, os
 import numpy as np
-import beast_common, beast_scene, beast_rig, dragon_body, dragon_pose
+import beast_common, beast_scene, beast_rig, dragon_body, dragon_pose, dragon_head
 
 RIG = dragon_body.RIG
 BLEND = os.path.join(beast_common.ROOT, "blender", "dragon.blend")
 
 
 def reload_all():
-    for m in (beast_common, beast_scene, beast_rig, dragon_body, dragon_pose):
+    for m in (beast_common, beast_scene, beast_rig, dragon_head, dragon_body, dragon_pose):
         importlib.reload(m)
 
 
@@ -35,6 +35,7 @@ def setup_scene():
     c("CAM_Rear", (-11, 15, 9), (0, 0.6, 2.4), lens=40)
     c("CAM_Face", (3.0, -8.6, 5.7), (0, -4.1, 4.8), lens=50)
     c("CAM_HeadSide", (30, -4.0, 4.9), (0, -4.0, 4.9), ortho=3.4)
+    c("CAM_HeadFront", (0, -30, 4.75), (0, 0, 4.75), ortho=2.6)
     c("CAM_Fly", (13.5, -15.5, 13.0), (0, 0.6, 5.9), lens=40)
     c("CAM_Colony", (0, -26, 31), (0, 0.6, 2.0), lens=50)
     scn.camera = bpy.data.objects["DRG_CAM_34"]
@@ -53,14 +54,14 @@ def show():
     beast_scene.frame_viewports(shading='MATERIAL', lift=2.2, distance=24.0)
 
 
-def build_blockout():
+def build_blockout(frill_fused=None):
     """Skeleton -> blockout meshes, skinned and bound. -> (rig, objects, report)"""
     assert bpy.context.scene.name == "Dragon", "put the Dragon scene on screen first: dragon_build.show()"
     reload_all()
     setup_scene()
     rig = beast_rig.build_armature(dragon_body.rest_bones(), name=RIG, coll_name="DRG_Rig")
     dragon_body.wing_collections(rig)
-    objs, rep = dragon_body.build_blockout(rig)
+    objs, rep = dragon_body.build_blockout(rig, frill_fused=frill_fused)
     rep["bones"] = len(rig.data.bones)
     rig.hide_render = True
     return rig, objs, rep
@@ -95,6 +96,62 @@ def pose_sheet(poses=dragon_pose.POSES, cams=("DRG_CAM_Side", "DRG_CAM_34", "DRG
             bpy.data.images.remove(img)
         tiles.append(np.concatenate(row, axis=1))
     pose("spread")
+    sheet = np.concatenate(tiles[::-1], axis=0)
+    h, w = sheet.shape[:2]
+    img = bpy.data.images.new("_sheet", w, h, alpha=True)
+    img.pixels.foreach_set(sheet.ravel())
+    path = os.path.join(beast_scene.RENDERS, out + ".png")
+    img.filepath_raw = path
+    img.file_format = 'PNG'
+    img.save()
+    bpy.data.images.remove(img)
+    return path
+
+
+def face_sheet(res=640, out="dragon_face_sheet", engine='BLENDER_EEVEE_NEXT'):
+    """The head close up, mouth shut (top row) and open (bottom row): side, 3/4 and front. Leaves the bind pose."""
+    scn = bpy.context.scene
+    beast_scene._cam(scn, "DRG_CAM_HeadFront", (0, -30, 4.75), (0, 0, 4.75), ortho=2.6)
+    rig = bpy.data.objects[RIG]
+    tiles = []
+    tmp = os.path.join(beast_scene.RENDERS, "_tile.png")
+    for jaw in (0, -34):
+        dragon_pose.solve(rig, rot={"Jaw": [('X', jaw)]})
+        row = []
+        for cam in ("DRG_CAM_HeadSide", "DRG_CAM_Face", "DRG_CAM_HeadFront"):
+            beast_scene.shot(cam, "_tile", engine=engine, res=res, scene=scn)
+            img = bpy.data.images.load(tmp, check_existing=False)
+            row.append(np.array(img.pixels[:], dtype=np.float32).reshape(res, res, 4))
+            bpy.data.images.remove(img)
+        tiles.append(np.concatenate(row, axis=1))
+    dragon_pose.solve(rig)
+    sheet = np.concatenate(tiles[::-1], axis=0)
+    h, w = sheet.shape[:2]
+    img = bpy.data.images.new("_sheet", w, h, alpha=True)
+    img.pixels.foreach_set(sheet.ravel())
+    path = os.path.join(beast_scene.RENDERS, out + ".png")
+    img.filepath_raw = path
+    img.file_format = 'PNG'
+    img.save()
+    bpy.data.images.remove(img)
+    return path
+
+
+def frill_compare(res=640, out="dragon_frill_compare", engine='BLENDER_EEVEE_NEXT'):
+    """The head shut, side / 3/4 / front: the frill's ribs melted into the head (top row) or separate (bottom row).
+    Leaves the separate version built."""
+    scn = bpy.context.scene
+    tiles = []
+    tmp = os.path.join(beast_scene.RENDERS, "_tile.png")
+    for fused in (True, False):
+        build_blockout(frill_fused=fused)
+        row = []
+        for cam in ("DRG_CAM_HeadSide", "DRG_CAM_Face", "DRG_CAM_HeadFront"):
+            beast_scene.shot(cam, "_tile", engine=engine, res=res, scene=scn)
+            img = bpy.data.images.load(tmp, check_existing=False)
+            row.append(np.array(img.pixels[:], dtype=np.float32).reshape(res, res, 4))
+            bpy.data.images.remove(img)
+        tiles.append(np.concatenate(row, axis=1))
     sheet = np.concatenate(tiles[::-1], axis=0)
     h, w = sheet.shape[:2]
     img = bpy.data.images.new("_sheet", w, h, alpha=True)
