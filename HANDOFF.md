@@ -533,8 +533,9 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
         `end_home=True` lands it in the middle of the ground; `lift=5` raises Fly and Glide.
     - **Not done:** no Unity export yet (`beast_export.export_clips(dragon_anim, "DragonRig", "Dragon")` as the other
       beasts do; it will carry the WingMem helper bones, and the flight clips need vertical root motion); no
-      turn-in-place, no banking turns or hover in flight; the shoulder tenting with the wings raised is still there
-      (visible in Roar and at the top of each beat).
+      turn-in-place, no banking turns or hover in flight; the shoulder tenting with the wings raised (seen on the
+      blockout) not looked at again since the helper bones: check the shoulders in Roar and at the top of a beat.
+      The slerped wing blend also changed how the standing clips open their wings (Fire, Roar, Hit, Death).
     - The tail's floor is per bone, measured from the mesh (`dragon_anim.tail_floor`): a flat 10 cm let the 30 cm
       thick tail root sink 18 cm into the ground when it reared.
     - **The folded wing** (Daniel: "Something is wrong with the folded wing, it has a bad geometry"):
