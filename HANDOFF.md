@@ -400,6 +400,15 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     - `dragon_body.build_blockout()` uses it (`old_head=True` brings back the lofted head). The Jaw bone and
       `Socket_Mouth` come from `dragon_head.HINGE / CHIN_TIP / MOUTH`. `dragon_build.face_sheet()` renders the head
       shut and open (`renders/dragon_face_sheet.png`).
+  - **Head to-do, for a later pass** (Daniel 2026-10-17: "It is not perfect, but it is good enough"; body first, head
+    later). The head is code, so a change is a rebuild plus re-export:
+    - Teeth: open, from the side, they form one perfectly straight, even row. Vary size, spacing, lean and height
+      along a curved gum line; leave a gap or a broken tooth here and there.
+    - Eye position: Daniel isn't sure it is right. Judge it with the whole body built, against the perched
+      reference (eye about 55% back from the snout tip, under the brow).
+    - Canine: the front fang pokes out through the side of the upper lip. It should come out from under the lip's
+      edge (root inside the hanging lip, further in and down).
+    - Mine: the pupil is a vertex-colour blob. The eye's detail and the scales come with the paint and normal map.
   - **Next:**
     - the real body (the beasts' fuse/sculpt recipe; the head joins the neck there);
     - scales: brow plates, face scales and the belly plates in the normal map;
