@@ -584,7 +584,7 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       Blender 4.4 (EXCEPTION_ACCESS_VIOLATION in ED_space_image: the window still referenced it). Right after
       `read_homefile` the MCP call's context is stale (no `selected_objects`): build in the next call. Blender's
       MCP add-on restarts its server by itself when Blender is relaunched (`D:\Program Files\Blender
-      Foundation\Blender 4.4lender.exe`); add Beasts/src to sys.path again.
+      Foundation\Blender 4.4\blender.exe`); add Beasts/src to sys.path again.
   - **Next:** Daniel's pick (two or three heads) and proportions; then the melted heads (dragon_head's field,
     slimmer and hornless) and body (dragon_skin's recipe with three neck chains), paint, clips (beast_anim needs a
     hook for the side necks).
