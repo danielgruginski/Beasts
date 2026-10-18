@@ -588,14 +588,15 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - **Daniel's pick (2026-10-17):** "Three heads is better, I think. The proportions are good." HEADS = 3.
   - **Stage 2, the heads:** `hydra_head.py`, one design shared by all three necks (meshed once, cached in
     `_SKIN`, placed by `hydra_body.head_matrix`; weights go to Head<nid> / Jaw<nid>).
-    - Built like dragon_head: one melted distance field, the mouth a slit cut into it with the upper lip hanging
-      over the lower jaw, meshed at 1 cm and decimated to 5k triangles (`bridges` = 0), the masseter weights
-      behind the mouth's corner. It borrows dragon_head's profile, meshing and decimation helpers.
-    - Shape: an eel's or a gharial's head. Long and low, the snout tapering to a rounded tip, a long gape (corner at
-      y -0.16), needle teeth (three upper ones a side show shut), the eyes high on the sides and the nostrils on top
-      near the tip. Soft brow bulges, a low smooth crest, round cheeks. No horns, no spikes.
-    - Gill fins (shells in HydraFins): a rounded, pleated fan behind each jaw, sea green at the root to coral at
-      the edge. A first try with flat polygon lobes read as flags.
+    - It is the dragon's finished head: `dragon_head`'s melted field and mesh (jaw line, curved snout, hanging lip,
+      lids, masseter weights) at `SCALE` 0.8, decimated to 8k triangles a head, without the horns, spikes, hooks
+      and frill (separate pieces on the dragon). A first head built from fresh profiles brought back every problem
+      the dragon's face had been through; Daniel: "The hydra head has the very same issues that existed on the
+      dragon head. I was expecting you to base the mesh on the finished dragon head."
+    - Hydra additions: pleated gill fans (shells in HydraFins, sea green to coral), its palette, and its own teeth
+      (`hydra_head.build_teeth`): the dragon's layout varied in length, spacing and lean, with a gap and a broken
+      tooth a side, and the showing front teeth rooted inside the hanging lip so they come out from under its edge.
+      Those are two of the dragon's parked head notes; the dragon itself is unchanged.
     - `hydra_build.head_sheet()` -> `renders/hydra_head_sheet.png`: the left head (the middle one is hidden from
       the side by its neighbours), shut and open.
     - The necks are still the blockout's lofts, thinned to 0.19 m at the head; the real body comes next.
