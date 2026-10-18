@@ -92,5 +92,7 @@ def build_all(tex=1024, body_tris=2600, paint=True, clips=True):
 
 def export():
     import beast_export, mammoth_anim
-    return (beast_export.export_model(RIG, ("MammothBody",), "Mammoth", "T_Mammoth") +
+    meshes = ("MammothBody", "MammothTack") if "MammothTack" in bpy.data.objects else ("MammothBody",)   # the
+    # driver's tack (mammoth_tack), switched on per prefab in Unity
+    return (beast_export.export_model(RIG, meshes, "Mammoth", "T_Mammoth") +
             beast_export.export_clips(mammoth_anim, RIG, "Mammoth"))

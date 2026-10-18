@@ -60,6 +60,7 @@ TUSK = [(0.200, -2.16, 2.05, 0.112), (0.330, -2.38, 1.66, 0.104), (0.450, -2.62,
 SHEATH = [(0.180, -2.12, 2.24, 0.160), (0.250, -2.27, 1.86, 0.140), (0.300, -2.35, 1.73, 0.126)]   # furry, round
                                                 # the tusk's root; the tusk comes out of its lower end
 
+DRIVER_SEAT = (0.0, -1.40, 2.860)               # Socket_Driver: on the rug in the dip behind the head's dome
 EYE0 = np.array((0.330, -2.16, 2.400))          # eye (left), before it is snapped onto the head
 EYE_N = np.array((0.75, -0.55, 0.15)) / np.linalg.norm((0.75, -0.55, 0.15))
 EYE_R = 0.046                                   # stylised: ~2x a mammoth's, so the eyes read in game
@@ -419,6 +420,8 @@ def rest_bones():
     _bone(B, "Socket_Head", (0, -1.90, 3.080), (0, -1.90, 3.180), FWD, "Head")
     _bone(B, "Socket_Mouth", (0, -2.05, 1.760), (0, -2.05, 1.860), FWD, "Jaw")
     _bone(B, "Socket_Back", (0, -0.70, 3.150), (0, -0.70, 3.250), FWD, "Chest")       # a howdah, a rider
+    _bone(B, "Socket_Driver", DRIVER_SEAT, tuple(np.array(DRIVER_SEAT) + (0, 0, 0.1)), FWD, "Neck1")   # the orc
+                                                                                 # driver's root, on the rug (mammoth_tack)
     tip = np.array(TRUNK_ROWS[-1][:3])
     _bone(B, "Socket_Trunk", tuple(tip), tuple(tip + np.array((0, 0, 0.1))), FWD, f"Trunk{len(TRUNK_ROWS) - 1}")
     for s, sfx in ((1, "L"), (-1, "R")):

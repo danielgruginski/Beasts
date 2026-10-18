@@ -277,6 +277,33 @@ checks.
       in a preview scene now, and the lineup camera renders twice (the first render of fresh skinned meshes came
       out as shadows only).
 
+- **Riders (2026-10-18):** Daniel: "goblin warg riders and orc mammoth riders, complete with animations"; his picks:
+  one orc driver on the mammoth's neck (no howdah crew), every rider clip made by us, art + a test scene first.
+  - Warg: the stirrup leathers end at `warg_tack.STIRRUP_PHI` 66 (were 88: the irons hung at the belly line and a
+    goblin's legs came out straight); tack rebuilt and re-exported. The rider clips are Goblins `gob_ride.py`.
+  - Mammoth: `mammoth_tack.py` = `MammothTack` (664 tris, `T_MammothTack` 512 + normal): a felt rug in the dip
+    behind the head's dome, a foot rope behind the ears (the driver's feet tuck under it), a rope round the neck
+    behind the rug, a rope grip for the left fist. UVs laid from the stored (along, across) coordinates, not smart UV
+    (that cut the rug into odd islands and gave the 5 m ropes most of the sheet). New bone `Socket_Driver` on Neck1 at
+    `mammoth_body.DRIVER_SEAT` (added to the live rig in edit mode, no body rebuild). `warg_tack` gained a `rope`
+    part in its painter. `mammoth_build.export()` takes MammothTack when it exists. The driver clips are Humans
+    `hum_ride.py`.
+  - Unity: `MountedRider` (runtime): the rider's root is a child of the seat bone (pose from the mount's bind pose),
+    it plays `<prefix><mount clip>` at the mount's own clip time through its own graph (manual, evaluated in
+    LateUpdate), mirroring the mount's crossfade (`BeastRandomAnimator.PreviousClip/PreviousTime/Fade/CurrentLoops`);
+    own clips (`PlayAction`) over an upper-body mask; `Fall()` lets go of the seat. `MammothTack` (like `WargTack`).
+    `MammothSetup` makes `Prefabs/Mammoth` (tack off; coat target set to MammothBody) and `Prefabs/MammothRidden`.
+    The rider prefabs and `Riders_Test` scene are game-side (MedievalSetting `Assets/Game/Riders`, `RiderSetup.cs`:
+    they join three packs).
+  - Gotchas:
+    - **Blender 4.4 action slots:** an action keyed on one object (the rider copies) doesn't animate another
+      (GoblinRig/HumanRig at export) until its slot is assigned; the export baked the rest pose, every rider clip
+      came out a T-pose. `gob_anim.use` / `hum_anim.use` assign the slot now.
+    - **`beast_export.export_model` exported with the last clip still assigned** (after `build_clips`): Warg.fbx's
+      default pose was GetUp's. It clears the action while exporting now.
+    - Unity preview-scene checks of Humanoid riders need `cullingMode = AlwaysAnimate` + `Rebind()` before a graph
+      evaluates (nothing sees a preview scene).
+
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
 
@@ -299,12 +326,12 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - it has no swim or climb clips;
   - a rat swarm would want a cheaper variant (~1.5k tris).
 - **Warg:**
-  - goblin rider clips (sitting on `Socket_Saddle`, holding the reins) belong to the Goblins repo;
+  - goblin rider clips: done 2026-10-18 (Goblins `gob_ride.py`, see "Riders" above);
   - the lower jaw shows as a flat bar under the lip (the wolf's design);
   - up close the hair clumps still read a little like blades; the coat's relief is only the normal map;
   - in Death it lies on its left side: the stirrup on that side goes into the ground;
   - game side: a `Creature` definition (wild packs; ridden by goblin raiders), the Bite/Howl events.
-- **More beasts:** a war mammoth (howdah on `Socket_Back`), giant elk, boar and dire variants can reuse the
+- **More beasts:** a howdah on the mammoth's `Socket_Back` (the driver on the neck is done, "Riders"), giant elk, boar and dire variants can reuse the
   pipeline: parts, tufts, fuse, heat weights, and the painter's flow strokes.
 - **Ooze, Unity side:**
   - The pending `OozeFx.cs` / `OozeSetup.cs` fixes went in with the warg's install (2026-10-12).

@@ -55,12 +55,22 @@ def export_model(rig_name="WolfRig", meshes=("WolfBody",), name="Wolf", tex_pref
     objs = [bpy.data.objects[m] for m in meshes]
     shown = _reveal([rig] + objs)
     hidden = rig.hide_get()
+    # no clip on the rig while the model goes out: a build_clips() before left its last clip assigned, the depsgraph
+    # put that pose back over the reset, and Warg.fbx carried GetUp's pose as its default (2026-10-18: the rider's
+    # seat frame was read off it)
+    act = rig.animation_data.action if rig.animation_data else None
+    if act is not None:
+        rig.animation_data.action = None
     for pb in rig.pose.bones:
         pb.matrix_basis = Matrix.Identity(4)
     bpy.context.view_layer.update()
     _select([rig] + objs)
     path = os.path.join(EXPORT, name + ".fbx")
-    bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={'ARMATURE', 'MESH'}, **FBX)
+    try:
+        bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={'ARMATURE', 'MESH'}, **FBX)
+    finally:
+        if act is not None:
+            rig.animation_data.action = act
     for o in [rig] + objs:
         o.select_set(False)
     rig.hide_set(hidden)

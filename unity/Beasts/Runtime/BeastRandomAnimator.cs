@@ -31,6 +31,13 @@ namespace Beasts
         public bool Aloft => aloft && transform.position.y > groundY + 1f;
         public string CurrentPool => pool != null ? pool.name : "";
         public float CurrentTime => cur.IsValid() ? (float)cur.GetTime() : 0f;
+        /// <summary>The clip being faded out (empty when none), its time, and the current clip's weight (1 = no
+        /// crossfade): a <see cref="MountedRider"/> mirrors the blend.</summary>
+        public string PreviousClip => prev.IsValid() && fade < 1 ? prev.GetAnimationClip().name : "";
+        public float PreviousTime => prev.IsValid() ? (float)prev.GetTime() : 0f;
+        public float Fade => fade;
+        public bool CurrentLoops => cur.IsValid() && cur.GetAnimationClip().isLooping;
+        public bool PreviousLoops => prev.IsValid() && prev.GetAnimationClip().isLooping;
         public static readonly List<BeastRandomAnimator> All = new List<BeastRandomAnimator>();
 
         Animator anim;

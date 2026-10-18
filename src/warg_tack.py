@@ -24,7 +24,7 @@ from mathutils.kdtree import KDTree
 from beast_common import mesh_obj, get_coll, remove_obj, smoothstep, fbm, vnoise, hexc
 import warg_body as W
 
-TACK_PART = dict(leather=1, cloth=2, iron=3, bone=4, rein=5)
+TACK_PART = dict(leather=1, cloth=2, iron=3, bone=4, rein=5, rope=6)      # rope: the mammoth's (mammoth_tack)
 S = W.S
 SKIN = 'skin'
 
@@ -210,6 +210,8 @@ REIN = [(0.052, -0.858, 0.792), (0.074, -0.775, 0.828), (0.088, -0.640, 0.872), 
         (0.062, -0.330, 0.912), (0.034, -0.215, 0.912), (0.010, -0.160, 0.905)]   # bit ring, draped over the mane, to
                                                                                 # the pommel
 STIRRUP_Y = -0.040
+STIRRUP_PHI = 66                  # how far round from the top the leathers end (88 hung the irons at the belly line,
+                                  # leaving a goblin rider's legs straight; short leathers bend its knees)
 MASK_AXIS = ((0.0, -0.690, 0.860), (0.0, -0.785, 0.845), (0.0, -0.930, 0.805))   # back of the brow .. nose
 MASK_S = (0.0, 0.35, 1.0)
 MASK_W = ((0.0, 40), (0.08, 50), (0.18, 68), (0.24, 62), (0.28, 38), (0.36, 33), (0.45, 34), (0.70, 30),
@@ -278,7 +280,7 @@ def build_saddle(B, bvh):
     # stirrup leathers down each flank from under the seat, an iron stirrup at the end
     for s in (1, -1):
         pts, nrm = [], []
-        for phi in np.linspace(sp - 4, 88, 7):
+        for phi in np.linspace(sp - 4, STIRRUP_PHI, 7):
             p, n = _ring_pt(bvh, W._axis_centre('trunk', STIRRUP_Y), s * phi)
             if p is not None:
                 pts.append(p)
@@ -500,7 +502,8 @@ def unwrap(ob, margin=0.008):
 
 TACK_COL = dict(leather='#46301f', leather_dark='#24170f', leather_worn='#7a5a3c', thread='#a08a62',
                 cloth='#6e2a1f', cloth_band='#a07a38', cloth_dark='#2e1410', iron='#3d3a37', rust='#6e3b1e',
-                bone='#c9bb98', bone_dark='#7d6c4e', grime='#3a2e22', paint='#8a1c14', rein='#3a281b')
+                bone='#c9bb98', bone_dark='#7d6c4e', grime='#3a2e22', paint='#8a1c14', rein='#3a281b',
+                rope='#8a7550', rope_dark='#4a3c26')
 
 
 def paint_tack(D):
@@ -563,6 +566,13 @@ def paint_tack(D):
     col = np.where(bon[:, None], bc, col)
     smooth = np.where(bon, 0.30 - 0.15 * crack, smooth)
     hgt = np.where(bon, 0.35 * nf - 0.9 * crack, hgt)
+    # hemp rope: twisted strands slanting round it, darker in the grooves
+    rop = part == TACK_PART['rope']
+    twist = 0.5 + 0.5 * np.sin((along * 55.0 + across * 3.0) * 2 * math.pi)
+    rc = BP._mix(np.tile(C['rope'], (n, 1)), C['rope_dark'], 0.55 * (1 - twist) + 0.2 * nb)
+    col = np.where(rop[:, None], rc, col)
+    smooth = np.where(rop, 0.06, smooth)
+    hgt = np.where(rop, 0.8 * twist + 0.2 * nf, hgt)
     # painted light, as the beasts'
     light = 0.80 + 0.30 * (N[:, 2] * 0.5 + 0.5)
     aot = 0.45 + 0.55 * np.clip(ao, 0, 1)

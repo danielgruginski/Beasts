@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
@@ -16,7 +17,11 @@ namespace Beasts.EditorTools
     ///                          events (OnBeastEvent: Bite on the TuskSwipe's hook and the Stomp's slam, Roar on the
     ///                          Trumpet, Dead) from Anims/mammoth_clips.json
     ///   Materials              M_Mammoth (reddish brown), M_Mammoth_Dark (near black); smoothness from the alpha
-    ///   Prefabs/Mammoth        Animator + BeastAppearance (coat, size) + BeastEvents
+    ///                          MammothTack mesh (2026-10-18): the orc driver's rug, foot rope and grip; Socket_Driver
+    ///                          (on Neck1) is the driver's seat
+    ///   Materials              M_MammothTack (T_MammothTack + normal map)
+    ///   Prefabs/Mammoth        Animator + BeastAppearance (coat on MammothBody, size) + BeastEvents + MammothTack (off)
+    ///   Prefabs/MammothRidden  the same with the tack on, for an orc driver (MountedRider on Socket_Driver)
     ///   Animation/MammothAnims clip pools for BeastRandomAnimator (Sleep leads into Wake)
     /// then the test scene (BeastsTestScene). Runs once by itself the first time the files are imported; afterwards
     /// Tools > Beasts > Rebuild Mammoth. A report and renders go to Logs/MammothSetup.
@@ -26,6 +31,7 @@ namespace Beasts.EditorTools
     {
         const string ModelPath = Models + "/Mammoth.fbx";
         public const string PrefabPath = Prefabs + "/Mammoth.prefab";
+        public const string RiddenPrefabPath = Prefabs + "/MammothRidden.prefab";
         public const string SetPath = SetDir + "/MammothAnims.asset";
 
         static PoolDef[] Pools() => new[]
@@ -70,22 +76,37 @@ namespace Beasts.EditorTools
             try
             {
                 EnsureFolders();
-                foreach (var t in new[] { "T_Mammoth", "T_Mammoth_Dark" }) ConfigureSmoothnessTexture($"{Textures}/{t}.png");
+                foreach (var t in new[] { "T_Mammoth", "T_Mammoth_Dark", "T_MammothTack" }) ConfigureSmoothnessTexture($"{Textures}/{t}.png");
                 var brown = MakeLit("M_Mammoth", Textures + "/T_Mammoth.png", Color.white);
                 var dark = MakeLit("M_Mammoth_Dark", Textures + "/T_Mammoth_Dark.png", Color.white);
+                bool hasTack = File.Exists(Textures + "/T_MammothTack.png");
+                var tack = hasTack ? MakeLit("M_MammothTack", Textures + "/T_MammothTack.png", Color.white) : null;
+                if (tack != null) AddNormalMap(tack, Textures + "/T_MammothTack_Normal.png", 0.8f);
 
-                var (avatar, motionPath, model) = ConfigureModel(ModelPath, new[] { ("M_Mammoth", brown) }, log);
+                var mats = tack != null ? new[] { ("M_Mammoth", brown), ("M_MammothTack", tack) } : new[] { ("M_Mammoth", brown) };
+                var (avatar, motionPath, model) = ConfigureModel(ModelPath, mats, log);
                 var clips = ConfigureClips("Mammoth", Anims + "/mammoth_clips.json", avatar, motionPath, EventFunction, log);
                 MakeSet("MammothAnims", Pools(), clips, log);
 
-                var go = NewCreature(model, avatar, "Mammoth");
-                var look = go.GetComponent<BeastAppearance>() ?? go.AddComponent<BeastAppearance>();
-                look.skins = new[] { brown, brown, dark };     // listed more often = more likely
-                look.scale = new Vector2(0.92f, 1.06f);
-                if (go.GetComponent<BeastEvents>() == null) go.AddComponent<BeastEvents>();
-                var prefab = PrefabUtility.SaveAsPrefabAsset(go, PrefabPath);
-                Object.DestroyImmediate(go);
-                log.AppendLine("  prefab: " + PrefabPath);
+                GameObject prefab = null;
+                foreach (var (path, saddled) in new[] { (PrefabPath, false), (RiddenPrefabPath, true) })
+                {
+                    var go = NewCreature(model, avatar, saddled ? "MammothRidden" : "Mammoth");
+                    var smrs = go.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+                    var look = go.GetComponent<BeastAppearance>() ?? go.AddComponent<BeastAppearance>();
+                    look.target = smrs.FirstOrDefault(r => r.name == "MammothBody");
+                    look.skins = new[] { brown, brown, dark };     // listed more often = more likely
+                    look.scale = new Vector2(0.92f, 1.06f);
+                    if (go.GetComponent<BeastEvents>() == null) go.AddComponent<BeastEvents>();
+                    var gear = go.GetComponent<MammothTack>() ?? go.AddComponent<MammothTack>();
+                    gear.tackRenderer = smrs.FirstOrDefault(r => r.name == "MammothTack");
+                    gear.saddled = saddled;
+                    gear.Apply();
+                    log.AppendLine($"  prefab: {path} body={look.target != null} tack={gear.tackRenderer != null} saddled={saddled}");
+                    var saved = PrefabUtility.SaveAsPrefabAsset(go, path);
+                    Object.DestroyImmediate(go);
+                    if (!saddled) prefab = saved;
+                }
 
                 if (scenes)
                 {
