@@ -13,7 +13,7 @@ with a gap and a broken tooth (the dragon's "perfect line"), the showing front t
 edge instead of through its side. The dragon itself is not changed.
 
 Head space: metres, the poll (the neck's end) at the origin, the snout toward -Y, left +X -- hydra_body's local head
-frame (head_matrix places it on each neck). Dragon head space times SCALE.
+frame (head_matrix places it on each neck). Dragon head space times SCALE (per axis).
 """
 import math
 import numpy as np
@@ -23,18 +23,20 @@ from mathutils import Vector
 from beast_common import cone, smoothstep
 import dragon_head as DH
 
-SCALE = 0.80                        # the dragon's head is 1.42 m to the snout tip; the hydra's 1.14 m
+# the dragon's head is 1.42 m to the snout tip. First a plain 0.8 (1.14 m); Daniel: "Can the heads be sleaner?" ->
+# narrower and shallower than the dragon's, a little longer (1.22 m): the same face, slimmer
+SCALE = np.array((0.66, 0.86, 0.70))
 TARGET_TRIS = 8000                  # per head (the dragon's is 12k); three of them
 
 HINGE = tuple(np.array(DH.HINGE) * SCALE)
 CHIN_TIP = tuple(np.array(DH.CHIN_TIP) * SCALE)
 MOUTH = tuple(np.array(DH.MOUTH) * SCALE)
-SNOUT_TIP = (0.0, -1.42 * SCALE, -0.04 * SCALE)
+SNOUT_TIP = tuple(np.array((0.0, -1.42, -0.04)) * SCALE)
 
 # the gill fin behind each jaw (hydra head space): a rounded, pleated fan (a fish's, not a frill of spines): its root
 # along the back of the cheek, opening back and out over an arc, the edge gently scalloped; sea green at the root,
 # coral at the edge
-GILL = dict(root=(0.24, 0.05, -0.04), back=(0.50, 0.87, 0.0), up=(0.0, 0.0, 1.0), radius=0.38,
+GILL = dict(root=(0.20, 0.05, -0.035), back=(0.50, 0.87, 0.0), up=(0.0, 0.0, 1.0), radius=0.36,
             arc=(-75.0, 70.0), pleats=5, pleat=0.022)
 
 COL = dict(back="1f4a44", belly="c9c08a", mouth="5a2a2a", tooth="e8e2cc", eye="e8d040", pupil="0c0a06",

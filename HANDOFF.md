@@ -589,10 +589,12 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - **Stage 2, the heads:** `hydra_head.py`, one design shared by all three necks (meshed once, cached in
     `_SKIN`, placed by `hydra_body.head_matrix`; weights go to Head<nid> / Jaw<nid>).
     - It is the dragon's finished head: `dragon_head`'s melted field and mesh (jaw line, curved snout, hanging lip,
-      lids, masseter weights) at `SCALE` 0.8, decimated to 8k triangles a head, without the horns, spikes, hooks
+      lids, masseter weights), decimated to 8k triangles a head, without the horns, spikes, hooks
       and frill (separate pieces on the dragon). A first head built from fresh profiles brought back every problem
       the dragon's face had been through; Daniel: "The hydra head has the very same issues that existed on the
       dragon head. I was expecting you to base the mesh on the finished dragon head."
+    - Scale per axis, `SCALE` = (0.66, 0.86, 0.70) of the dragon's: Daniel, on a plain 0.8, "Can the heads be
+      sleaner?" -> narrower, shallower and a little longer (1.22 m), the same face.
     - Hydra additions: pleated gill fans (shells in HydraFins, sea green to coral), its palette, and its own teeth
       (`hydra_head.build_teeth`): the dragon's layout varied in length, spacing and lean, with a gap and a broken
       tooth a side, and the showing front teeth rooted inside the hanging lip so they come out from under its edge.
