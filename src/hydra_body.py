@@ -40,15 +40,16 @@ NECKS2 = {"L": ((0.30, -1.38, 1.82), (0.48, -1.90, 2.36), (0.70, -2.30, 2.92), (
                 (1.02, -2.92, 3.66))}
 HEAD_FWD = {3: {"": (0, -1.0, -0.12), "L": (0.30, -1.0, -0.16)},    # where each head points (left; R mirrored)
             2: {"L": (0.18, -1.0, -0.14)}}
-NECK_R = (0.44, 0.24)             # neck radius at the base and at the head
+NECK_R = (0.44, 0.19)             # neck radius at the base and at the head (thinner than the head's width)
 
 # head, local frame: origin at the back of the skull, -Y forward, +Z up; placed at its neck's end (head_matrix)
 SKULL = ((0, 0.10, 0.02, 0.21, 0.20, 0.22), (0, -0.15, 0.04, 0.26, 0.22, 0.19), (0, -0.40, 0.02, 0.22, 0.17, 0.13),
          (0, -0.65, 0.00, 0.17, 0.12, 0.10), (0, -0.88, -0.02, 0.13, 0.09, 0.08), (0, -1.05, -0.03, 0.10, 0.06, 0.06))
 JAWR = ((0, 0.00, -0.15, 0.20, 0.07, 0.10), (0, -0.35, -0.17, 0.19, 0.07, 0.09), (0, -0.70, -0.16, 0.14, 0.06, 0.07),
         (0, -0.98, -0.14, 0.10, 0.05, 0.05))
-HEAD_TIP = (0, -1.05, -0.03)
-HINGE, CHIN = (0, -0.05, -0.11), (0, -0.98, -0.15)
+import hydra_head as HH
+HEAD_TIP = (0, -1.10, -0.01)
+HINGE, CHIN = HH.HINGE, HH.CHIN_TIP
 EYE = ((0.20, -0.22, 0.11), 0.055)
 NOSTRIL = ((0.07, -0.95, 0.04), 0.022)
 GILL = ((0.17, 0.02, -0.06), ((0.36, 0.20, 0.14), (0.44, 0.27, -0.04), (0.36, 0.20, -0.22)))  # base, rounded lobe
@@ -244,9 +245,10 @@ def _head(acc, fins, nid, heads, B):
         fins.add(gill, f"Head{nid}", _rgb(COL["gill"]))
 
 
-def build_blockout(rig, heads=None):
+def build_blockout(rig, heads=None, melted=True):
     """The blockout meshes, skinned and bound to the rig: HydraBlockout (trunk, tail, necks, heads, legs) and
-    HydraFins (the tail fins and gill fins, two-sided sheets). -> (objects, report)"""
+    HydraFins (the tail fins and gill fins, two-sided sheets). melted: the real head (hydra_head) on every neck;
+    False brings back the lofted blockout heads. -> (objects, report)"""
     heads = heads or HEADS
     B = rest_bones(heads)
     coll = get_coll(COLL)
@@ -268,7 +270,10 @@ def build_blockout(rig, heads=None):
         chain = _bones_of(B, ["Chest"] + [f"Neck{i + 1}{nid}" for i in range(NECK_N)] + [f"Head{nid}"])
         body.add(lambda bm, n=nid: loft(bm, _neck_rows(n, heads), seg=18, per_seg=4, cap0=0.6, cap1=0.6),
                  lambda P, c=chain: chain_weights(P, c), _neck_col(nid, heads))
-        _head(body, fins, nid, heads, B)
+        if melted:
+            rep_head = HH.build(body, fins, head_matrix(nid, heads), nid, _rgb)
+        else:
+            _head(body, fins, nid, heads, B)
 
     # legs: rigid segments per bone, webbed feet
     for s_, sfx in SIDES:
@@ -316,6 +321,8 @@ def build_blockout(rig, heads=None):
     rep = {o.name: beast_rig.bind(o, rig) for o in (ob_body, ob_fins)}
     rep["tris"] = {o.name: sum(len(p.vertices) - 2 for p in o.data.polygons) for o in (ob_body, ob_fins)}
     rep["heads"] = heads
+    if melted:
+        rep["head"] = rep_head
     return (ob_body, ob_fins), rep
 
 

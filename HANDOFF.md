@@ -585,9 +585,22 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       `read_homefile` the MCP call's context is stale (no `selected_objects`): build in the next call. Blender's
       MCP add-on restarts its server by itself when Blender is relaunched (`D:\Program Files\Blender
       Foundation\Blender 4.4\blender.exe`); add Beasts/src to sys.path again.
-  - **Next:** Daniel's pick (two or three heads) and proportions; then the melted heads (dragon_head's field,
-    slimmer and hornless) and body (dragon_skin's recipe with three neck chains), paint, clips (beast_anim needs a
-    hook for the side necks).
+  - **Daniel's pick (2026-10-17):** "Three heads is better, I think. The proportions are good." HEADS = 3.
+  - **Stage 2, the heads:** `hydra_head.py`, one design shared by all three necks (meshed once, cached in
+    `_SKIN`, placed by `hydra_body.head_matrix`; weights go to Head<nid> / Jaw<nid>).
+    - Built like dragon_head: one melted distance field, the mouth a slit cut into it with the upper lip hanging
+      over the lower jaw, meshed at 1 cm and decimated to 5k triangles (`bridges` = 0), the masseter weights
+      behind the mouth's corner. It borrows dragon_head's profile, meshing and decimation helpers.
+    - Shape: an eel's or a gharial's head. Long and low, the snout tapering to a rounded tip, a long gape (corner at
+      y -0.16), needle teeth (three upper ones a side show shut), the eyes high on the sides and the nostrils on top
+      near the tip. Soft brow bulges, a low smooth crest, round cheeks. No horns, no spikes.
+    - Gill fins (shells in HydraFins): a rounded, pleated fan behind each jaw, sea green at the root to coral at
+      the edge. A first try with flat polygon lobes read as flags.
+    - `hydra_build.head_sheet()` -> `renders/hydra_head_sheet.png`: the left head (the middle one is hidden from
+      the side by its neighbours), shut and open.
+    - The necks are still the blockout's lofts, thinned to 0.19 m at the head; the real body comes next.
+  - **Next:** Daniel's notes on the head; then the melted body (dragon_skin's recipe with three neck chains and
+    three seams), paint, clips (beast_anim needs a hook for the side necks).
 
 ## Checks
 

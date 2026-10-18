@@ -8,14 +8,14 @@
 """
 import bpy, importlib, os
 import numpy as np
-import beast_common, beast_scene, beast_rig, dragon_body, hydra_body
+import beast_common, beast_scene, beast_rig, dragon_body, hydra_head, hydra_body
 
 BLEND = os.path.join(beast_common.ROOT, "blender", "hydra.blend")
 RIG = hydra_body.RIG
 
 
 def reload_all():
-    for m in (beast_common, beast_scene, beast_rig, dragon_body, hydra_body):
+    for m in (beast_common, beast_scene, beast_rig, dragon_body, hydra_head, hydra_body):
         importlib.reload(m)
 
 
@@ -60,14 +60,15 @@ def show():
     beast_scene.frame_viewports(shading='MATERIAL', lift=1.6, distance=20.0)
 
 
-def build_blockout(heads=None):
-    """Skeleton -> blockout meshes, skinned and bound. -> (rig, objects, report)"""
+def build_blockout(heads=None, melted=True):
+    """Skeleton -> blockout meshes (the melted heads unless melted=False), skinned and bound. -> (rig, objects,
+    report)"""
     assert bpy.context.scene.name == "Hydra", "put the Hydra scene on screen first: hydra_build.show()"
     reload_all()
     setup_scene()
     heads = heads or hydra_body.HEADS
     rig = beast_rig.build_armature(hydra_body.rest_bones(heads), name=RIG, coll_name="HYD_Rig")
-    objs, rep = hydra_body.build_blockout(rig, heads)
+    objs, rep = hydra_body.build_blockout(rig, heads, melted)
     rep["bones"] = len(rig.data.bones)
     rig.hide_render = True
     return rig, objs, rep
@@ -94,7 +95,7 @@ def heads_sheet(cams=("HYD_CAM_34", "HYD_CAM_Side", "HYD_CAM_Front", "HYD_CAM_Fa
     tmp = os.path.join(beast_scene.RENDERS, "_tile.png")
     rows = []
     for heads in (3, 2):
-        build_blockout(heads)
+        build_blockout(heads, melted=False)
         row = []
         for cam in cams:
             beast_scene.shot(cam, "_tile", engine=engine, res=res, scene=scn)
@@ -102,7 +103,40 @@ def heads_sheet(cams=("HYD_CAM_34", "HYD_CAM_Side", "HYD_CAM_Front", "HYD_CAM_Fa
             row.append(np.array(img.pixels[:], dtype=np.float32).reshape(res, res, 4))
             bpy.data.images.remove(img)
         rows.append(row)
-    build_blockout(3)
+    build_blockout(3, melted=False)
+    return _sheet(rows, out, res)
+
+
+def head_sheet(res=560, out="hydra_head_sheet", engine='BLENDER_EEVEE_NEXT'):
+    """The left head close (the middle one is hidden from the side by its neighbours): side (from outside), front,
+    3/4 and from below, mouth shut (top row) and open (bottom row)."""
+    import hydra_body as HB
+    from mathutils import Vector
+    scn = bpy.context.scene
+    rig = bpy.data.objects[RIG]
+    M = HB.head_matrix("L")
+    c = Vector(HB.hx(M, (0, -0.50, 0.0)))
+    fwd = (M.to_3x3() @ Vector((0, -1, 0))).normalized()
+    side = (M.to_3x3() @ Vector((1, 0, 0))).normalized()
+    views = {"side": c + side * 3.2, "front": c + fwd * 3.2 + Vector((0, 0, 0.3)),
+             "34": c + (fwd + side * 0.9).normalized() * 3.0 + Vector((0, 0, 0.6)),
+             "below": c + (fwd * 0.6 + side * 0.5).normalized() * 2.6 + Vector((0, 0, -1.2))}
+    tmp = os.path.join(beast_scene.RENDERS, "_tile.png")
+    rows = []
+    for jaw in (0.0, 30.0):
+        pb = rig.pose.bones["JawL"]
+        pb.rotation_mode = 'XYZ'
+        pb.rotation_euler = (-jaw * 3.14159 / 180, 0, 0)
+        bpy.context.view_layer.update()
+        row = []
+        for name, loc in views.items():
+            cam = beast_scene._cam(scn, "HYD_CAM_HeadTmp", tuple(loc), tuple(c), lens=50)
+            beast_scene.shot("HYD_CAM_HeadTmp", "_tile", engine=engine, res=res, scene=scn)
+            img = bpy.data.images.load(tmp, check_existing=False)
+            row.append(np.array(img.pixels[:], dtype=np.float32).reshape(res, res, 4))
+            bpy.data.images.remove(img)
+        rows.append(row)
+    pb.rotation_euler = (0, 0, 0)
     return _sheet(rows, out, res)
 
 
