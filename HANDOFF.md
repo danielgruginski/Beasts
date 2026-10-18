@@ -645,7 +645,14 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       runs don't line up, and the edge between them stepped into a dashed line.
     - Iterating: `hydra_paint.build()` does it all (~8 min; the body fields alone ~5 min). The bake and fields stay
       in `hydra_paint._CACHE`, so a colour change is `paint_body(_CACHE["F"], preset)` (~15 s).
-  - **Next:** clips (beast_anim needs a hook for the side necks: the middle neck is its chain), Unity export.
+  - Daniel: "now it is working, we can move on to animations".
+  - **Stage 5, clips:** `hydra_anim.py` on beast_anim with dragon_anim's patterns. The middle neck is beast_anim's
+    chain; `_side_necks` (the `extra` hook) poses Neck1L..7L/HeadL/JawL and R from `p.side[nid]` (+ yaw turns
+    outward; the right chain mirrors itself). `wave`, `tail_wave`, `chain/head/set_jaw` work on any neck.
+    `hydra_build.build_clips()`, `hydra_build.clip_frames(clip, cam, travel=...)` -> renders/clip_hydra_*,
+    GIFs via tools/frames_to_gif.py; `hydra_anim.report()` (lowest point, root motion counted).
+    - Part 1: Idle (4 s loop: each head on its own beat, a yawn, a snap), Walk (1.33 s loop, sprawling, 1 m/s).
+  - **Next:** Run, the attacks, Roar, Hit, Death; Unity export.
 
 ## Checks
 

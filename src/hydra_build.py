@@ -157,3 +157,64 @@ def head_sheet(res=560, out="hydra_head_sheet", engine='BLENDER_EEVEE_NEXT'):
 def save():
     bpy.ops.wm.save_as_mainfile(filepath=BLEND, compress=True)
     return BLEND
+
+
+# ----------------------------------------------------------------------------------------- clips
+CLIP_CAMS = {"side": ("HYD_CAM_ClipSide", (19, 1.0, 3.4), (0, 1.0, 1.7), dict(lens=46)),
+             "34": ("HYD_CAM_Clip34", (10.5, -9.0, 4.8), (0, 0.6, 1.5), dict(lens=36)),
+             "front": ("HYD_CAM_ClipFront", (2.5, -15, 2.8), (0, -1.0, 1.8), dict(lens=40))}
+
+
+def clip_cameras():
+    scn = bpy.data.scenes["Hydra"]
+    for name, loc, tgt, kw in CLIP_CAMS.values():
+        beast_scene._cam(scn, name, loc, tgt, **kw)
+
+
+def build_clips(names=None):
+    """hydra_anim's clips onto HydraRig. -> {clip: frames}"""
+    import beast_anim, hydra_anim
+    importlib.reload(beast_anim)
+    importlib.reload(hydra_anim)
+    out = {n: int(a["frames"]) for n, a in hydra_anim.build_clips(names).items()}
+    hydra_anim.clear()
+    return out
+
+
+def clip_frames(name, cam="34", res=540, step=2, travel=False, follow_z=0.6, lift=0.0, end_home=False):
+    """Render a clip's frames into renders/clip_<Hydra name>_<cam>/ (dragon_build.clip_frames); `py
+    tools/frames_to_gif.py` turns them into a GIF. -> folder"""
+    from mathutils import Vector
+    import hydra_anim
+    clip_cameras()
+    scn = bpy.data.scenes["Hydra"]
+    hydra_anim.use(name)
+    act = bpy.data.actions[hydra_anim.SPEC.action_name(name)]
+    N = int(act["frames"])
+    folder = os.path.join(beast_scene.RENDERS, f"clip_hydra_{name}_{cam}")
+    os.makedirs(folder, exist_ok=True)
+    for fn in os.listdir(folder):
+        os.remove(os.path.join(folder, fn))
+    old = scn.camera, scn.render.resolution_x, scn.render.resolution_y, scn.render.filepath
+    scn.camera = bpy.data.objects[CLIP_CAMS[cam][0]]
+    scn.render.resolution_x = scn.render.resolution_y = res
+    rig = bpy.data.objects[RIG]
+    rig_home, cam_home = rig.location.copy(), scn.camera.location.copy()
+    end = Vector()
+    if end_home:
+        scn.frame_set(N)
+        end = rig.pose.bones["Motion"].head.copy()
+    for f in range(0, N + (0 if act["loop"] else 1), step):
+        scn.frame_set(f)
+        if travel or lift:
+            mo = rig.pose.bones["Motion"].head.copy() - end if travel else Vector()
+            mo.z += lift
+            rig.location = rig_home + mo
+            scn.camera.location = cam_home + Vector((0, mo.y, follow_z * mo.z))
+            bpy.context.view_layer.update()
+        scn.render.filepath = os.path.join(folder, f"{f:04d}.png")
+        bpy.ops.render.render(write_still=True, scene=scn.name)
+    rig.location, scn.camera.location = rig_home, cam_home
+    scn.camera, scn.render.resolution_x, scn.render.resolution_y, scn.render.filepath = old
+    hydra_anim.clear()
+    return folder
