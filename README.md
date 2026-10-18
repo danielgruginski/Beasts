@@ -634,3 +634,51 @@ body, rig, report = warg_build.build_model()      # body, rig, weights, UVs, coa
 import warg_tack; warg_tack.build(body, rig)      # the tack and the mask (work layer on: warg_build.work_layer(True))
 warg_build.export()                               # clips + Warg.fbx + textures into export/
 ```
+
+## Dragon and hydra
+
+Two big creatures built on the same machinery as the beasts above. Each has its own .blend: `blender/dragon.blend`
+and `blender/hydra.blend`.
+- **The dragon:** six limbs, about 12 m long with a 16 m wingspan. Body ~30k tris, plus the wing membranes.
+- **The hydra:** aquatic, with three heads (the dragon's head, made slimmer), no wings and no spikes. ~40k tris,
+  plus the fins.
+
+Both are painted at 4096 with three presets and normal maps.
+
+| Dragon clip | Length | Notes |
+|---|---|---|
+| Idle / Walk / Run | 4.0 / 1.6 / 0.8 s loop | root motion 1.25 / 5.5 m/s |
+| Bite, Claw, TailSweep | 1.4, 1.2, 1.8 s | event `Bite` |
+| Fire | 2.5 s | `Fire` at 0.9 s, `FireEnd` at 2.0 s |
+| Roar, Hit, Death | 2.2, 0.6, 3.0 s | `Roar` 0.6 s, `Dead` 2.0 s |
+| Takeoff | 2.2 s | leaps (`TakeOff` 0.63 s) and climbs: 10 m forward, **7 m up** |
+| Fly / Glide | 1.2 / 2.0 s loop | 10 / 14 m/s |
+| Land | 2.4 s | 15.6 m forward, **7 m down**, `Land` at 1.4 s |
+
+| Hydra clip | Length | Notes |
+|---|---|---|
+| Idle / Walk / Run | 4.0 / 1.33 / 0.67 s loop | root motion 1.0 / 3.9 m/s |
+| Bite | 1.4 s | the middle head, `Bite` at 0.6 s |
+| TripleBite | 2.4 s | left, middle, right: `Bite`, `Bite2`, `Bite3` at 0.6, 1.2, 1.8 s |
+| TailSweep, Roar, Hit, Death | 1.8, 2.2, 0.6, 3.0 s | `Bite` 0.8 s, `Roar` 0.6 s, `Dead` 2.3 s |
+
+**In Unity:**
+- **Setup:** Tools > Beasts > Rebuild Dragon / Rebuild Hydra (`DragonSetup.cs`, `HydraSetup.cs`). Textures are imported
+  at 2048. The wings and fins are drawn from both sides and always take the same preset as the hide
+  (`BeastAppearance.pairedTarget`).
+- **Flight:** Takeoff and Land keep their root motion's height. A pool marked `vertical` lets the random animator
+  lift the creature, and the dragon's `Flight` pool plays Takeoff, Fly, Glide, Fly and Land in a row.
+- **Fire:** `BeastBreath` breathes fire from `Socket_Mouth` between the Fire clip's events.
+- **Test scene:** `Scenes/Dragons_Test` has two dragons and two hydras, with goblins for scale. Its viewer has wider
+  presets and a follow camera.
+
+![The dragon in Unity, a goblin for scale](docs/images/dragon_unity_close.png)
+![Fire breath: BeastBreath on the Fire clip](docs/images/dragon_unity_fire.png)
+![The hydra in Unity](docs/images/hydra_unity_close.png)
+
+Export (in the live Blender, or headless when it is busy):
+
+```python
+import dragon_build; dragon_build.export()      # clips + Dragon.fbx + textures into export/
+import hydra_build; hydra_build.export()
+```

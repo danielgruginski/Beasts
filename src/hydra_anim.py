@@ -52,6 +52,10 @@ EVENTS = {"Bite": [("Bite", 0.60)], "TripleBite": [("Bite", 0.60), ("Bite2", 1.2
 MOVING = {"Walk", "Run"}
 
 
+def action_name(clip):
+    return SPEC.action_name(clip)
+
+
 def HydraPose():
     p = BA.Pose(SPEC)
     p.side = {nid: dict(neck=[[0.0, 0.0, 0.0] for _ in range(HB.NECK_N)], head=[0.0, 0.0, 0.0], jaw=0.0)

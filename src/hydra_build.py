@@ -159,6 +159,14 @@ def save():
     return BLEND
 
 
+def export():
+    """Hydra.fbx (HydraBody + HydraFins on HydraRig), the clips and the T_Hydra* textures into export/."""
+    import beast_export, hydra_anim
+    build_clips()
+    return (beast_export.export_model(RIG, ("HydraBody", "HydraFins"), "Hydra", "T_Hydra") +
+            beast_export.export_clips(hydra_anim, RIG, "Hydra"))
+
+
 # ----------------------------------------------------------------------------------------- clips
 CLIP_CAMS = {"side": ("HYD_CAM_ClipSide", (19, 1.0, 3.4), (0, 1.0, 1.7), dict(lens=46)),
              "34": ("HYD_CAM_Clip34", (10.5, -9.0, 4.8), (0, 0.6, 1.5), dict(lens=36)),

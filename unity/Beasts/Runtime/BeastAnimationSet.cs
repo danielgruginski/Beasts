@@ -21,6 +21,9 @@ namespace Beasts
             public bool sequence;
             [Tooltip("Root-motion locomotion: the creature steers while this plays.")]
             public bool moves;
+            [Tooltip("Root motion may lift it off the ground (a dragon's takeoff, flight and landing). Other pools keep it "
+                     + "at its height and settle it back down if it is left up in the air.")]
+            public bool vertical;
             [Tooltip("Seconds a looping clip is held.")]
             public Vector2 hold = new Vector2(3, 6);
             [Tooltip("Seconds to hold the last frame of a one-shot clip (e.g. lying dead).")]

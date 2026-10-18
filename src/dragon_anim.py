@@ -118,6 +118,10 @@ EVENTS = {"Bite": [("Bite", 0.63)], "Claw": [("Bite", 0.53)], "TailSweep": [("Bi
 MOVING = {"Walk", "Run", "Fly", "Glide", "Takeoff", "Land"}
 
 
+def action_name(clip):
+    return SPEC.action_name(clip)
+
+
 def DragonPose():
     return BA.Pose(SPEC)
 

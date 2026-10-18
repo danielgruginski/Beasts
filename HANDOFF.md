@@ -531,9 +531,8 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
         first takeoff beats dug the tips in; after touchdown the braking stroke hung the wings through the ground).
       - Previews: `clip_frames(..., travel=True)` moves the rig along its root motion with the camera following;
         `end_home=True` lands it in the middle of the ground; `lift=5` raises Fly and Glide.
-    - **Not done:** no Unity export yet (`beast_export.export_clips(dragon_anim, "DragonRig", "Dragon")` as the other
-      beasts do; it will carry the WingMem helper bones, and the flight clips need vertical root motion); no
-      turn-in-place, no banking turns or hover in flight; the shoulder tenting with the wings raised (seen on the
+    - **Not done:** no turn-in-place, no banking turns or hover in flight (the Unity export is done: see "Dragon and
+      hydra in Unity" below); the shoulder tenting with the wings raised (seen on the
       blockout) not looked at again since the helper bones: check the shoulders in Roar and at the top of a beat.
       The slerped wing blend also changed how the standing clips open their wings (Fire, Roar, Hit, Death).
     - The tail's floor is per bone, measured from the mesh (`dragon_anim.tail_floor`): a flat 10 cm let the 30 cm
@@ -562,8 +561,7 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     - Mine: the pupil is a vertex-colour blob. The eye's detail and the scales come with the paint and normal map.
   - **Next:**
     - the real body: done (stage 3); the paint: done (stages 4 and 4b: scales, plates, presets, normal maps);
-    - Unity export (textures: 4096 in Blender; the import size is Unity's call);
-    - clips;
+    - Unity export: done 2026-10-18 (below); clips: done;
     - the head to-do above; membrane fit to the bulkier body; shoulder tenting with raised wings.
   - **Gotcha:** `dragon_body.Acc` builds each piece in its own bmesh. `create_uvsphere` deletes vertices, and the
     freed slots let later vertices sort ahead of the per-vertex lists (the horn bases took the eye's colour).
@@ -659,8 +657,53 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     - Part 4: Roar (2.2 s, three heads a beat apart, 'Roar' 0.6 s), Hit (0.6 s), Death (3 s, onto the belly, the
       necks falling one by one, 'Dead' 2.3 s; DEATH_DROP 0.64: the belly's lowest point stands 0.68 m up).
     - All nine clips stay within 2.5 cm of the ground (`hydra_anim.report()`).
-  - **Next:** Unity export (beast_export, like the other beasts; the side necks are ordinary bones), maybe a Swim
-    clip for water.
+  - **Next:** maybe a Swim clip for water (the Unity export is done: below).
+- **Dragon and hydra in Unity (2026-10-18):** Daniel: "you know the beast test scene? Can you make one for dragon /
+  hydra?"
+  - **Export:**
+    - `dragon_build.export()` and `hydra_build.export()` rebuild the clips and write `Dragon.fbx` (DragonBody +
+      DragonWingMembrane, 102 bones with the WingMem helpers) and `Hydra.fbx` (HydraBody + HydraFins, 63 bones), the
+      clips and the JSON into export/. Both anim modules now have the module-level `action_name` beast_export wants.
+    - Run them in a **headless Blender** when the live one is busy (another session had an unsaved harbour scene
+      open): `blender.exe -b blender/dragon.blend --python <script>` with src on sys.path, then `dragon_build.export()`.
+      About a minute each.
+    - Then `tools/install_to_unity.ps1`, or copy only the new files (assets first, then the scripts).
+  - **Unity side** (`unity/Beasts`):
+    - `DragonSetup.cs` / `HydraSetup.cs` (Tools > Beasts > Rebuild Dragon / Hydra). Three skins each: dragon base, Ash,
+      Bronze; hydra sea, Swamp, Abyss. Normal maps; wings and fins drawn from both sides (`MakeTwoSided`: URP Lit
+      `_Cull` 0).
+    - Textures are imported at 2048 (`TexSize`; painted at 4096). Raise it there if Daniel wants the full size.
+    - `BeastAppearance.pairedTarget` / `pairedSkins` give the wings (or fins) the same preset as the hide.
+    - `ConfigureClips(..., vertical)` keeps the root height of Takeoff and Land: they climb and sink 7.00 m. Every
+      other clip still bakes it.
+    - `BeastAnimationSet.Pool.vertical` lets root motion lift the creature. `BeastRandomAnimator` keeps it no lower
+      than where it took off, and settles it back down (6 m/s) once a ground pool plays. Creatures up in the air
+      (`Aloft`) skip the separation pushes.
+    - The dragon's `Flight` pool is a sequence: Takeoff, Fly, Glide, Fly, Land (`PoolDef.sequence` now reaches
+      MakeSet).
+    - `BeastBreath` (dragon prefab): a flame cone from `Socket_Mouth` between the Fire clip's events (`Fire` 0.9 s,
+      `FireEnd` 2.0 s, never longer than 1.6 s).
+      - Parts: flame body, additive core, smoke and an orange light.
+      - It uses the game's `Resources/FX` flame materials when the project has them, and a soft blob otherwise.
+      - It is built in Awake, aimed by the bind pose: `offset` puts it between the jaws, `aimDown` 12 degrees.
+      - It collides with the world (the ground).
+    - `DragonsTestScene.cs` -> `Scenes/Dragons_Test.unity` (Tools > Beasts > Build Dragons Test Scene; both setups
+      rebuild it):
+      - 2 dragons and 2 hydras on random pools, plus 6 goblins for scale, on a 320 m field;
+      - the dragons wander 45 m and the hydras 30 m;
+      - the viewer has `presetScale` 2.5 and a "Follow next" button (new in `BeastTestUI`).
+    - `BeastsTestScene.BuildScene(path, fill, log)` is the shared additive build. `AddGoblins` is public (radius,
+      wander), and `RenderLineup` takes a `camScale`.
+  - **Checked:**
+    - offline compile;
+    - setup reports: avatars valid, every moving clip `dir=(0,0,1)`, Takeoff climb 7.00 m, Land -7.00 m;
+    - a PlayableGraph trace in a preview scene: Takeoff ends at (0, 7, 10) with the head still ~3 m over the root
+      (the skeleton isn't lifted twice), Fly holds 7 m at 10 m/s, Land comes down to 0 with at most a 17 cm undershoot
+      (the animator's floor clamp catches it);
+    - renders in `Logs/DragonSetup` and `Logs/HydraSetup`: lineups, close-ups, and the fire posed and simulated.
+  - **Not played** (Daniel's no-play-test rule): the random animator's flight path, the settle after Land, the flame
+    hitting the ground and the follow camera are untested in play mode.
+  - Gotcha: `delayCall` didn't tick with Unity in the background again, so the setups were run with RunCommand.
 
 ## Checks
 

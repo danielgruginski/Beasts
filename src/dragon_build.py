@@ -193,6 +193,15 @@ def save():
     return BLEND
 
 
+def export():
+    """Dragon.fbx (DragonBody + DragonWingMembrane on DragonRig), the clips (Takeoff and Land carry vertical root
+    motion) and the T_Dragon* textures into export/."""
+    import beast_export, dragon_anim
+    build_clips()
+    return (beast_export.export_model(RIG, ("DragonBody", "DragonWingMembrane"), "Dragon", "T_Dragon") +
+            beast_export.export_clips(dragon_anim, RIG, "Dragon"))
+
+
 # ----------------------------------------------------------------------------------------- clips
 CLIP_CAMS = {"side": ("DRG_CAM_ClipSide", (20, 1.3, 4.2), (0, 1.3, 2.3), dict(lens=48)),
              "34": ("DRG_CAM_Clip34", (13.0, -8.5, 5.2), (0, 1.4, 1.7), dict(lens=38)),

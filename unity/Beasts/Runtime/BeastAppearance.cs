@@ -6,7 +6,8 @@ namespace Beasts
     /// Rolls a look for each creature in Awake: a skin (the material in <see cref="materialSlot"/>; list one twice to make
     /// it twice as likely) and a size. Each creature is already one skinned mesh, so this costs nothing at runtime:
     /// creatures with the same skin share materials and batch. <see cref="Reroll"/> rolls again; set <see cref="seed"/>
-    /// for a fixed look.
+    /// for a fixed look. A second mesh can follow the roll (<see cref="pairedTarget"/>: the skin's partner from
+    /// <see cref="pairedSkins"/>, same index), so a dragon's wings always match its hide.
     /// </summary>
     public class BeastAppearance : MonoBehaviour
     {
@@ -15,6 +16,9 @@ namespace Beasts
         public SkinnedMeshRenderer target;
         [Tooltip("Which material of the skinned mesh the skins replace (the wasp's wings are slot 1).")]
         public int materialSlot;
+        [Tooltip("Optional second mesh that takes pairedSkins[i] whenever the target takes skins[i].")]
+        public SkinnedMeshRenderer pairedTarget;
+        public Material[] pairedSkins;
         [Tooltip("Uniform scale range.")]
         public Vector2 scale = new Vector2(0.85f, 1.2f);
         [Tooltip("0 = random every time.")]
@@ -33,7 +37,10 @@ namespace Beasts
             string skin = "";
             if (smr != null && skins != null && skins.Length > 0)
             {
-                var m = skins[rng.Next(skins.Length)];
+                int i = rng.Next(skins.Length);
+                var m = skins[i];
+                if (pairedTarget != null && pairedSkins != null && i < pairedSkins.Length && pairedSkins[i] != null)
+                    pairedTarget.sharedMaterial = pairedSkins[i];
                 var mats = smr.sharedMaterials;
                 if (m != null && materialSlot < mats.Length)
                 {

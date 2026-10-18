@@ -39,7 +39,7 @@ namespace Beasts.EditorTools
             public string name, next;
             public float w, h0 = 3, h1 = 6, after;
             public string[] clips;
-            public bool moves;
+            public bool moves, sequence, vertical;
             public Vector2 relocate;
             public PoolDef(string name, float w, params string[] clips) { this.name = name; this.w = w; this.clips = clips; }
         }
@@ -57,11 +57,11 @@ namespace Beasts.EditorTools
             AssetDatabase.CreateFolder(parent, Path.GetFileName(path));
         }
 
-        /// <summary>Painted colour texture whose alpha holds smoothness.</summary>
-        public static void ConfigureSmoothnessTexture(string path)
+        /// <summary>Painted colour texture whose alpha holds smoothness (imported at most maxSize square).</summary>
+        public static void ConfigureSmoothnessTexture(string path, int maxSize = 1024)
         {
             if (!(AssetImporter.GetAtPath(path) is TextureImporter ti)) return;
-            ti.maxTextureSize = 1024;
+            ti.maxTextureSize = maxSize;
             ti.sRGBTexture = true;
             ti.mipmapEnabled = true;
             ti.alphaSource = TextureImporterAlphaSource.FromInput;     // alpha = smoothness, not transparency
@@ -108,12 +108,12 @@ namespace Beasts.EditorTools
 
         /// <summary>A tangent-space normal map (OpenGL, as Blender writes it) on a Lit material: imported as a normal
         /// map, set as _BumpMap.</summary>
-        public static void AddNormalMap(Material mat, string texPath, float scale = 1f)
+        public static void AddNormalMap(Material mat, string texPath, float scale = 1f, int maxSize = 1024)
         {
             if (AssetImporter.GetAtPath(texPath) is TextureImporter ti)
             {
                 ti.textureType = TextureImporterType.NormalMap;
-                ti.maxTextureSize = 1024;
+                ti.maxTextureSize = maxSize;
                 ti.mipmapEnabled = true;
                 ti.textureCompression = TextureImporterCompression.CompressedHQ;
                 ti.SaveAndReimport();
@@ -123,6 +123,14 @@ namespace Beasts.EditorTools
             mat.SetTexture("_BumpMap", tex);
             if (mat.HasProperty("_BumpScale")) mat.SetFloat("_BumpScale", scale);
             mat.EnableKeyword("_NORMALMAP");
+            EditorUtility.SetDirty(mat);
+        }
+
+        /// <summary>An opaque Lit material drawn from both sides (a dragon's wing membrane, a hydra's fins).</summary>
+        public static void MakeTwoSided(Material mat)
+        {
+            if (mat.HasProperty("_Cull")) mat.SetFloat("_Cull", 0f);
+            mat.doubleSidedGI = true;
             EditorUtility.SetDirty(mat);
         }
 
@@ -224,9 +232,11 @@ namespace Beasts.EditorTools
         }
 
         /// <summary><prefix>@<clip>.fbx: Generic, avatar copied from the model, one clip each; loop flags, root motion
-        /// and events (functionName <paramref name="eventFunction"/>) from the JSON the Blender export writes.</summary>
+        /// and events (functionName <paramref name="eventFunction"/>) from the JSON the Blender export writes. Clips named
+        /// in <paramref name="vertical"/> keep their root motion's height (a dragon's takeoff and landing climb and sink on
+        /// the Motion bone); every other clip has it baked into the pose.</summary>
         public static Dictionary<string, AnimationClip> ConfigureClips(string prefix, string jsonPath, Avatar avatar,
-            string motionPath, string eventFunction, StringBuilder log)
+            string motionPath, string eventFunction, StringBuilder log, ICollection<string> vertical = null)
         {
             var result = new Dictionary<string, AnimationClip>();
             var info = File.Exists(jsonPath) ? JsonUtility.FromJson<ClipList>(File.ReadAllText(jsonPath)) : new ClipList();
@@ -261,6 +271,7 @@ namespace Beasts.EditorTools
                 }
                 float length = ci != null ? ci.frames / (float)ci.fps : take.stopTime - take.startTime;
                 bool loop = ci != null && ci.loop, moves = ci != null && ci.rootMotion;
+                bool climbs = moves && vertical != null && vertical.Contains(clipName);
                 var events = (ci?.events ?? Array.Empty<ClipEvent>()).Select(e => new AnimationEvent
                 {
                     time = Mathf.Clamp01(e.time / Mathf.Max(length, 1e-3f)),      // importer events are normalised
@@ -277,7 +288,7 @@ namespace Beasts.EditorTools
                         lastFrame = Mathf.Round(take.stopTime * take.sampleRate),
                         loopTime = loop,
                         lockRootRotation = true, keepOriginalOrientation = true,
-                        lockRootHeightY = true, keepOriginalPositionY = true,
+                        lockRootHeightY = !climbs, keepOriginalPositionY = true,
                         lockRootPositionXZ = !moves, keepOriginalPositionXZ = true,
                         events = events,
                     },
@@ -293,6 +304,7 @@ namespace Beasts.EditorTools
                 var ev = AnimationUtility.GetAnimationEvents(clip);
                 lines.Add($"{clipName} {clip.length:0.00}s{(clip.isLooping ? " loop" : "")}" +
                           (moves ? $" rootspeed={clip.averageSpeed.magnitude:0.00}m/s dir={clip.averageSpeed.normalized:F2}" : "") +
+                          (climbs ? $" climb={clip.averageSpeed.y * clip.length:0.00}m" : "") +
                           (ev.Length > 0 ? " events=" + string.Join("/", ev.Select(e => $"{e.stringParameter}@{e.time:0.00}s")) : ""));
             }
             log.AppendLine($"  {prefix} clips: " + string.Join("; ", lines));
@@ -321,6 +333,8 @@ namespace Beasts.EditorTools
                     return null;
                 }).Where(c => c != null).ToArray(),
                 moves = p.moves,
+                sequence = p.sequence,
+                vertical = p.vertical,
                 hold = new Vector2(p.h0, p.h1),
                 holdAfter = p.after,
                 next = p.next,

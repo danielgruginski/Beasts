@@ -5,7 +5,8 @@ namespace Beasts
     /// <summary>
     /// Viewer for the beasts test scene: orbit camera with colony / mid / close presets (right-drag orbits, scroll
     /// zooms), labels over the creatures, time scale, reshuffle, re-roll looks, and buttons that make every beast do
-    /// one thing at once (lunge, howl, bite...). IMGUI only, so it works with either input system.
+    /// one thing at once (lunge, howl, bite...), and a follow camera that steps through the creatures. IMGUI only, so it
+    /// works with either input system. <see cref="presetScale"/> widens the presets for big creatures (the dragons).
     /// </summary>
     [RequireComponent(typeof(Camera))]
     public class BeastTestUI : MonoBehaviour
@@ -14,8 +15,12 @@ namespace Beasts
         public float distance = 22f, pitch = 40f, yaw = 200f;
         public bool orbit = true;
         public bool labels = true;
+        [Tooltip("Multiplies the camera presets' distances and the zoom limit (2.5 for dragons).")]
+        public float presetScale = 1f;
 
         Camera cam;
+        Vector3 home;
+        int follow = -1;
         float timeScale = 1f;
         bool looksLabels;
         readonly System.Collections.Generic.List<string> actions = new System.Collections.Generic.List<string>();
@@ -40,12 +45,18 @@ namespace Beasts
         void Awake()
         {
             cam = GetComponent<Camera>();
+            home = focus;
             Application.runInBackground = true;          // keep ticking while the editor window is not focused
         }
 
         void LateUpdate()
         {
             if (orbit) yaw += 4f * Time.unscaledDeltaTime;
+            var all = BeastRandomAnimator.All;
+            if (follow >= all.Count) follow = -1;
+            var want = follow >= 0 ? all[follow].transform.position + Vector3.up * all[follow].labelHeight * 0.5f *
+                                     all[follow].transform.lossyScale.y : home;
+            focus = Vector3.Lerp(focus, want, 1f - Mathf.Exp(-4f * Time.unscaledDeltaTime));
             var rot = Quaternion.Euler(pitch, yaw, 0);
             transform.SetPositionAndRotation(focus + rot * new Vector3(0, 0, -distance), rot);
         }
@@ -66,15 +77,21 @@ namespace Beasts
                 pitch = Mathf.Clamp(pitch + e.delta.y * 0.2f, 5f, 85f);
             }
             if (e.type == EventType.ScrollWheel)
-                distance = Mathf.Clamp(distance * (1f + e.delta.y * 0.05f), 2f, 90f);
+                distance = Mathf.Clamp(distance * (1f + e.delta.y * 0.05f), 2f, 90f * presetScale);
 
             GUILayout.BeginArea(new Rect(10, 10, 300, 520), GUI.skin.box);
             GUILayout.Label($"Beasts: {BeastRandomAnimator.All.Count}");
             GUILayout.Label("right-drag orbit, scroll zoom");
+            float k = presetScale;
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Colony 40m")) Preset(40f, 50f, 30f);
-            if (GUILayout.Button("Mid 18m")) Preset(18f, 38f, 35f);
-            if (GUILayout.Button("Close 7m")) Preset(7f, 16f, 40f);
+            if (GUILayout.Button($"Colony {40 * k:0}m")) Preset(40f * k, 50f, 30f);
+            if (GUILayout.Button($"Mid {18 * k:0}m")) Preset(18f * k, 38f, 35f);
+            if (GUILayout.Button($"Close {7 * k:0}m")) Preset(7f * k, 16f, 40f);
+            GUILayout.EndHorizontal();
+            var all = BeastRandomAnimator.All;
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(follow >= 0 && follow < all.Count ? "Following " + all[follow].name : "Camera on the middle");
+            if (GUILayout.Button("Follow next", GUILayout.Width(90))) follow = all.Count == 0 ? -1 : (follow + 2) % (all.Count + 1) - 1;
             GUILayout.EndHorizontal();
             orbit = GUILayout.Toggle(orbit, "Slow orbit");
             labels = GUILayout.Toggle(labels, "Show labels");

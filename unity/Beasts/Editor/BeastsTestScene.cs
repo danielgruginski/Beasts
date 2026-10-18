@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,13 +7,15 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using static Beasts.EditorTools.BeastSetupUtil;
+using Object = UnityEngine.Object;
 
 namespace Beasts.EditorTools
 {
     /// <summary>
     /// Scenes/Beasts_Test: a wolf pack, a rat swarm, the woolly rhino, bears, a mammoth, deer and oozes (two, three small,
     /// a giant that splits) on random clips, and goblins around them (if Assets/Goblins is installed).
-    /// Press Play. Tools > Beasts > Build Test Scene; the beast setups rebuild it too.
+    /// Press Play. Tools > Beasts > Build Test Scene; the beast setups rebuild it too. The dragon and the hydra have a
+    /// scene of their own (<see cref="DragonsTestScene"/>), built the same way.
     /// </summary>
     public static class BeastsTestScene
     {
@@ -30,9 +33,13 @@ namespace Beasts.EditorTools
         /// created additively (or rebuilt in place if it is open), active only while it is filled, saved, and closed
         /// again if it wasn't open. When all that's open is an empty untitled scene (batch mode, a fresh project),
         /// there is nothing to keep, and Unity won't add a scene beside an unsaved one: it is built in its place.</summary>
-        public static void Build(StringBuilder log)
+        public static void Build(StringBuilder log) => BuildScene(ScenePath, Fill, log);
+
+        /// <summary>The scene at <paramref name="path"/> rebuilt by <paramref name="fill"/>, beside whatever is open (see
+        /// <see cref="Build"/>).</summary>
+        public static void BuildScene(string path, Action<Scene, StringBuilder> fill, StringBuilder log)
         {
-            var target = SceneManager.GetSceneByPath(ScenePath);
+            var target = SceneManager.GetSceneByPath(path);
             bool wasOpen = target.IsValid() && target.isLoaded;
             if (wasOpen && target.isDirty)
             {
@@ -56,8 +63,8 @@ namespace Beasts.EditorTools
             SceneManager.SetActiveScene(scene);
             try
             {
-                Fill(scene, log);
-                EditorSceneManager.SaveScene(scene, ScenePath);
+                fill(scene, log);
+                EditorSceneManager.SaveScene(scene, path);
             }
             finally
             {
@@ -130,10 +137,12 @@ namespace Beasts.EditorTools
             log.AppendLine($"  test scene: {ScenePath} ({string.Join(", ", counts)}, {goblins} goblins)");
         }
 
-        /// <summary>Verification renders (not saved): the creature posed from its clips in a row, a goblin for scale.</summary>
+        /// <summary>Verification renders (not saved): the creature posed from its clips in a row, a goblin for scale.
+        /// camScale moves the close and colony cameras out for big creatures (3 for the dragons).</summary>
         public static void RenderLineup(GameObject prefab, Dictionary<string, AnimationClip> clips, (string clip, float t)[] poses,
-                                        string dir, float spacing, float lookHeight, StringBuilder log)
+                                        string dir, float spacing, float lookHeight, StringBuilder log, float camScale = 1f)
         {
+            float k = camScale;
             // in a preview scene (2026-10-12): the open scenes, other tools' and other sessions', are never touched
             var scene = EditorSceneManager.NewPreviewScene();
             bool async = ShaderUtil.allowAsyncCompilation;
@@ -143,7 +152,7 @@ namespace Beasts.EditorTools
                 void Add(GameObject g) => SceneManager.MoveGameObjectToScene(g, scene);
                 var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
                 Add(ground);
-                ground.transform.localScale = new Vector3(4, 1, 4);
+                ground.transform.localScale = new Vector3(Mathf.Max(4f * k, poses.Length * spacing * 0.13f), 1, 4f * k);
                 var gm = AssetDatabase.LoadAssetAtPath<Material>(Scenes + "/M_BeastGround.mat");
                 if (gm != null) ground.GetComponent<Renderer>().sharedMaterial = gm;
                 var sun = new GameObject("Sun").AddComponent<Light>();
@@ -164,7 +173,7 @@ namespace Beasts.EditorTools
                 if (gob != null)
                 {
                     var g = (GameObject)PrefabUtility.InstantiatePrefab(gob, scene);
-                    g.transform.SetPositionAndRotation(new Vector3(x0 - 2.2f, 0, 0.8f), Quaternion.Euler(0, 180f, 0));
+                    g.transform.SetPositionAndRotation(new Vector3(x0 - 2.2f * k, 0, 0.8f), Quaternion.Euler(0, 180f, 0));
                 }
                 float w = poses.Length * spacing;
                 void Shoot(string name, Vector3 pos, Vector3 at, float fov, string file, int pw, int ph, bool warm = false)
@@ -176,9 +185,9 @@ namespace Beasts.EditorTools
                     Render(cam, dir, file, pw, ph);              // empty (shadows only): render it twice
                 }
                 Shoot("CAM_Lineup", new Vector3(0, 3.5f + lookHeight, -w * 0.72f), new Vector3(0, lookHeight, 0), 45, "lineup.png", 1800, 800, true);
-                Shoot("CAM_Close", new Vector3(x0 + 1.3f, 1.2f + lookHeight, -4.2f), new Vector3(x0, lookHeight, 0), 38, "close.png", 1200, 900);
-                Shoot("CAM_Colony", new Vector3(0, 40 * Mathf.Sin(50 * Mathf.Deg2Rad), -40 * Mathf.Cos(50 * Mathf.Deg2Rad)),
-                      new Vector3(0, 0.5f, 0), 30, "lineup_colony_40m.png", 1600, 900);
+                Shoot("CAM_Close", new Vector3(x0 + 1.3f * k, 1.2f * k + lookHeight, -4.2f * k), new Vector3(x0, lookHeight, 0), 38, "close.png", 1200, 900);
+                Shoot("CAM_Colony", new Vector3(0, 40 * k * Mathf.Sin(50 * Mathf.Deg2Rad), -40 * k * Mathf.Cos(50 * Mathf.Deg2Rad)),
+                      new Vector3(0, 0.5f, 0), 30, $"lineup_colony_{40 * k:0}m.png", 1600, 900);
                 log.AppendLine("  renders: " + dir);
             }
             finally
@@ -190,7 +199,7 @@ namespace Beasts.EditorTools
 
         /// <summary>Goblins from Assets/Goblins (if installed) on their own random clips around the pack.
         /// Added by type name so this package does not depend on the goblin scripts.</summary>
-        static int AddGoblins(System.Random rng, int count)
+        public static int AddGoblins(System.Random rng, int count, float radius = 17f, float wander = 3.5f)
         {
             var kinds = new[]
             {
@@ -209,7 +218,7 @@ namespace Beasts.EditorTools
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
                 if (prefab == null) continue;
                 float a = i * Mathf.PI * 2f / count + (float)rng.NextDouble() * 0.3f;
-                var home = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * 17f;
+                var home = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * radius;
                 var g = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
                 g.name = prefab.name + "_" + i.ToString("00");
                 g.transform.SetParent(root, false);
@@ -221,7 +230,7 @@ namespace Beasts.EditorTools
                     var so = new SerializedObject(comp);
                     so.FindProperty("set").objectReferenceValue = gset;
                     so.FindProperty("home").vector3Value = home;
-                    so.FindProperty("wanderRadius").floatValue = 3.5f;
+                    so.FindProperty("wanderRadius").floatValue = wander;
                     so.ApplyModifiedPropertiesWithoutUndo();
                     if (postureType != null) g.AddComponent(postureType);
                     if (twoHanded && gripType != null) g.AddComponent(gripType);

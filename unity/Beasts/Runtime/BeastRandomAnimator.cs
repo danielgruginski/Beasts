@@ -8,7 +8,9 @@ namespace Beasts
     /// <summary>
     /// Plays random clips from an <see cref="BeastAnimationSet"/> through a small playable graph (two-slot crossfade),
     /// for Generic rigs. Root-motion pools move the creature; it meanders, steers back toward <see cref="home"/> when it
-    /// strays past <see cref="wanderRadius"/>, and keeps <see cref="separation"/> from the others.
+    /// strays past <see cref="wanderRadius"/>, and keeps <see cref="separation"/> from the others. Pools marked
+    /// <see cref="BeastAnimationSet.Pool.vertical"/> may lift it (flight); any other pool settles it back onto the height it
+    /// took off from.
     /// For looking at the animation; a game would drive clips from its own state machine.
     /// </summary>
     [RequireComponent(typeof(Animator))]
@@ -25,6 +27,8 @@ namespace Beasts
         public float labelHeight = 1.4f;
 
         public string CurrentClip { get; private set; } = "";
+        /// <summary>Up in the air (a flight pool lifted it more than a metre): the others don't step around it.</summary>
+        public bool Aloft => aloft && transform.position.y > groundY + 1f;
         public string CurrentPool => pool != null ? pool.name : "";
         public float CurrentTime => cur.IsValid() ? (float)cur.GetTime() : 0f;
         public static readonly List<BeastRandomAnimator> All = new List<BeastRandomAnimator>();
@@ -36,6 +40,8 @@ namespace Beasts
         float fade = 1, stepEnd, speed, seed;
         BeastAnimationSet.Pool pool;
         int step;
+        float groundY;
+        bool aloft;
 
         void OnEnable()
         {
@@ -72,6 +78,11 @@ namespace Beasts
 
         void StartPool(BeastAnimationSet.Pool p)
         {
+            if (p.vertical && !aloft)
+            {
+                groundY = transform.position.y;
+                aloft = true;
+            }
             pool = p;
             step = 0;
             Play(p.sequence ? p.clips[0] : p.clips[Random.Range(0, p.clips.Length)]);
@@ -137,9 +148,17 @@ namespace Beasts
         void OnAnimatorMove()
         {
             var dp = anim.deltaPosition;
-            dp.y = 0;
+            bool up = pool != null && pool.vertical;
+            if (!up) dp.y = 0;
             transform.position += dp;
             transform.rotation *= anim.deltaRotation;
+            if (aloft)                                  // never below the ground it took off from; settle back down after
+            {
+                var pos = transform.position;
+                pos.y = up ? Mathf.Max(pos.y, groundY) : Mathf.MoveTowards(pos.y, groundY, 6f * Time.deltaTime);
+                transform.position = pos;
+                if (!up && pos.y <= groundY + 1e-4f) aloft = false;
+            }
             if (pool == null || !pool.moves) return;
             var toHome = home - transform.position;
             toHome.y = 0;
@@ -155,7 +174,7 @@ namespace Beasts
             float sep = separation * transform.lossyScale.x;
             foreach (var o in All)                                                       // step around the others
             {
-                if (o == this) continue;
+                if (o == this || o.Aloft || Aloft) continue;
                 var away = transform.position - o.transform.position;
                 away.y = 0;
                 if (away.sqrMagnitude < sep * sep * 1.6f && Vector3.Dot(transform.forward, -away) > 0)
@@ -169,7 +188,7 @@ namespace Beasts
             float sep = separation * transform.lossyScale.x;
             foreach (var o in All)                      // no standing inside each other
             {
-                if (o == this) continue;
+                if (o == this || o.Aloft || Aloft) continue;
                 var away = transform.position - o.transform.position;
                 away.y = 0;
                 float m = away.magnitude;
