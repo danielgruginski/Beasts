@@ -568,6 +568,26 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - **Gotcha:** `dragon_body.Acc` builds each piece in its own bmesh. `create_uvsphere` deletes vertices, and the
     freed slots let later vertices sort ahead of the per-vertex lists (the horn bases took the eye's colour).
     Budget proposal (mine, unreviewed): about 20k tris, 2048² body texture, 1024² membranes.
+- **Hydra (started 2026-10-17):** Daniel: "how about an hydra monster? Like the dragon, but more aquatic like, no
+  spikes, no wings, two or three heads". Its own file, `blender/hydra.blend` (scene Hydra): `hydra_body` (skeleton,
+  blockout) and `hydra_build`; the dragon's pieces are reused (dragon_body's Acc, lofts, chain weights; later the
+  dragon's melted head/body, paint and clip machinery).
+  - **Stage 1, the blockout:** a low, long-bodied water beast (a giant newt more than a dragon), ~11 m from the
+    middle snout to the tail tip, 1.8 m at the shoulder, heads up at 3.4-3.9 m.
+    - Four short, sprawled legs with webbed feet; a flat paddle tail with a smooth dorsal fin and a smaller keel;
+      eel-like heads with no horns, rounded gill fins behind the jaws. No spikes anywhere.
+    - `HEADS` = 3 or 2: the middle neck is Neck1..7 + Head + Jaw (beast_anim's chain), the side necks
+      Neck1L..7L + HeadL + JawL and the R mirror. 63 bones with three heads.
+    - `hydra_build.build_blockout(heads)`; `hydra_build.heads_sheet()` renders three heads against two
+      (`renders/hydra_heads.png`), leaving the three-headed one built.
+    - **Gotcha:** `hydra_build.new_file()` renames the empty file's scene to Hydra. Removing it instead crashed
+      Blender 4.4 (EXCEPTION_ACCESS_VIOLATION in ED_space_image: the window still referenced it). Right after
+      `read_homefile` the MCP call's context is stale (no `selected_objects`): build in the next call. Blender's
+      MCP add-on restarts its server by itself when Blender is relaunched (`D:\Program Files\Blender
+      Foundation\Blender 4.4lender.exe`); add Beasts/src to sys.path again.
+  - **Next:** Daniel's pick (two or three heads) and proportions; then the melted heads (dragon_head's field,
+    slimmer and hornless) and body (dragon_skin's recipe with three neck chains), paint, clips (beast_anim needs a
+    hook for the side necks).
 
 ## Checks
 
