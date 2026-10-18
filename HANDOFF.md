@@ -652,7 +652,11 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     `hydra_build.build_clips()`, `hydra_build.clip_frames(clip, cam, travel=...)` -> renders/clip_hydra_*,
     GIFs via tools/frames_to_gif.py; `hydra_anim.report()` (lowest point, root motion counted).
     - Part 1: Idle (4 s loop: each head on its own beat, a yawn, a snap), Walk (1.33 s loop, sprawling, 1 m/s).
-  - **Next:** Run, the attacks, Roar, Hit, Death; Unity export.
+    - Parts 2-3: Run (0.67 s loop, trot, 3.9 m/s), Bite (middle head; 'Bite' 0.6 s), TripleBite (left, middle,
+      right; 'Bite' 0.6 s, 'Bite2' 1.2 s, 'Bite3' 1.8 s -- the game needs to listen for all three), TailSweep
+      ('Bite' 0.8 s). `strike()` gives any neck its draw-back, strike and snap.
+    - The tail floor counts the keel fin too: it dug 12 cm into the ground in Bite.
+  - **Next:** Roar, Hit, Death; Unity export.
 
 ## Checks
 
