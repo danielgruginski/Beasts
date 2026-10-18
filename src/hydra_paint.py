@@ -69,6 +69,26 @@ def _outside(P, rows, chunk=40000):
     return out
 
 
+LIMB_SEGS = (("FRONT", "sho", "elb", 0.30, 0.12), ("FRONT", "elb", "wri", 0.22, 0.0), ("FRONT", "wri", "paw", 0.18, 0.0),
+             ("HIND", "hip", "knee", 0.34, 0.15), ("HIND", "knee", "hock", 0.22, 0.0), ("HIND", "hock", "paw", 0.18, 0.0))
+
+
+def limb_weight(P):
+    """How much a point belongs to a leg: near a leg bone (its radius plus a 10 cm fade), past the first stretch of
+    the upper bones (their joints sit at the body's side; the belly between the legs stays the belly's). Daniel: "We
+    have the same issue as the belly texture bleeding into the members" -- the dragon's gold once lit up its knee."""
+    w = np.zeros(len(P))
+    for s_ in (1, -1):
+        for limb, a, b, r, t0 in LIMB_SEGS:
+            L = getattr(HB, limb)
+            A, B = np.array(DB_m(L[a], s_)), np.array(DB_m(L[b], s_))
+            d = B - A
+            t = np.clip(((P - A) @ d) / (d @ d), 0, 1)
+            dist = np.linalg.norm(P - (A + t[:, None] * d), axis=1)
+            w = np.maximum(w, smoothstep(r + 0.10, r, dist) * smoothstep(t0, t0 + 0.12, t))
+    return w
+
+
 # ----------------------------------------------------------------------------------------- body fields
 def body_fields(D):
     """Everything the painter needs that doesn't depend on the colours (computed once for all presets)."""
@@ -117,7 +137,7 @@ def body_fields(D):
         if not len(sel):
             continue
         sp = DP._spine(P[sel], rows=r)
-        lim = 1.6
+        lim = 1.35 if a == 0 else 1.6                            # tight along the trunk (the dragon's lesson)
         ka = smoothstep(0.30, 0.62, sp["ventral"]) * smoothstep(lim, lim - 0.3, sp["e"])
         kb[sel] += W[a, sel] * ka
         wsum[sel] += W[a, sel]
@@ -132,7 +152,7 @@ def body_fields(D):
     kb = np.where(wsum > 0, kb / np.maximum(wsum, 1e-6), 0.0)
 
     # legs: scales smaller and pointing down, finer toward the toes; heads: smaller, pointing back along the head
-    w_limb = (smoothstep(1.35, 1.75, e) * (z < 1.3) * body)
+    w_limb = np.maximum(smoothstep(1.35, 1.75, e) * (z < 1.3), limb_weight(P.astype(np.float64))) * body
     flow = flow * (1 - w_limb[:, None]) + np.array((0, 0, -1.0)) * w_limb[:, None]
     limb = 0.034 * (1 - smoothstep(0.30, 0.16, z) * 0.40)
     size = size * (1 - w_limb) + limb * w_limb
@@ -150,12 +170,19 @@ def body_fields(D):
     h_sc[sel], crev[sel], hi[sel], tint[sel] = hs_, cr, hh, ti
 
     # the belly plates (trunk, necks; across the jaws' undersides on the heads)
-    k_belly = _f32(np.where(skin & (w_limb < 0.5), kb, 0.0))
+    k_belly = _f32(np.where(skin, kb * (1 - w_limb), 0.0))
+    # where two axes' plates meet (the necks' roots on the chest) their runs don't line up: the edge between them
+    # stepped into a dashed line. Fade the plates' relief and grooves out there.
+    Ws = np.sort(W, axis=0)
+    second = np.where(body, Ws[-2] / np.maximum(Ws[-1], 1e-6), 0.0)
+    pfade = smoothstep(0.25, 0.65, second)
     frac = phase % 1.0
     pid = np.floor(phase).astype(np.int64)
     we = DP.EDGE / pitch
     plate = smoothstep(0.0, 0.10, frac) * (0.5 + 0.5 * frac) * smoothstep(1.0, 1.0 - we, frac)
     groove = np.maximum(1 - smoothstep(0.0, 0.10, frac), smoothstep(1.0 - we, 1.0, frac))
+    plate = plate * (1 - pfade) + 0.75 * pfade
+    groove = groove * (1 - pfade)
     y = Pd[:, 1]
     jb = DH.at(DH.JAW, y, 3)
     k_jaw = smoothstep(jb + 0.10, jb + 0.03, Pd[:, 2]) * (Pd[:, 2] < DH.lip(y) - 0.05)

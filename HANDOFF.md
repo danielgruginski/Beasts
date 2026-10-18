@@ -633,6 +633,12 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       from the paw, the tail's fin and keel ray slanting back every ~26 cm (13 cm read as corrugated card).
     - Presets: sea (default), swamp, abyss (cyan gills and eyes). `T_Hydra*`, `T_HydraFins*` with one normal map
       each; materials M_Hydra, M_HydraFins; `hydra_paint.use_preset(name)`.
+    - The belly stays off the legs: Daniel, "We have the same issue as the belly texture bleeding into the members"
+      (the dragon's gold once lit up its knee). `limb_weight` (near a leg bone, past the first stretch of the upper
+      bones so the belly between the legs stays) takes the limbs out of the belly's share and plates, and the
+      trunk's band is tighter (lim 1.35; the necks keep 1.6).
+    - Where two axes' plates meet (the necks' roots on the chest) the plates' relief and grooves fade out: their
+      runs don't line up, and the edge between them stepped into a dashed line.
     - Iterating: `hydra_paint.build()` does it all (~8 min; the body fields alone ~5 min). The bake and fields stay
       in `hydra_paint._CACHE`, so a colour change is `paint_body(_CACHE["F"], preset)` (~15 s).
   - **Next:** clips (beast_anim needs a hook for the side necks: the middle neck is its chain), Unity export.
