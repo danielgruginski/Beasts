@@ -619,8 +619,23 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       and keel.
     - Body skin 14k (10k left the necks faceted), totals: HydraBody 40.4k (skin 34k: three heads 21k + body;
       shells 6.4k), HydraFins 2.5k. More than the dragon's ~32k; the heads (7k) and body (14k) can come down.
-  - **Next:** Daniel's verdict on the body; then paint (dragon_paint's recipe: UVs, per-texel colour presets,
-    scales and plates in the normal map), clips (beast_anim needs a hook for the side necks).
+  - Daniel on the budget: "I think trimming more is dangerous, lets keep the current polygons" (~43k stays).
+  - **Stage 4, the paint (2026-10-17):** `hydra_paint.py`, dragon_paint's machinery reused (scales, plates with
+    anti-aliased edges, the nostrils' ring, the bake, the texture writing). dragon_paint gained two hooks, the
+    dragon's defaults unchanged: `_spine(rows=...)` for any loft, `unwrap_body(head_groups=...)`.
+    - Four axes (trunk + three necks): each texel takes its coordinates from the axis it is nearest to; the
+      belly's share blends over them (`body_fields`).
+    - Each head's texels get the dragon's head treatment in the dragon's head space (`hydra_skin.to_head` / SCALE):
+      eye rings, the nostrils' ring, the lips' shade, the jaw's plates.
+    - Aquatic: smaller scales (trunk 3.2-6.5 cm), sparse dark spots on the back and flanks (Voronoi cells), a
+      wetter shine (`SMOOTH`).
+    - Fins (`fin_fields`, `paint_fins`, 2048): gill fans ray along their pleats with a coral rim, toe webs vein
+      from the paw, the tail's fin and keel ray slanting back every ~26 cm (13 cm read as corrugated card).
+    - Presets: sea (default), swamp, abyss (cyan gills and eyes). `T_Hydra*`, `T_HydraFins*` with one normal map
+      each; materials M_Hydra, M_HydraFins; `hydra_paint.use_preset(name)`.
+    - Iterating: `hydra_paint.build()` does it all (~8 min; the body fields alone ~5 min). The bake and fields stay
+      in `hydra_paint._CACHE`, so a colour change is `paint_body(_CACHE["F"], preset)` (~15 s).
+  - **Next:** clips (beast_anim needs a hook for the side necks: the middle neck is its chain), Unity export.
 
 ## Checks
 

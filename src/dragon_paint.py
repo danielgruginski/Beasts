@@ -44,7 +44,7 @@ import beast_paint as BP
 import dragon_body as DB
 import dragon_head as DH
 import dragon_skin as S
-from beast_common import smoothstep, fbm, vnoise, hexc, _hash3
+from beast_common import smoothstep, fbm, vnoise, hexc, _hash3, spline
 
 PART = S.PART
 SIZE, WING_SIZE = 4096, 4096
@@ -96,16 +96,17 @@ def _vertex_parts(ob):
     return np.rint(a.reshape(-1, 4)[:, 0] * 255).astype(int)
 
 
-def _head_verts(ob):
+def _head_verts(ob, groups=("Head", "Jaw")):
     gi = {g.name: g.index for g in ob.vertex_groups}
-    hj = {gi.get("Head"), gi.get("Jaw")}
+    hj = {gi.get(n) for n in groups} - {None}
     return np.array([sum(g.weight for g in v.groups if g.group in hj) > 0.5 for v in ob.data.vertices])
 
 
-def unwrap_body(ob, margin=0.0012):
+def unwrap_body(ob, margin=0.0012, head_groups=("Head", "Jaw")):
     """Smart project (the skin is one closed piece: no natural seams to hand), one texel density, then the head
-    larger (its face is seen in game), the eyes larger still, teeth and mouth smaller; packed by shape."""
-    parts, head = _vertex_parts(ob), _head_verts(ob)
+    larger (its face is seen in game), the eyes larger still, teeth and mouth smaller; packed by shape.
+    head_groups: the vertex groups that make a head (the hydra has three)."""
+    parts, head = _vertex_parts(ob), _head_verts(ob, head_groups)
     vl = bpy.context.view_layer
     for o in bpy.context.selected_objects:
         o.select_set(False)
@@ -275,13 +276,18 @@ def scales(P, F, size, chunk=200000):
     return h, crev, hi, tint
 
 
-def _spine(P, chunk=50000, k=10):
+def _spine(P, chunk=50000, k=10, rows=None):
     """Per point: its place along the spine and its coordinates in the section there (u side, v up), blended over
     the nearby rows, each weighted by how close the point lies to the row's plane. (Taking the nearest row alone
     jumped wherever the body bulges far from the spine -- the chest -- and stepped every plate edge into teeth.)
     The plates' phase runs along the belly's line (each section's lowest point) instead: measured from the spine,
-    the chest -- far out on the outside of the neck's bend -- fanned its plates out to 40 cm."""
-    R, s = S.spine_rows(6)
+    the chest -- far out on the outside of the neck's bend -- fanned its plates out to 40 cm.
+    rows: another loft's rows (x, y, z, a, b, c) instead of the dragon's spine (the hydra's trunk and necks)."""
+    if rows is None:
+        R, s = S.spine_rows(6)
+    else:
+        R = spline(rows, 6)
+        s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(R[:, :3], axis=0), axis=1))])
     C = R[:, :3]
     T = np.gradient(C, axis=0)
     T /= np.linalg.norm(T, axis=1)[:, None]
