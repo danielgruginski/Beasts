@@ -171,6 +171,11 @@ def body_fields(D):
 
     # the belly plates (trunk, necks; across the jaws' undersides on the heads)
     k_belly = _f32(np.where(skin, kb * (1 - w_limb), 0.0))
+    # the breast where the necks part faces forward and is belly. No axis owned it -- it lies in front of the
+    # trunk's first section and on the necks' inner sides -- so it came out as an X of back scales (Daniel: "fix that
+    # chest area where scales show up but should be a belly texture"). Picked by the baked normal and position.
+    breast = smoothstep(-0.15, -0.45, N[:, 1]) * smoothstep(-1.05, -1.45, P[:, 1]) * smoothstep(2.75, 2.35, z) *         smoothstep(1.0, 0.7, np.abs(P[:, 0])) * body * skin * (1 - w_limb)
+    k_belly = np.maximum(k_belly, breast).astype(np.float32)
     # where two axes' plates meet (the necks' roots on the chest) their runs don't line up: the edge between them
     # stepped into a dashed line. Fade the plates' relief and grooves out there.
     Ws = np.sort(W, axis=0)

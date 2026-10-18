@@ -637,6 +637,10 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       (the dragon's gold once lit up its knee). `limb_weight` (near a leg bone, past the first stretch of the upper
       bones so the belly between the legs stays) takes the limbs out of the belly's share and plates, and the
       trunk's band is tighter (lim 1.35; the necks keep 1.6).
+    - The breast where the necks part is belly (`breast`: forward-facing by the baked normal, in front of the chest,
+      below the necks' split). No axis owned it -- in front of the trunk's first section, on the necks' inner
+      sides -- and it came out as an X of back scales (Daniel: "fix that chest area where scales show up but
+      should be a belly texture").
     - Where two axes' plates meet (the necks' roots on the chest) the plates' relief and grooves fade out: their
       runs don't line up, and the edge between them stepped into a dashed line.
     - Iterating: `hydra_paint.build()` does it all (~8 min; the body fields alone ~5 min). The bake and fields stay
