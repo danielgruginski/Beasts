@@ -94,6 +94,25 @@ def build_teeth(bm, upper=True):
             cone(bm, base, tip, r * (0.9 + 0.2 * b), seg=6, bend=bend)
 
 
+def build_eye(bm, s, u_seg=16, v_seg=10):
+    """dragon_head.build_eye at fewer segments (six eyeballs: 24 x 14 cost 4k triangles). -> pupil flags"""
+    a, b, n = DH._eye_axes(s)
+    ra, rb, rn = DH.EYE["ball"]
+    centre = np.array(DH.EYE["c"], float) * (s, 1, 1) + n * (DH.EYE["ball_out"] - rn)
+    tmp = bmesh.new()
+    bmesh.ops.create_uvsphere(tmp, u_segments=u_seg, v_segments=v_seg, radius=1.0)
+    M = np.stack([a * ra, b * rb, n * rn], 1)
+    pupil, vmap = [], {}
+    for v in tmp.verts:
+        p = np.array(v.co[:])
+        vmap[v] = bm.verts.new(Vector(centre + M @ p))
+        pupil.append(abs(p[0]) < 0.16 and p[2] > 0.3)
+    for f in tmp.faces:
+        bm.faces.new([vmap[v] for v in f.verts])
+    tmp.free()
+    return pupil
+
+
 # ----------------------------------------------------------------------------------------- gills (hydra space)
 def build_gill(bm, s, n_r=6, n_a=36):
     """The gill fin: a fan from its root over GILL's arc, pleated (waves across the fan, growing outward), the edge
@@ -174,7 +193,7 @@ def build(acc, fins, M, nid, rgb):
     shell(acc, lambda bm: build_teeth(bm, False), jb, COL["tooth"])
     shell(acc, DH.build_tongue, jb, COL["tongue"])
     for s in (1, -1):
-        shell(acc, lambda bm, s=s: DH.build_eye(bm, s), hb, "eye")
+        shell(acc, lambda bm, s=s: build_eye(bm, s), hb, "eye")
         shell(fins, lambda bm, s=s: build_gill(bm, s), hb, "gill", scale=1.0)
     return dict(S["rep"])
 

@@ -8,14 +8,15 @@
 """
 import bpy, importlib, os
 import numpy as np
-import beast_common, beast_scene, beast_rig, dragon_body, hydra_head, hydra_body
+import beast_common, beast_scene, beast_rig, dragon_body, dragon_head, dragon_skin, hydra_head, hydra_body, hydra_skin
 
 BLEND = os.path.join(beast_common.ROOT, "blender", "hydra.blend")
 RIG = hydra_body.RIG
 
 
 def reload_all():
-    for m in (beast_common, beast_scene, beast_rig, dragon_body, hydra_head, hydra_body):
+    for m in (beast_common, beast_scene, beast_rig, dragon_body, dragon_head, dragon_skin, hydra_head, hydra_body,
+              hydra_skin):
         importlib.reload(m)
 
 
@@ -69,6 +70,19 @@ def build_blockout(heads=None, melted=True):
     heads = heads or hydra_body.HEADS
     rig = beast_rig.build_armature(hydra_body.rest_bones(heads), name=RIG, coll_name="HYD_Rig")
     objs, rep = hydra_body.build_blockout(rig, heads, melted)
+    rep["bones"] = len(rig.data.bones)
+    rig.hide_render = True
+    return rig, objs, rep
+
+
+def build_body():
+    """Skeleton -> the real body (hydra_skin): one skin with the three heads, shells, fins, weighted and bound; the
+    blockout's collection is excluded. -> (rig, objects, report)"""
+    assert bpy.context.scene.name == "Hydra", "put the Hydra scene on screen first: hydra_build.show()"
+    reload_all()
+    setup_scene()
+    rig = beast_rig.build_armature(hydra_body.rest_bones(3), name=RIG, coll_name="HYD_Rig")
+    objs, rep = hydra_skin.build(rig)
     rep["bones"] = len(rig.data.bones)
     rig.hide_render = True
     return rig, objs, rep

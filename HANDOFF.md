@@ -602,8 +602,25 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     - `hydra_build.head_sheet()` -> `renders/hydra_head_sheet.png`: the left head (the middle one is hidden from
       the side by its neighbours), shut and open.
     - The necks are still the blockout's lofts, thinned to 0.19 m at the head; the real body comes next.
-  - **Next:** Daniel's notes on the head; then the melted body (dragon_skin's recipe with three neck chains and
-    three seams), paint, clips (beast_anim needs a hook for the side necks).
+  - Daniel on the sleeker head: move on.
+  - **Stage 3, the real body:** `hydra_skin.py`, `hydra_build.build_body()`, after dragon_skin's recipe:
+    - Field on a 2.5 cm grid: a chain of ellipsoids along the trunk/tail rows and one per neck (from inside the
+      chest to the poll), muscles, sprawled legs, webbed feet's toes; each head's back melted in near its neck.
+    - Heads: meshed per neck at 1 cm in the dragon's head space (the dragon head scaled the hydra's way, its neck
+      melted in near the seam), 7k triangles each, moved onto the body.
+    - Seams: a plane square to each neck 0.40 m down from its poll. The body is bisected only round that neck (the
+      dragon's one infinite plane would slice the other necks); the rough heads beyond fall off as loose pieces
+      and are dropped (`_keep_largest`); each head's loop is zipped to its neck's.
+    - Weights: heat map (Jaw* excluded), each head's Head/Jaw weights fading in over 30 cm before its seam.
+    - Colours: back / belly per axis (trunk, each neck), measured within the cross-section and blended by
+      distance. Taking only the nearest axis flipped at the neck roots (dark patches on the chest).
+    - Shells: teeth, tongues, eyes (`hydra_head.build_eye`, 16 x 10: six eyeballs at 24 x 14 cost 4k), seated
+      claws. HydraFins: gill fans, toe webs (reaching most of the way to the tips; a third-sag hid them), tail fin
+      and keel.
+    - Body skin 14k (10k left the necks faceted), totals: HydraBody 40.4k (skin 34k: three heads 21k + body;
+      shells 6.4k), HydraFins 2.5k. More than the dragon's ~32k; the heads (7k) and body (14k) can come down.
+  - **Next:** Daniel's verdict on the body; then paint (dragon_paint's recipe: UVs, per-texel colour presets,
+    scales and plates in the normal map), clips (beast_anim needs a hook for the side necks).
 
 ## Checks
 
