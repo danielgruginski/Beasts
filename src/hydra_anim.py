@@ -15,6 +15,9 @@ Clips (30 fps, the hydra faces -Y; Unity +Z):
   Bite       1.4 s        the middle head strikes low ahead (event 'Bite' at 0.6 s), the side heads hiss aside
   TripleBite 2.4 s        left, middle, right strike in turn (events 'Bite' 0.6 s, 'Bite2' 1.2 s, 'Bite3' 1.8 s)
   TailSweep  1.8 s        the dragon's tail whip (event 'Bite' at 0.8 s), the heads watching it go
+  Roar       2.2 s        rears a little, all three heads thrown up roaring a beat apart (event 'Roar' at 0.6 s)
+  Hit        0.6 s        rocked back, each head snapping away its own way
+  Death      3.0 s        collapses onto its belly, the necks falling one by one (event 'Dead' at 2.3 s)
 """
 import math
 from mathutils import Vector, Matrix
@@ -45,7 +48,7 @@ SPEC = BA.Species(HB.rest_bones, (0.0, 0.2, 1.5), "Hydra", RIG, neck_n=HB.NECK_N
                   ears=False, tail_floor=[0.10] * HB.TAIL_N, extra=_side_necks)
 LEGS = BA.LEGS
 EVENTS = {"Bite": [("Bite", 0.60)], "TripleBite": [("Bite", 0.60), ("Bite2", 1.20), ("Bite3", 1.80)],
-          "TailSweep": [("Bite", 0.80)]}
+          "TailSweep": [("Bite", 0.80)], "Roar": [("Roar", 0.60)], "Death": [("Dead", 2.30)]}
 MOVING = {"Walk", "Run"}
 
 
@@ -291,8 +294,115 @@ def _clip_tail():
     return N, fn, False
 
 
+# ----------------------------------------------------------------------------------------- roar, hit, death
+HIP_PIVOT = Vector((0.0, 1.05, 1.40))
+
+
+def pivot(p, pitch, pv=HIP_PIVOT):
+    """Pitch the trunk about pv (the hips) instead of its centre."""
+    C = SPEC.body_c
+    R = Matrix.Rotation(math.radians(-pitch), 3, 'X')
+    p.pitch = pitch
+    p.body = p.body + (pv - C) - R @ (pv - C)
+
+
+def _clip_roar():
+    """Rears a little onto its haunches; all three heads throw up and roar, spreading apart, a beat apart from
+    each other (event 'Roar' at 0.6 s), shaking; comes back down onto its forefeet."""
+    N = 66
+
+    def fn(f):
+        p = HydraPose()
+        up = K([(0, 0), (14, 1), (46, 1), (56, -0.06), (60, 0), (66, 0)], f)
+        u = max(up, 0.0)
+        pivot(p, 12 * u)
+        p.body += Vector((0, 0.06 * u, 0.6 * min(up, 0.0)))
+        for nid, delay, spread in (("", 0, 0.0), ("L", 3, 16.0), ("R", 6, 16.0)):
+            roar = K([(0, 0), (14 + delay, 0), (17 + delay, 1), (42 + delay, 1), (50 + delay, 0), (66, 0)], f)
+            shake = 3 * math.sin(2 * math.pi * (f + 2 * delay) / 6) * roar
+            wave(p, nid, -8 * u + 14 * roar, spread * roar + shake)
+            h = head(p, nid)
+            h[0] += -10 * u + 26 * roar
+            h[2] += shake
+            set_jaw(p, nid, 44 * roar + 2.5 * math.sin(2 * math.pi * f / 5) * roar)
+        tail_wave(p, 1.6, 2 * math.pi * f / 33, lift=-3 * u)
+        air = min(1.0, u * 2.0)
+        for s_ in (1, -1):
+            lp = LegPose(target=neutral(('F', s_)), wb=air)
+            lp.boff = Vector((0.10 * s_, -0.10, 0.18)) * air
+            lp.flex = -30 * air
+            lp.toe = 15 * air
+            p.legs[('F', s_)] = lp
+        return p
+    return N, fn, False
+
+
+def _clip_hit():
+    """Struck from the front: the body rocks back, each head snaps away its own way, jaws open, a small rebound."""
+    N = 18
+
+    def fn(f):
+        p = HydraPose()
+        k = K([(0, 0), (2, 1), (6, 0.8), (11, -0.2), (18, 0)], f)
+        kp_ = max(k, 0.0)
+        p.body = Vector((0.04 * k, 0.12 * k, -0.03 * kp_))
+        p.roll, p.yaw, p.pitch = 3 * k, 4 * k, 3 * k
+        for nid, (pt, yw) in (("", (12, 10)), ("L", (8, 14)), ("R", (14, 8))):
+            kk = K([(0, 0), (2 + (nid == "L"), 1), (6, 0.8), (11, -0.2), (18, 0)], f)
+            wave(p, nid, pt * kk, yw * kk)
+            head(p, nid)[0] += 10 * kk
+            set_jaw(p, nid, K([(0, 0), (2, 26), (7, 10), (12, 2), (18, 0)], f))
+        for s_ in (1, -1):
+            p.legs[('F', s_)].scap = -6 * k
+            p.legs[('F', s_)].flex = 8 * kp_
+        return p
+    return N, fn, False
+
+
+DEATH_DROP = 0.64                  # the belly on the ground (its lowest point stands 0.68 m up; 0.80 sank it)
+DEATH_FORE = (0.25, -0.15, -20.0)  # forefeet: out, forward (m), paw flex (deg)
+
+
+def _death_pose(f):
+    p = HydraPose()
+    cry = K([(0, 0), (4, 1), (14, 1), (22, 0), (90, 0)], f)
+    front = K([(0, 0), (18, 0), (32, 1), (90, 1)], f)
+    hind = K([(0, 0), (28, 0), (42, 1), (90, 1)], f)
+    sway = math.sin(2 * math.pi * f / 26) * K([(0, 0), (8, 1), (36, 1), (46, 0), (90, 0)], f)
+    p.body = Vector((0.08 * sway, 0.10 * cry, -DEATH_DROP * (0.55 * front + 0.45 * hind) + 0.04 * cry))
+    p.pitch = 4 * cry - 3 * front + 3 * hind
+    p.roll = 2 * sway
+    for nid, t0, out in (("L", 40, 18.0), ("", 48, 6.0), ("R", 56, 18.0)):     # the necks fall one by one
+        fall = K([(0, 0), (t0, 0), (t0 + 12, 1), (t0 + 15, 0.95), (90, 1)], f)
+        wave(p, nid, 16 * cry - 52 * fall, out * fall + 5 * sway, spread=BASE)
+        h = head(p, nid)
+        h[0] += -12 * cry + 26 * fall
+        h[2] += 10 * fall * (1 if nid != "R" else -1)
+        set_jaw(p, nid, 38 * cry + K([(0, 0), (22, 8), (t0 + 12, 14), (t0 + 18, 6), (90, 6)], f))
+    twitch = K([(0, 0), (78, 0), (81, 1), (85, 0), (90, 0)], f)
+    for i in range(SPEC.tail_n):
+        p.tail[i][1] += 1.0 * sway + 3.0 * twitch * (i > 7)
+    for kind, s_ in LEGS:
+        k_ = front if kind == 'F' else hind
+        base = neutral((kind, s_))
+        if kind == 'F':
+            lp = LegPose(target=base + Vector((DEATH_FORE[0] * s_, DEATH_FORE[1], 0)) * k_)
+            lp.flex = DEATH_FORE[2] * k_
+            lp.toe = 15 * k_
+        else:
+            lp = LegPose(target=base + Vector((0.30 * s_, 0.0, 0)) * k_)
+            lp.flex = -20 * k_
+            lp.toe = 10 * k_
+        p.legs[(kind, s_)] = lp
+    return p
+
+
+def _clip_death():
+    return 90, _death_pose, False
+
+
 CLIPS = {"Idle": _clip_idle, "Walk": _clip_walk, "Run": _clip_run, "Bite": _clip_bite, "TripleBite": _clip_triple,
-         "TailSweep": _clip_tail}
+         "TailSweep": _clip_tail, "Roar": _clip_roar, "Hit": _clip_hit, "Death": _clip_death}
 
 
 # ----------------------------------------------------------------------------------------- build

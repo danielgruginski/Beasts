@@ -656,7 +656,11 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
       right; 'Bite' 0.6 s, 'Bite2' 1.2 s, 'Bite3' 1.8 s -- the game needs to listen for all three), TailSweep
       ('Bite' 0.8 s). `strike()` gives any neck its draw-back, strike and snap.
     - The tail floor counts the keel fin too: it dug 12 cm into the ground in Bite.
-  - **Next:** Roar, Hit, Death; Unity export.
+    - Part 4: Roar (2.2 s, three heads a beat apart, 'Roar' 0.6 s), Hit (0.6 s), Death (3 s, onto the belly, the
+      necks falling one by one, 'Dead' 2.3 s; DEATH_DROP 0.64: the belly's lowest point stands 0.68 m up).
+    - All nine clips stay within 2.5 cm of the ground (`hydra_anim.report()`).
+  - **Next:** Unity export (beast_export, like the other beasts; the side necks are ordinary bones), maybe a Swim
+    clip for water.
 
 ## Checks
 
