@@ -602,6 +602,7 @@ class Hoofed:
     ATTACK = False
 
     # ------------------------------------------------------------------ painter and rig defaults (farm_paint, farm_rig)
+    COAT_ON_TRUNK = None                # (z0, z1, least) in D: see farm_rig._coat_on_trunk
     BELLY_CUT = 0.80                    # (D) the trunk's UV cut runs below this
     UV_SCALE = {}
     MISC = {}

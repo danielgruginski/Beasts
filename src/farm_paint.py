@@ -136,7 +136,8 @@ def paint(D, sp, variant):
     jcol = _mix(np.tile(C['face'], (n, 1)), C['muzzle'], np.maximum(muzzle, 0.6))
     jcol = _mix(jcol, C['chin'], 0.85 * chin)
     jcol = _mix(jcol, M['lip'], smoothstep(jtop - 0.008, jtop + 0.002, hz))
-    jcol = np.where((Nh[:, 2] > 0.6)[:, None], M['mouth'], jcol)
+    jcol = np.where(((Nh[:, 2] > 0.6) & (hy < -0.50 * L))[:, None], M['mouth'], jcol)   # the jaw's back, in the
+                                                                                         # cheek, stays face colour
     col = np.where(jawp[:, None], jcol, col)
     Fe = np.stack([sp.EAR_FRONT[0] * np.sign(x), sp.EAR_FRONT[1] * np.ones(n), sp.EAR_FRONT[2] * np.ones(n)], -1)
     Fe /= np.linalg.norm(Fe, axis=1, keepdims=True)
@@ -157,7 +158,7 @@ def paint(D, sp, variant):
     if style == 'wool':
         curl = vnoise(P * 70.0, seed=96) * 0.6 + vnoise(P * 150.0, seed=97) * 0.4
         wool = sp.wool_mask(P) * fur
-        grain = np.where(wool > 0.5, 0.72 + 0.40 * smoothstep(0.25, 0.75, curl) + 0.10 * s2,
+        grain = np.where(wool > 0.5, 0.91 + 0.10 * smoothstep(0.25, 0.85, curl) + 0.05 * s2,
                          0.82 + 0.30 * s1 + 0.12 * s2)
     elif style == 'bristle':
         grain = 0.94 + 0.10 * n_mid + 0.10 * smoothstep(0.35, 0.70, s1)

@@ -42,7 +42,7 @@ namespace Beasts.EditorTools
         {
             new Animal { name = "Goat", coats = new[] { "", "_White", "_Pied" }, spacing = 1.6f, lookHeight = 0.45f,
                          camScale = 0.5f, attack = true },
-            new Animal { name = "Sheep", coats = new[] { "", "_Black", "_Shorn" }, spacing = 1.6f, lookHeight = 0.45f,
+            new Animal { name = "Sheep", coats = new[] { "", "_Black", "_Grey" }, spacing = 1.6f, lookHeight = 0.45f,
                          camScale = 0.5f },
             new Animal { name = "Cow", coats = new[] { "", "_Red", "_Pied" }, spacing = 3f, lookHeight = 0.8f,
                          camScale = 0.8f },

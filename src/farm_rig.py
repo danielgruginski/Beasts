@@ -53,9 +53,30 @@ def skin(sp, body, rig):
         for s, sfx in ((1, "L"), (-1, "R")):
             sel = claw[((co[:, 1] < 0) == front) & ((co[:, 0] > 0) == (s > 0))]
             set_rigid(body, sel, ("FrontToes" if front else "HindToes") + sfx)
+    if sp.COAT_ON_TRUNK:
+        _coat_on_trunk(sp, body, n)
     sp.skin_extra(body, rig, part)
     clean_weights(body)
     return weight_report(body)
+
+
+def _coat_on_trunk(sp, body, n):
+    """A coat over the tops of the legs (the sheep's fleece) rides on the spine, not the legs: skin near a leg's axis
+    and below z0 (D) keeps its leg weights; higher up (to z1) or away from the legs (the belly between them) it keeps
+    only `least` of them (beast_rig.coat_on_trunk)."""
+    z0, z1, least = sp.COAT_ON_TRUNK
+    co = sp.W_inv(np.array([body.data.vertices[i].co[:] for i in range(n)]))
+    ax, z = np.abs(co[:, 0]), co[:, 2]
+    d = np.full(n, 9.0)
+    for rows in (sp.FRONT_STUMP_T + sp.FRONT_LEG_T, sp.HIND_STUMP_T + sp.HIND_LEG_T):
+        rows = sorted(rows, key=lambda r: -r[2])
+        cx, cy = sp.leg_centre(rows, z)                   # the leg's axis at each vertex's height
+        d = np.minimum(d, np.hypot(ax - cx, co[:, 1] - cy))
+    keep = least + (1 - least) * smoothstep(z1, z0, z) * smoothstep(0.13, 0.07, d)
+    keep[np.array(list(body["leg_verts"]), int)] = 1.0
+    keep[z < min(sp.SEAM.values()) + 0.02] = 1.0
+    trunk = tuple((b, y * sp.KY) for b, y in (("Chest", -0.45), ("Spine2", -0.05), ("Spine1", 0.25), ("Hips", 0.55)))
+    beast_rig.coat_on_trunk(body, n, keep, trunk)
 
 
 def _smooth_joins(sp, body, n):
