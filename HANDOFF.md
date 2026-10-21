@@ -428,6 +428,10 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     relief harder than EEVEE (a hard jowl rim read as an ear-muff in Unity: check there, e.g. a preview-scene render
     to `Logs/FarmSetup/Horse/unity_head_*.png`). Daniel also noticed the **ears floating**: `EAR_BASE_H` was set for
     the old head angle and sat 2.5 cm above the skull; it is on the poll's top sides now, its base just inside.
+    Then "reduce the horse face a tad": the face in front of the eyes is 15% shorter (`farm_horse._face`, `FACE_K`
+    0.85 from `FACE_FROM` -0.11: the head rows, nostrils, lip, jaw and mouth line go through it; `HEAD_LEN` follows).
+    Grazing re-searched on the head's own lowest point (the whole mesh's lowest is a pastern at 4.5 cm, which hid
+    that the muzzle stopped 15 cm short): `GRAZE` (-74, -12, -10), 88.
     Still my calls, not reviewed: the coats, the horned cow, the leggy half-wild pig, a hen (no rooster).
   - The horse has no saddle socket or rider clips (`Socket_Back` sits over the saddle's place).
   - Young ones (lamb, kid, calf, foal, piglet, chicks) would be scaled copies with a bigger head (`KH`).
