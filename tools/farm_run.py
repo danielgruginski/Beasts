@@ -9,10 +9,13 @@ lowest, export. The file is saved as blender/farm_<name>.blend after the steps (
 import os, sys, time, json
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 import bpy
-import farm_build as FB
 
 args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 name, steps = args[0], args[1:]
+if name == "chicken":                          # the hen has her own body, rig and clips (chicken_build)
+    import chicken_build as FB
+else:
+    import farm_build as FB
 sp = FB.species(name)
 t0 = time.time()
 out = {}
