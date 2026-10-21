@@ -61,6 +61,28 @@ def skin(sp, body, rig):
     return weight_report(body)
 
 
+def copy_nearest_skin(body, idx):
+    """Shells lying on the skin (the horse's mane and forelock) take the weights of the nearest skin vertex."""
+    from mathutils import Vector
+    from mathutils.kdtree import KDTree
+    n = body["n_fur"]
+    me = body.data
+    legs = set(int(i) for i in body.get("leg_verts", []))
+    skin_v = [j for j in range(n) if j not in legs]
+    kd = KDTree(len(skin_v))
+    for j in skin_v:
+        kd.insert(me.vertices[j].co, j)
+    kd.balance()
+    names = {g.index: g.name for g in body.vertex_groups}
+    src = {int(i): [(names[g.group], g.weight) for g in me.vertices[kd.find(me.vertices[int(i)].co)[1]].groups]
+           for i in idx}
+    for g in body.vertex_groups:
+        g.remove([int(i) for i in idx])
+    for i, ws in src.items():
+        for b, w in ws:
+            body.vertex_groups[b].add([i], w, 'REPLACE')
+
+
 def _skin_tail(sp, body, part):
     """The separate tail tube (sp.TAIL_TUBE) blends along the tail bones by where it lies on the tail's line: Hips
     at the root, Tail1 .. TailN down it."""

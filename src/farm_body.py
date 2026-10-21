@@ -354,6 +354,24 @@ class Hoofed:
         u = np.linspace(0, cum[-1], n)
         return np.stack([np.interp(u, cum, out[:, j]) for j in range(3)], -1)
 
+    def crest_line(self, n=12, k=1.0):
+        """Points along the top of the neck (the neck loft's crest side at k of its radius), poll to withers (D)."""
+        rows = spline(self.NECK, 3)
+        P = rows[:, :3]
+        T = np.gradient(P, axis=0)
+        T /= np.linalg.norm(T, axis=1)[:, None]
+        U = np.array(self.NECK_UP, float)
+        out = []
+        for i in range(len(P)):
+            N = U - (U @ T[i]) * T[i]
+            N /= np.linalg.norm(N)
+            out.append(P[i] + N * rows[i, 4] * k)
+        out = np.array(out)[::-1]
+        seg = np.linalg.norm(np.diff(out, axis=0), axis=1)
+        cum = np.concatenate([[0], np.cumsum(seg)])
+        u = np.linspace(0, cum[-1], n)
+        return np.stack([np.interp(u, cum, out[:, j]) for j in range(3)], -1)
+
     def mane_mask(self, P):
         """1 under the throat and down the neck's underside to the brisket (D)."""
         Q = self.THROAT[(self.THROAT[:, 1] > self.NECK[-1][1] - 0.09) & (self.THROAT[:, 1] < self.NECK[0][1] - 0.20)]
@@ -624,6 +642,8 @@ class Hoofed:
     # ------------------------------------------------------------------ clip settings (farm_anim), the deer's
     CADENCE = 1.0                       # x the clips' lengths after the sqrt(KL) scaling
     EAR_SWING, TAIL_SWING = 1.0, 1.0
+    TAIL_FLOOR = None                   # (R) per tail bone, the lowest its end goes (beast_anim's tail drag)
+    TAIL_HANGS = False                  # a long hanging tail stays hanging when the trunk tips (farm_anim._tail)
     GRAZE = ((-44, -40, -30), 76, 0.10, 0.0)      # neck pitches, head pitch, chest drop (x KB), head tilt
     GRAZE_PITCH = -13
     UP_HIGH = ((18, 4, -2), -3)

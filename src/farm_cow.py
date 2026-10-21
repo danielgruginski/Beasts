@@ -74,6 +74,10 @@ class Cow(farm_body.Hoofed):
     JAW_H = [(0, -0.10, -0.150, 0.054, 0.032, 0.042), (0, -0.21, -0.152, 0.056, 0.030, 0.034),
              (0, -0.31, -0.154, 0.056, 0.028, 0.030), (0, -0.40, -0.152, 0.052, 0.024, 0.024)]
     MANE = 0.0
+    TAIL_HANGS, TAIL_SWING = True, 0.6
+    TAIL_FLOOR = [0.03, 0.24]                 # the switch hangs 0.2 m below the last bone's end
+    LIE_DROP = 0.36
+    DEATH_HEAD_ROLL = 32
     FUR_BASE = 0.0020
     LEG_T = 1.6
     LEG_T_LOW = 0.95
@@ -88,7 +92,7 @@ class Cow(farm_body.Hoofed):
     CADENCE = 1.15
     RUN = (3.0, 0.6)
     RUN_NECK = ((-12, -8, -2), 30)
-    GRAZE = ((-34, -28, -18), 50, 0.08, 0.0)
+    GRAZE = ((-34, -28, -18), 46, 0.08, 0.0)
     GRAZE_PITCH = -8
     UP_HIGH = ((14, 4, -2), -10)
     CALL_HEAD, CALL_JAW = 30, 22

@@ -41,7 +41,9 @@ class FarmAnim:
     def __init__(self, sp):
         self.sp = sp
         self.SPEC = BA.Species(sp.rest_bones, tuple(sp.W(sp.BODY_C)), sp.NAME, sp.NAME + "Rig", neck_n=3,
-                               tail_n=len(sp.TAIL) - 1, tongue=False)
+                               tail_n=len(sp.TAIL) - 1, tongue=False,
+                               tail_floor=sp.TAIL_FLOOR or [0.03 + 0.02 * i for i in range(len(sp.TAIL) - 1)])   # tails lying on the
+                                                                                                 # ground drag
         self.hb, self.hl = sp.KB, sp.KL                 # body and leg scales
         self.ts = math.sqrt(sp.KL) * sp.CADENCE         # time scale: < 1 is quicker
         self.EVENTS = {"Death": [("Dead", 1.9 * self.ts)]}
@@ -78,9 +80,13 @@ class FarmAnim:
         p.ears = {1: [(fwd + flickL + turnL) * e, splay * e], -1: [(fwd + flickR + turnR) * e, splay * e]}
 
     def _tail(self, p, lift, swing=0.0, phase=0.0):
+        """Call after the trunk's pitch is set: a hanging tail (sp.TAIL_HANGS) keeps hanging when the trunk tips
+        (a long tail turned with it hooked up behind a grazing horse)."""
         k = self.sp.TAIL_SWING
         for i in range(self.SPEC.tail_n):
             p.tail[i] = [(lift if i == 0 else lift * 0.5) * k, swing * k * math.sin(phase - 0.8 * i), 0.0]
+        if self.sp.TAIL_HANGS:
+            p.tail[0][0] += p.pitch
 
     def _neck(self, p, pitches, yaws=(0, 0, 0)):
         for i in range(3):

@@ -47,6 +47,7 @@ class Sheep(farm_body.Hoofed):
                   (0.140, 0.41, 0.64, 0.052, 0.060, 0.080), (0.137, 0.44, 0.565, 0.043, 0.049, 0.066)]
     GRAFT_NEAR = 0.10
     MANE = 0.0
+    TAIL_HANGS, TAIL_SWING = True, 0.6
     LEG_T = 1.0
     LEG_T_LOW = 1.05
     HOOF_K = 1.25
