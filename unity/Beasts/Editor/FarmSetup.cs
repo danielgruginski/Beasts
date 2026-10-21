@@ -48,7 +48,7 @@ namespace Beasts.EditorTools
                          camScale = 0.8f },
             new Animal { name = "Horse", coats = new[] { "", "_Chestnut", "_Grey", "_Black" }, spacing = 3.2f,
                          lookHeight = 1f, camScale = 0.9f },
-            new Animal { name = "Pig", coats = new[] { "", "_Saddleback", "_Black" }, spacing = 1.8f, lookHeight = 0.4f,
+            new Animal { name = "Pig", coats = new[] { "", "_Saddleback", "_Black", "_Brown" }, spacing = 1.8f, lookHeight = 0.4f,
                          camScale = 0.5f },
             new Animal { name = "Chicken", coats = new[] { "", "_White", "_Black" }, scale = new Vector2(0.9f, 1.1f),
                          spacing = 0.6f, lookHeight = 0.2f, camScale = 0.25f },
