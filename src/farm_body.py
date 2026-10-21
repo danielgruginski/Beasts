@@ -118,6 +118,7 @@ class Hoofed:
     HOOF = 'cloven'                     # or 'solid' (the horse)
     HOOF_K = 1.0                        # the hooves' size x this (D)
     DEWCLAWS = True
+    HOOF_UP, HOOF_CAPS = (0, 0, 1), (0.5, 0.5)     # the hoof lofts' up and end caps (a vertical hoof: (0, -1, 0))
 
     # bones (D)
     HIPS = ((0, 0.44, 1.000), (0, 0.70, 0.975))
@@ -505,8 +506,8 @@ class Hoofed:
         for s in (1, -1):
             for kind in ('F', 'H'):
                 for R in self.hoof_rows(kind, s):
-                    claws += loft(bm, R, up=(0, 0, 1), seg=6 if self.HOOF == 'cloven' else 10, per_seg=1, cap0=0.5,
-                                  cap1=0.5, capk=1, shape=0.8)
+                    claws += loft(bm, R, up=self.HOOF_UP, seg=6 if self.HOOF == 'cloven' else 10, per_seg=1,
+                                  cap0=self.HOOF_CAPS[0], cap1=self.HOOF_CAPS[1], capk=1, shape=0.8)
                 if self.DEWCLAWS:
                     for base, tip in self.dewclaws(kind, s):
                         claws += cone(bm, base, tip, 0.008 * self.HOOF_K, seg=4)

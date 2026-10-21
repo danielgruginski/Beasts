@@ -386,8 +386,18 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     box, a heavy jaw), the horse a wedge-shaped face with facial crests, a soft muzzle and a tucked chin, the pig a
     much shorter snout (`KH` y 0.85), and all three a **jawline** volume that wraps the jaw's back half in skin, so
     only the mouth at the front shows. `farm_run ... body heads nosave` renders the bare head fast for such work.
+    Then "the horse still needs serious improvements": rebuilt on horse proportions instead of the deer's tables (a
+    plain 1.2x warp, KY 1.08: body length = withers height; the girth at half the height, knee 0.28, hock 0.32,
+    fetlock 0.12 of it): high withers, a deep girth tucking up into the flank, round croup and buttocks, breast
+    muscles, a deep crested neck, muscled forearms and gaskins, flat knees, thick cannons, knobby fetlocks, short
+    pasterns, vertical flared hooves (`HOOF_UP`, `HOOF_CAPS`, `Horse.hoof_rows`). The mane is now a fused crest
+    painted as hair falling right (`Horse.mane_mask`) with a painted forelock: the separate blade floated over the crest
+    from behind. Grazing reaches down from the neck's base with the neck nearly straight (`GRAZE` searched on the
+    mesh's lowest point: the deer's bends folded the thick neck into a U); the croup rides on the spine
+    (`COAT_ON_TRUNK`; the thigh heaved it up in the stride). Hind stump rows must line up with the lower leg's first
+    row (a 3 cm offset made a step at the gaskin). 5.2k tris.
     Still my calls, not reviewed: the coats, the horned cow, the leggy half-wild pig, a hen (no rooster).
-  - The horse has no saddle socket or rider clips; its forelock reads as a small dark wedge between the eyes.
+  - The horse has no saddle socket or rider clips (`Socket_Back` sits over the saddle's place).
   - Young ones (lamb, kid, calf, foal, piglet, chicks) would be scaled copies with a bigger head (`KH`).
 
 - **Gameplay:** nothing listens to the events yet (Bite damage, Howl sound). The wolves don't turn toward a
