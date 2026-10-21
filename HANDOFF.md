@@ -385,8 +385,9 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     runs B so neighbours drift apart. 40 animals placed: Hamlet 12, Saltmere_Farms 10, ShepherdDowns 9, Greywall 3,
     MonasteryRoad 1, OrcHold 5 (the 19 loose kit props swapped in place, 21 where the kit's pens and yards held them),
     and the 21 pen ones written into the layouts (Tools~ `*_layout.py` + JSON, "z" = the old floor height) so a level
-    rebuild keeps them. Built by RunCommand, not in FarmSetup.cs yet (adding it means a recompile: wait for a free
-    editor). The kit lost its animals in MedievalVillageKit d89bbb0 (HANDOFF 138). Not play-tested.
+    rebuild keeps them. Game-side builder: MedievalSetting `Assets/Game/Farm/Editor/FarmLivestock.cs` (Game > Farm >
+    Rebuild Livestock; refills the controllers and updates the prefabs in place, so the placed instances keep their
+    overrides; re-run it after Rebuild Farm Animals to pick up new coats). The kit lost its animals in MedievalVillageKit d89bbb0 (HANDOFF 138). Not play-tested.
   - Daniel's first look (2026-10-20, in Farm_Test): "Goat is awesome actually"; the pig's snout too long, the cow's
     and the horse's snouts weird. Reshaped the same day: the deer's tapering muzzle with its thin separate jaw read as
     a beak with a bar under it on the bigger heads. Now the cow has a broad, deep, blunt muzzle (`HEAD_CAP`, a muzzle
