@@ -418,6 +418,16 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     with the head steeper, belly skin between the forelegs fell inside it and was pulled down with the head while
     grazing (`Horse.jaw_weight` is bounded below the mouth line and behind the chin now). Grazing re-searched on the
     mesh's lowest point (`GRAZE` (-55, -12, -10), 68).
+    Then a **normal map** (Daniel: "give the horse a normal map ... like the warg's"): `Hoofed.relief(ctx)` returns a
+    per-texel height that `farm_paint.build_texture` turns into `T_<Name>_Normal` (`beast_paint.write_normal_map`,
+    `RELIEF_STRENGTH`); FarmSetup adds it to every coat when the file exists. `Horse.relief`: the jowl's raised disc
+    and soft rim (`JOWL`, shared with its volume and painted shadow), the nostrils' hollows and rims, the eyelids and
+    brow, the jugular groove and the muscle above it, the crest's muscle, the shoulder blade, the triceps line, the
+    neck-shoulder groove, the chest's division, the hamstring line (the body's forms doubled: fewer texels there).
+    Gotchas: a relief mask that switches on with a hard step draws a crack (smoothstep everything); URP shows the
+    relief harder than EEVEE (a hard jowl rim read as an ear-muff in Unity: check there, e.g. a preview-scene render
+    to `Logs/FarmSetup/Horse/unity_head_*.png`). Daniel also noticed the **ears floating**: `EAR_BASE_H` was set for
+    the old head angle and sat 2.5 cm above the skull; it is on the poll's top sides now, its base just inside.
     Still my calls, not reviewed: the coats, the horned cow, the leggy half-wild pig, a hen (no rooster).
   - The horse has no saddle socket or rider clips (`Socket_Back` sits over the saddle's place).
   - Young ones (lamb, kid, calf, foal, piglet, chicks) would be scaled copies with a bigger head (`KH`).

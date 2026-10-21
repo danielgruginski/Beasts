@@ -217,7 +217,12 @@ def paint(D, sp, variant):
     out[idx] = np.clip(shaded, 0, 1)
     sm = np.zeros(H * Wd)
     sm[idx] = np.clip(smooth, 0, 1)
-    return out.reshape(H, Wd, 3), sm.reshape(H, Wd)
+    hgt = sp.relief(ctx)                               # the species' relief for a normal map (or None)
+    if hgt is not None:
+        hh = np.zeros(H * Wd)
+        hh[idx] = hgt
+        hgt = hh.reshape(H, Wd)
+    return out.reshape(H, Wd, 3), sm.reshape(H, Wd), hgt
 
 
 def horns(sp, ctx, col, smooth, ridges=14, root_dark=0.3, tip_from=0.65):
@@ -256,14 +261,20 @@ def patches(P, seed, scale=2.2, thresh=0.0, soft=0.06, warp=0.35):
 
 
 def build_texture(sp, ob, size=1024, variants=None):
-    """T_<Name>.png for the first coat, T_<Name>_<Coat>.png for the others; the material M_<Name>."""
+    """T_<Name>.png for the first coat, T_<Name>_<Coat>.png for the others; the material M_<Name>; with a species
+    relief (sp.relief), one normal map for all coats, T_<Name>_Normal.png (the warg's way)."""
     D = bake_data(ob, size=size, ao_dist=0.25 * sp.KB)
     paths = []
     names = variants or list(sp.COATS)
+    nrm = None
     for i, v in enumerate(names):
-        col, smooth = paint(D, sp, v)
+        col, smooth, hgt = paint(D, sp, v)
+        if i == 0 and hgt is not None:
+            p, nrm = BP.write_normal_map(D, hgt, f"T_{sp.NAME}_Normal", strength=sp.RELIEF_STRENGTH)
+            paths.append(p)
         name = f"T_{sp.NAME}" if i == 0 else f"T_{sp.NAME}_{v.title()}"
-        paths.append(write_texture(D, col, smooth, name, ob if i == 0 else None, f"M_{sp.NAME}"))
+        paths.append(write_texture(D, col, smooth, name, ob if i == 0 else None, f"M_{sp.NAME}",
+                                   normal=nrm if i == 0 else None))
     import deer_paint
     deer_paint.matte(bpy.data.materials[f"M_{sp.NAME}"])
     return paths, float(D['valid'].mean())

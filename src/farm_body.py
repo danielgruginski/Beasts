@@ -688,6 +688,12 @@ class Hoofed:
     def paint_pieces(self, ctx, col, smooth):
         return col, smooth
 
+    RELIEF_STRENGTH = 4.0
+
+    def relief(self, ctx):
+        """Species: a per-texel height (ctx from farm_paint.paint) for a normal map, or None."""
+        return None
+
     def wool_mask(self, P):
         return np.zeros(len(P))
 

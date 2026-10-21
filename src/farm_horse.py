@@ -42,14 +42,16 @@ class Horse(farm_body.Hoofed):
     HEAD_LEN = 0.39
     EYE0_H = (0.086, -0.108, 0.010)            # high, at the head's widest, under a bony brow
     EYE_N_H = (0.86, -0.30, 0.30)
-    EYE_R = 0.037
+    EYE_R = 0.034
+    JOWL = (-0.055, -0.128, 0.092)            # (y, z, radius) head space: the jowl's disc, its top below the eye
     EYE_AXIS = (0.0, 1.0, 0.20)
     EYE_LONG, EYE_SHORT = 1.05, 0.92
     EYE_INSET, EYE_DOME = 0.004, 0.011       # large, set into the head, not a bulging dome
     EYE_RING = 0.35                           # a thin lid line, not the deer's dark ring
     NOSE_C, NOSE_R = (0.0, -0.30, -0.06), (0.001, 0.001, 0.001)   # no nose pad: a horse has a soft muzzle
     NOSTRIL_H = (0.031, -0.364, -0.036)       # the nostrils (left), on the muzzle's front corners
-    EAR_BASE_H = (0.042, 0.004, 0.056)
+    EAR_BASE_H = (0.040, -0.012, 0.030)       # on the skull's top sides at the poll, the base just inside it
+                                              # (set for the old head angle they floated 2.5 cm above it)
     EAR_DIR = (0.10, 0.06, 0.99)              # small, upright, close together
     EAR_LEN = 0.13
     EAR_PROFILE = ((0.0, 0.034, 0.026), (0.35, 0.044, 0.030), (0.70, 0.030, 0.020), (0.94, 0.008, 0.006))
@@ -115,7 +117,7 @@ class Horse(farm_body.Hoofed):
     HEAD_CAP = 0.45
     HEAD_BLOBS = [((0, -0.060, 0.004), (0.086, 0.095, 0.052), False),            # the cranium, a flat forehead
                   ((0, 0.010, -0.090), (0.040, 0.050, 0.040), False),            # the throatlatch, narrow
-                  ((0.066, -0.050, -0.110), (0.042, 0.104, 0.104), True),        # the jowl: a big round disc, standing out
+                  ((0.066, -0.055, -0.128), (0.042, 0.092, 0.092), True),        # the jowl: a big round disc, standing out
                   ((0.036, -0.352, -0.032), (0.022, 0.030, 0.026), True),        # the nostril's flared rim
                   ((0.026, -0.372, -0.078), (0.028, 0.034, 0.024), True)]        # the rounded upper lip
     HINGE_H = (0.0, -0.07, -0.112)
@@ -205,6 +207,78 @@ class Horse(farm_body.Hoofed):
     }
     MISC = dict(hoof='#2a2420', hoof_light='#5a5048', ear_in='#3a2e26')
 
+    # ------------------------------------------------------------------ relief (a normal map, T_Horse_Normal)
+    RELIEF_STRENGTH = 5.0
+
+    @staticmethod
+    def _seg_dist(P, pts):
+        """Distance from P to a polyline through pts (left side: P's x should be |x|)."""
+        d = np.full(len(P), 1e9)
+        for a, b in zip(pts[:-1], pts[1:]):
+            a, b = np.asarray(a, float), np.asarray(b, float)
+            ab = b - a
+            u = np.clip(((P - a) @ ab) / (ab @ ab), 0, 1)
+            d = np.minimum(d, np.linalg.norm(P - (a + np.outer(u, ab)), axis=1))
+        return d
+
+    def relief(self, ctx):
+        """The forms a sculpt would carry: the jowl's raised disc and its rim, the nostrils' hollows and flared rims,
+        the eyelids and the brow, the neck's crest muscle and jugular groove, the shoulder blade, the triceps' back
+        edge, the chest's division and the hamstring line. Heights roughly -1..1 (D units, tens of mm wide)."""
+        P, N, furp = ctx['P'], ctx['N'], ctx['furp'] | ctx['legp']
+        x, y, z = P[:, 0], P[:, 1], P[:, 2]
+        Pm = np.stack([np.abs(x), y, z], -1)
+        hx, hy, hz = np.abs(ctx['hx']), ctx['hy'], ctx['hz']
+        h = np.zeros(len(P))
+        # the jowl: a raised round disc with a groove round its edge, on the sides of the head
+        jy, jz, jrad = self.JOWL
+        jr = np.sqrt(((hy - jy) / jrad) ** 2 + ((hz - jz) / jrad) ** 2)
+        side = smoothstep(0.03, 0.06, hx) * smoothstep(0.30, 0.20, -hy)
+        h += side * (0.40 * smoothstep(1.00, 0.65, jr) - 0.45 * np.exp(-((jr - 1.03) / 0.09) ** 2))   # (in URP a
+                                                                                                    # harder rim read
+                                                                                                    # as an ear-muff)
+        # the nostrils: deep hollows, the flared rim round them
+        nx, ny, nz = self.NOSTRIL_H
+        dn = np.sqrt(((hx - nx) / 0.012) ** 2 + ((hy - ny) / 0.016) ** 2 + ((hz - nz) / 0.020) ** 2)
+        h += -1.2 * np.exp(-dn ** 2) + 0.45 * np.exp(-((dn - 1.7) / 0.5) ** 2)
+        # the eyes: a raised lid ring, the brow's ridge above, a soft hollow above the brow
+        for sfx in ('L', 'R'):
+            c = np.array(ctx['D']['eyes']['eye_' + sfx])
+            d = np.linalg.norm(P - c, axis=1) / self.EYE_R
+            on = (x > 0) if sfx == 'L' else (x <= 0)
+            above = np.clip((P - c) @ np.array(self.hx_dir((0.0, 0.3, 1.0))), 0, None) / self.EYE_R
+            h += on * (0.6 * np.exp(-((d - 1.18) / 0.16) ** 2) + 0.35 * np.exp(-((d - 1.7) / 0.35) ** 2) *
+                       smoothstep(0.2, 0.9, above) - 0.3 * np.exp(-((d - 2.6) / 0.5) ** 2) * smoothstep(0.5, 1.5, above))
+        # the neck: the jugular groove low on its side and the muscle above it, from behind the jowl to the chest
+        rows = [r for r in self.NECK]
+        jug = [(r[3] * 0.62, r[1] + 0.02, r[2] - r[5] * 0.45) for r in rows]
+        dj = self._seg_dist(Pm, jug)
+        zj = np.interp(-y, [-p[1] for p in jug], [p[2] for p in jug])
+        body = np.zeros(len(P))                    # the body's forms, doubled below (fewer texels than the head)
+        body += -0.7 * np.exp(-(dj / 0.020) ** 2) + 0.35 * np.exp(-((dj - 0.050) / 0.025) ** 2) *             smoothstep(-0.01, 0.02, z - zj)          # (a hard step here drew a crack across the neck)
+        # the crest's muscle: a raised band just under the mane on both sides
+        cr = self.crest_line(16, 0.85)
+        dc = self._seg_dist(Pm, [(abs(p[0]) + 0.06, p[1], p[2] - 0.03) for p in cr])
+        body += 0.35 * np.exp(-(dc / 0.035) ** 2)
+        # the shoulder blade: a raised plate from the withers down to the point of the shoulder, its back edge (the
+        # triceps line) grooved down to the elbow, a groove where the neck meets its front edge
+        J = self.J
+        a, b = np.array(J['SCAP']) + np.array((0.06, 0, 0)), np.array(J['SHO']) + np.array((0.02, 0.05, 0.05))
+        ab = b - a
+        u = np.clip(((Pm - a) @ ab) / (ab @ ab), 0, 1)
+        dsc = np.linalg.norm(Pm - (a + np.outer(u, ab)), axis=1)
+        body += 0.45 * smoothstep(0.075, 0.04, dsc) * smoothstep(0.10, 0.13, np.abs(x))
+        tri = [(0.18, -0.33, 1.02), (0.19, -0.37, 0.84), (0.17, -0.40, 0.68)]
+        body += -0.6 * np.exp(-(self._seg_dist(Pm, tri) / 0.018) ** 2)
+        front = [(0.14, -0.44, 1.12), (0.17, -0.56, 0.96), (0.17, -0.66, 0.80)]
+        body += -0.45 * np.exp(-(self._seg_dist(Pm, front) / 0.020) ** 2)
+        # the chest's division between the two breast muscles; the hamstring line down the back of the thigh
+        body += -0.5 * np.exp(-(x / 0.014) ** 2) * smoothstep(-0.58, -0.64, y) * smoothstep(0.62, 0.70, z) *             smoothstep(0.95, 0.88, z)
+        ham = [(0.15, 0.62, 0.98), (0.17, 0.60, 0.80), (0.15, 0.53, 0.62)]
+        body += -0.5 * np.exp(-(self._seg_dist(Pm, ham) / 0.020) ** 2)
+        head = smoothstep(0.10, 0.0, hy) * smoothstep(-0.30, -0.24, hz)   # (the head's own forms stay as they are)
+        return (h + 2.0 * body * (1 - head)) * furp
+
     def coat_pattern(self, ctx, col):
         C, P, z, y = ctx['C'], ctx['P'], ctx['z'], ctx['y']
         if 'dapple' in C:                      # dapple grey: a dark net round paler spots, fading on the legs
@@ -235,7 +309,8 @@ class Horse(farm_body.Hoofed):
         nx, ny, nz = self.NOSTRIL_H
         nos = np.exp(-(((hx - nx) / 0.012) ** 2 + ((hy - ny) / 0.016) ** 2 + ((hz - nz) / 0.020) ** 2))
         fcol = _mix(fcol, C['muzzle'] * 0.45, smoothstep(0.25, 0.7, nos))          # the nostrils, dark openings
-        jr = np.sqrt(((hy + 0.050) / 0.104) ** 2 + ((hz + 0.110) / 0.104) ** 2)       # the jowl's round edge:
+        jy, jz, jrad = self.JOWL
+        jr = np.sqrt(((hy - jy) / jrad) ** 2 + ((hz - jz) / jrad) ** 2)              # the jowl's round edge:
         fcol = _mix(fcol, C['muzzle'], 0.30 * smoothstep(0.80, 0.95, jr) * smoothstep(1.12, 0.97, jr) *   # a soft
                     smoothstep(0.03, 0.06, hx))                                                          # shadow
         lips = smoothstep(-0.086, -0.096, hz) * smoothstep(-0.30, -0.34, hy)

@@ -16,7 +16,8 @@ namespace Beasts.EditorTools
     ///   &lt;Name&gt;.fbx             Generic rig, avatar from this model, Motion = root-motion node, sockets kept
     ///   Anims/&lt;Name&gt;@*.fbx      one clip each; loop flags, root motion and events (Bite on the goat's butt, Dead) from
     ///                          Anims/&lt;name&gt;_clips.json
-    ///   Materials              M_&lt;Name&gt; and one per extra coat (M_Goat_White ...); smoothness from the alpha
+    ///   Materials              M_&lt;Name&gt; and one per extra coat (M_Goat_White ...); smoothness from the alpha; a
+    ///                          normal map T_&lt;Name&gt;_Normal on every coat when there is one (the horse)
     ///   Prefabs/&lt;Name&gt;        Animator + BeastAppearance (coats, size) + BeastEvents
     ///   Animation/&lt;Name&gt;Anims clip pools for BeastRandomAnimator (mostly grazing; Alert after grazing; Sleep -> Wake)
     /// Only the animals whose model is imported are built. Then the test scene (<see cref="FarmTestScene"/>) and
@@ -129,12 +130,15 @@ namespace Beasts.EditorTools
                 {
                     if (!File.Exists(a.ModelPath) || (only != null && only.Length > 0 && !only.Contains(a.name))) continue;
                     var skins = new List<Material>();
+                    var normal = $"{Textures}/T_{a.name}_Normal.png";      // one relief for all coats (the horse)
                     foreach (var c in a.coats)
                     {
                         var tex = $"{Textures}/T_{a.name}{c}.png";
                         if (!File.Exists(tex)) continue;
                         ConfigureSmoothnessTexture(tex);
-                        skins.Add(MakeLit($"M_{a.name}{c}", tex, Color.white));
+                        var mat = MakeLit($"M_{a.name}{c}", tex, Color.white);
+                        if (File.Exists(normal)) AddNormalMap(mat, normal);
+                        skins.Add(mat);
                     }
                     var (avatar, motionPath, model) = ConfigureModel(a.ModelPath, new[] { ($"M_{a.name}", skins[0]) }, log);
                     var clips = ConfigureClips(a.name, $"{Anims}/{a.name.ToLowerInvariant()}_clips.json", avatar,

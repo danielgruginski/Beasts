@@ -188,7 +188,8 @@ def coat_shots(sp, cam="34", res=700):
     """The bind pose rendered once per coat (the material's image swapped): renders/<name>_coat_<coat>.png."""
     setup_scene(sp)
     m = bpy.data.materials[f"M_{sp.NAME}"]
-    tex = next(n for n in m.node_tree.nodes if n.type == 'TEX_IMAGE')
+    tex = next(n for n in m.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image is not None and
+               not n.image.name.endswith("_Normal"))
     first = tex.image
     eng = bpy.context.scene.render.engine
     paths = []
