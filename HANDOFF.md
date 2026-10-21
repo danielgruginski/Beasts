@@ -376,8 +376,8 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
 ## Open / next
 
 - **Farm animals:**
-  - **In the game (2026-10-21, the user: "place those on the game and remove the placeholder animal props"; his
-    picks: ambient in place, the game's layouts place them).** MedievalSetting `Assets/Game/Farm/`: `Animal_Goat/
+  - **In the game (2026-10-21, the user: "place those on the game and remove the placeholder animal props"; the
+    user picked ambient in place, the game's layouts placing them).** MedievalSetting `Assets/Game/Farm/`: `Animal_Goat/
     Sheep/Cow/Horse/Pig.prefab` (the Beasts prefab unpacked, an `AC_<Animal>_AmbientA/B` controller, no root motion,
     cull-update, a BoxCollider at 85% of the mesh so the sheep stay shearable through `GatherDef.prop`
     "Animal_Sheep") and `Animal_Chickens.prefab` (five hens, A/B alternating, no collider). The controllers chain
