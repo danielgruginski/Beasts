@@ -304,6 +304,69 @@ checks.
     - Unity preview-scene checks of Humanoid riders need `cullingMode = AlwaysAnimate` + `Rebind()` before a graph
       evaluates (nothing sees a preview scene).
 
+- **Farm animals (2026-10-20):** Daniel decided the farm animals leave the Medieval Village Kit (its blocky static
+  `SM_VK_Animal_*` looked like toys next to the beasts) and come here: goat, sheep, cow, horse, pig, chicken. His rule
+  applies: a creature like an approved one starts from its finished parts, so the five hoofed ones are the red deer.
+  - **Built headless, one file each:** the live Blender had the kit's unsaved diorama open, so every farm animal is
+    built in a background Blender into its own `blender/farm_<name>.blend` (scene named after it; a background
+    Blender has no window and can't switch scenes):
+    `blender.exe -b --factory-startup --python tools/farm_run.py -- goat build review coats clips lowest sheets export`
+    (or `-b blender/farm_goat.blend ... -- goat clips sheets export` for the clips alone). About a minute an animal.
+  - **`farm_body.Hoofed`** is `deer_body` as a class. Every table and mask is in *deer units* (D); a species
+    (`farm_goat.Goat`, `farm_sheep`, `farm_cow`, `farm_horse`, `farm_pig`) overrides the deer's tables there and
+    sets the warp to its real size (R): `W()` scales x by KX, y by KY, the legs below `ZB` by KL and the body by KB
+    (blended), applied at the very end of the build and to the bones; `W_inv()` takes positions back for the rig's
+    masks, the UV cuts and the painter. The head is modelled in head space and scaled by `KH` before it is hung. Hooks:
+    `extra_parts` (fused volumes), `extra_head_parts`, `extra_pieces` (shells), `skin_extra`, `coat_pattern`,
+    `face_pattern`, `paint_pieces`, `wool_mask`; settings for horns (`HORN_BASE_H`, `HORN`), a clean tail tube
+    (`TAIL_TUBE`), solid hooves, the fleece riding on the spine (`COAT_ON_TRUNK`), clip shapes (`GRAZE`, `RUN`, ...).
+  - `farm_rig` (deer_rig's skinning; `copy_nearest_skin` for shells lying on the skin), `farm_paint` (deer_paint's
+    painter with palettes per coat, bar / oval / round pupils, sleek / wool / bristle coats, `horns`, `patches`, and
+    `uv_png`: a UV layout drawn without the GPU, since `uv.export_layout` fails headless), `farm_anim` (deer_anim's
+    clips scaled: trunk by KB, feet and strides by KL, cadence by sqrt(KL); `Call` added; `Attack` only for the goat's
+    butt), `farm_build` (scene, cameras sized to the animal, renders, sheets, `lowest`, export, `coat_shots`).
+  - **The hen** is new (no approved bird): `chicken_body` (fused body + shells: beak, comb and wattles as part
+    `whisker`, wings `hair`, tail, shanks and toes `claw`; 23 bones with the beasts' Root / Motion / sockets and leg
+    names), `chicken_anim` (its own small pose system on `beast_rig.apply_pose`: the foot is placed, the shank tilted,
+    thigh and drumstick reach the ankle by two-bone IK with the knee forward; the walk's head holds still and thrusts),
+    `chicken_paint` (feather scallops, red comb and face), `chicken_build` (farm_run picks it for `chicken`).
+  - **Results** (tris; coats; clips; root speeds in Unity):
+    - goat 4.6k; chamois / white / pied; 12 clips (with Attack); walk 0.84, run 6.0 m/s;
+    - sheep 4.6k (a fused fleece with staple lumps and curls); white / black / grey; 11; walk 0.75, run 5.5;
+    - cow 5.6k (dewlap, hook and pin bones, horns, udder shell, tail tube with a switch); brown / red / pied; 11;
+      walk 0.84, run 5.1;
+    - horse 5.1k (mane blade from the neck's crest line, forelock, hair tail tube, solid hooves); bay / chestnut /
+      grey / black; 11; walk 1.19, run 9.0;
+    - pig 4.7k (snout disc, bristle crest seated by rays, curled tail tube); pink / saddleback / black / brown; 11;
+      walk 0.78, run 4.8;
+    - hen 2.1k; brown / white / black; 12 (Idle, Peck, Scratch, Alert, Call, Walk, Run, Flap, Hit, Death, Sleep,
+      Wake); walk 0.30, run 1.65.
+    Lowest vertex per clip within 3 cm, except the dead cow's ear and hooves (5 cm) and the lying sheep's fleece.
+  - **Unity:** `FarmSetup.cs` (Tools > Beasts > Rebuild Farm Animals: every imported farm animal, `FarmSetup.All`
+    lists their coats, pools for BeastRandomAnimator, mostly grazing) and `FarmTestScene.cs` (`Scenes/Farm_Test`,
+    small groups on their own patches, goblins for scale). Installed in MedievalSetting on 2026-10-20 (assets, then
+    scripts; setup run with RunCommand; reports and renders in `Logs/FarmSetup`): avatars valid, every moving clip
+    `dir=(0,0,1)`. Not checked in to Plastic, not placed in the game yet.
+  - **Gotchas:**
+    - **Never build an existing beast in a scratch file:** a test deer build in an empty file rewrote
+      `textures/T_Deer.png` at 512; it was restored from `export/Textures` (identical to the Unity copy).
+    - **The leg graft left holes** where cutting the stump opened a second boundary loop or the zip doubled a face
+      onto an edge (the goat had 9 open edges at the hind legs, the cow 26 round its udder). `Hoofed._rim` follows
+      whole loops and fills the stray ones; doubled faces are dropped and refilled. `deer_body._graft_legs` has the
+      same weakness and was left alone (the deer is approved; check its boundary edges before rebuilding it).
+    - **`beast_body.ellipsoid` shells break the heat solve** (the poles are made for the voxel fuse): an udder shell
+      left 1,264 vertices unweighted. Separate shells are lofts.
+    - **A shallow decimation crease** survived the deer's 55 degree relax on the cow's back and the warp opened it into
+      a crack: `CREASE_DEG` per species (cow 35, horse and pig 40).
+    - **Thin tails decimate into strips** (the mammoth's trunk lesson): the cow, horse and pig tails are `TAIL_TUBE`s
+      skinned along the tail bones.
+    - **The neck's crest is not z + radius:** its rings tilt with the rising neck, so a mane placed that way sat
+      inside the neck. `crest_line()` walks the loft's own ring tops.
+    - **Hanging tails turn with the trunk:** a grazing horse's tail swung up behind it. `TAIL_HANGS` adds the trunk's
+      pitch back on Tail1; `TAIL_FLOOR` drags tails lying on the ground.
+    - A fleece over the leg tops must ride on the spine (`COAT_ON_TRUNK`), but only near the legs' axes and never the
+      grafted lower legs (they stretched into boots, and the belly sagged with the stride).
+
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
 
@@ -311,6 +374,15 @@ Repo: github.com/danielgruginski/Beasts (`main`; public since 2026-10-06, CC0, f
 exports, the textures and the renders are regenerated (see `.gitignore`). Commit and push each piece of work as soon as it is finished and checked (Daniel, 2026-10-12).
 
 ## Open / next
+
+- **Farm animals:**
+  - Game side (not this repo; ask Daniel first, the scenes belong to the game session): swap the game's
+    `SM_VK_Animal_*` placements (Hamlet.unity 9, Saltmere_Farms.unity 7, ShepherdDowns.unity 2, Greywall.unity 1,
+    and entries in `Assets/Game/Resources/KitSeeThroughCaps.asset`) for the new prefabs; only then take the animals out
+    of the kit (`vk_mod_humble.py` farmsteads, `Hovel_Cruck` / `Hovel_Hip`, the package).
+  - Not reviewed by Daniel yet; my calls: the coats, the horned cow, the leggy half-wild pig, a hen (no rooster).
+  - The horse has no saddle socket or rider clips; its forelock reads as a small dark wedge between the eyes.
+  - Young ones (lamb, kid, calf, foal, piglet, chicks) would be scaled copies with a bigger head (`KH`).
 
 - **Gameplay:** nothing listens to the events yet (Bite damage, Howl sound). The wolves don't turn toward a
   target before biting.

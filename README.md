@@ -11,7 +11,12 @@ in Unity (MedievalSetting, `Assets/Beasts`), with shared code in the `beast_*` m
 - the **woolly mammoth**: model, rig with a six-bone trunk, two coats and 12 clips (see [Woolly mammoth](#woolly-mammoth));
 - the **red deer stag** (prey): model, rig, one coat and 11 clips, exported, not yet in Unity (see [Red deer stag](#red-deer-stag));
 - the **dungeon ooze**, an amoeba-like jelly with pseudopods that eats what it finds, adventurers included: model,
-  see-through shell with the remains inside, rig and 10 clips, in Unity with its own jelly shader (see [Dungeon ooze](#dungeon-ooze)).
+  see-through shell with the remains inside, rig and 10 clips, in Unity with its own jelly shader (see [Dungeon ooze](#dungeon-ooze));
+- the **farm animals** (2026-10-20): goat, sheep, cow, horse and pig on the red deer's body (`farm_body.Hoofed`, one
+  class warped to each animal) and a hen on a bird rig of her own; 3-4 coats and 11-12 clips each, in Unity through
+  `FarmSetup.cs` and `Scenes/Farm_Test`. Built headless into `blender/farm_<name>.blend`:
+  `blender.exe -b --factory-startup --python tools/farm_run.py -- goat build review coats clips lowest sheets export`
+  (see HANDOFF.md, "Farm animals").
 
 ![The wolf in the bind pose](docs/images/wolf_34.png)
 
@@ -80,6 +85,8 @@ the UVs. Always export after a rebuild, so the FBX and the textures in `textures
 | `wolf_anim.py` | Clips keyed from computed bone matrices: trunk/spine/neck/tail bends, 2-bone leg IK + pastern/hock angle, gaits |
 | `rat_body.py`, `rat_rig.py`, `rat_paint.py`, `rat_anim.py`, `rat_build.py` | The same for the giant rat; the tail is a separate ringed shell weighted along its length |
 | `rhino_*.py`, `bear_*.py`, `mammoth_*.py`, `deer_*.py` | The same for the woolly rhino, the cave bear, the woolly mammoth and the red deer (body, rig, paint, anim, build) |
+| `farm_body.py`, `farm_rig.py`, `farm_paint.py`, `farm_anim.py`, `farm_build.py`, `farm_goat.py` ... `farm_pig.py` | The hoofed farm animals: the deer's recipe as a class in deer units, warped to each species; skinning, painter, clips and builds shared; one species module each |
+| `chicken_body.py`, `chicken_anim.py`, `chicken_paint.py`, `chicken_build.py` | The hen: bird body and rig, her own pose system (shank tilt + two-bone leg IK), plumage, build |
 | `ooze_body.py`, `ooze_contents.py`, `ooze_paint.py`, `ooze_rig.py`, `ooze_anim.py`, `ooze_scene.py`, `ooze_build.py` | The dungeon ooze: a distance-field shell meshed with openvdb, the contents, charted UVs and per-texel paint without Cycles bakes, the rig, the clips and their checks, EEVEE review renders (see [Dungeon ooze](#dungeon-ooze)) |
 | `beast_coat.py` | Long coats: coat volumes (lofts), hem fringes snapped to their volume or dropped onto the body, clumps, the hair's root-to-tip `t` |
 | `beast_body.py` | Mesh helpers and the body pipeline: `fuse_body` (voxel fuse, fillet, sculpts, decimate, edge flips, fold relaxing), `build_tufts`, `sculpt_fur`, `join_pieces` |
