@@ -23,7 +23,6 @@ class Horse(farm_body.Hoofed):
     # in deer units: body length = withers height, the girth at half of it, knee 0.28, hock 0.32, fetlock 0.12.
     KX, KY, KL, KB = 1.20, 1.08, 1.20, 1.20                 # y shorter: body length = withers height
     KH = (0.92, 1.16, 1.12)
-    HEAD_CAP = 0.35
     VOXEL, BODY_TRIS = 0.006, 3400
     CREASE_DEG = 40
 
@@ -40,12 +39,13 @@ class Horse(farm_body.Hoofed):
     POLL = (0.0, -0.94, 1.47)
     HEAD_PITCH = 52.0
     HEAD_LEN = 0.45
-    EYE0_H = (0.084, -0.115, -0.006)
+    EYE0_H = (0.084, -0.118, 0.008)            # high, at the head's widest, under a bony brow
     EYE_N_H = (0.86, -0.30, 0.30)
     EYE_R = 0.030
     EYE_AXIS = (0.0, 1.0, 0.20)
-    NOSE_C, NOSE_R = (0.0, -0.452, -0.092), (0.058, 0.030, 0.050)
-    EAR_BASE_H = (0.046, -0.004, 0.052)
+    NOSE_C, NOSE_R = (0.0, -0.30, -0.06), (0.001, 0.001, 0.001)   # no nose pad: a horse has a soft muzzle
+    NOSTRIL_H = (0.034, -0.418, -0.048)       # the nostrils (left), on the muzzle's front corners
+    EAR_BASE_H = (0.044, 0.000, 0.052)
     EAR_DIR = (0.22, 0.10, 0.97)              # upright, a little out
     EAR_LEN = 0.16
     EAR_PROFILE = ((0.0, 0.032, 0.024), (0.35, 0.042, 0.028), (0.70, 0.032, 0.022), (0.92, 0.012, 0.010))
@@ -99,22 +99,38 @@ class Horse(farm_body.Hoofed):
         return [[(x, y0 - 0.004, 0.075, 0.040, 0.046, 0.036), (x, y0 - 0.012, 0.040, 0.050, 0.060, 0.044),
                  (x, y0 - 0.016, 0.006, 0.054, 0.066, 0.046)]]
 
-    HEAD_ROWS = [(0.03, -0.050, 0.072, 0.064, 0.100), (-0.05, -0.045, 0.086, 0.082, 0.115),    # wide jowls and
-                 (-0.13, -0.050, 0.080, 0.072, 0.096), (-0.22, -0.058, 0.072, 0.062, 0.086),   # forehead, the face
-                 (-0.31, -0.065, 0.066, 0.055, 0.080), (-0.38, -0.070, 0.063, 0.052, 0.077),   # a wedge tapering
-                 (-0.43, -0.074, 0.060, 0.050, 0.072)]                                         # evenly to the muzzle
+    # The head as a wedge (head space): deepest at the big flat cheek, a straight face line, tapering to a smaller
+    # soft muzzle; the bottom line climbs from the cheek's round edge to the lips. (y, top, bottom, half width)
+    HEAD_PROFILE = [(0.03, 0.055, -0.120, 0.068), (-0.05, 0.052, -0.162, 0.090), (-0.13, 0.040, -0.152, 0.080),
+                    (-0.22, 0.022, -0.124, 0.062), (-0.31, 0.004, -0.110, 0.054), (-0.38, -0.010, -0.112, 0.056),
+                    (-0.43, -0.020, -0.116, 0.052)]
+    HEAD_ROWS = [(y, (t + b) / 2, w, (t - b) / 2, (t - b) / 2) for y, t, b, w in HEAD_PROFILE]
     HEAD_SHAPE = 0.85
-    HEAD_BLOBS = [((0, -0.05, 0.010), (0.082, 0.090, 0.070), False),             # the cranium
-                  ('nose', None, False),
-                  ((0, -0.03, -0.125), (0.056, 0.080, 0.066), False),            # throat latch
-                  ((0.066, -0.122, 0.012), (0.020, 0.034, 0.013), True),         # brow
-                  ((0.066, -0.175, -0.060), (0.022, 0.085, 0.030), True),        # the facial crest under the eye
-                  ((0.062, -0.090, -0.100), (0.050, 0.090, 0.070), True),        # the jowl (the big cheek)
-                  ((0.044, -0.220, -0.128), (0.036, 0.080, 0.040), True),        # ... to the mouth's corner
-                  ((0.030, -0.412, -0.146), (0.030, 0.042, 0.026), True),        # the upper lip
-                  ((0.040, -0.240, -0.158), (0.040, 0.130, 0.044), True)]        # the jawline: skin over the jaw's back
-    JAW_H = [(0, -0.10, -0.150, 0.048, 0.032, 0.040), (0, -0.21, -0.158, 0.048, 0.030, 0.034),
-             (0, -0.31, -0.162, 0.050, 0.028, 0.032), (0, -0.38, -0.158, 0.044, 0.024, 0.026)]   # the chin tucked in
+    HEAD_CAP = 0.45
+    HEAD_BLOBS = [((0, -0.060, 0.004), (0.086, 0.095, 0.052), False),            # the cranium, a flat forehead
+                  ((0, 0.000, -0.098), (0.044, 0.060, 0.048), False),            # the throatlatch, narrow
+                  ((0.068, -0.118, 0.022), (0.018, 0.034, 0.012), True),         # the brow over the eye, soft
+                  ((0.064, -0.070, -0.092), (0.034, 0.085, 0.072), True),        # the cheek: a big flat round plate
+                  ((0.066, -0.175, -0.050), (0.020, 0.080, 0.026), True),        # the facial crest under the eye
+                  ((0.040, -0.405, -0.042), (0.024, 0.036, 0.030), True),        # the nostril's rim
+                  ((0.028, -0.418, -0.094), (0.032, 0.040, 0.028), True),        # the rounded upper lip
+                  ((0.040, -0.200, -0.132), (0.040, 0.120, 0.036), True)]        # the jawline: skin over the jaw's back
+    HINGE_H = (0.0, -0.07, -0.112)
+    JAW_H = [(0, -0.10, -0.146, 0.046, 0.030, 0.038), (0, -0.21, -0.134, 0.044, 0.028, 0.030),
+             (0, -0.31, -0.124, 0.042, 0.026, 0.026), (0, -0.40, -0.124, 0.036, 0.026, 0.030)]   # rising, a round chin
+
+    def sculpt_face(self, co, no):
+        """Eye sockets under the brow; the nostrils: deep comma-shaped dents on the muzzle's front corners."""
+        from beast_body import _gauss
+        out = co.copy()
+        H = self.hx_inv(co)
+        Pm = np.stack([np.abs(H[:, 0]), H[:, 1], H[:, 2]], -1)
+        out -= no * (0.008 * _gauss(Pm, self.EYE0_H, (0.022, 0.022, 0.016)))[:, None]
+        nx, ny, nz = self.NOSTRIL_H
+        out -= no * (0.016 * _gauss(Pm, (nx - 0.004, ny, nz), (0.010, 0.014, 0.016)))[:, None]
+        out -= no * (0.008 * _gauss(Pm, (nx + 0.004, ny + 0.012, nz + 0.018), (0.008, 0.012, 0.010)))[:, None]  # its curl
+        return out
+
     MANE = 0.0
     TAIL_HANGS, TAIL_SWING = True, 0.45
     FUR_BASE = 0.0015
@@ -196,6 +212,12 @@ class Horse(farm_body.Hoofed):
             w = 0.022 + 0.018 * smoothstep(-0.15, -0.40, hy)
             blaze = smoothstep(w, w - 0.008, hx) * smoothstep(-0.06, -0.10, hy) * smoothstep(-0.44, -0.40, hy)
             fcol = _mix(fcol, C['blaze'], blaze * smoothstep(-0.02, 0.03, hz + 0.08 * (-hy)))
+        hx, hy, hz = np.abs(ctx['hx']), ctx['hy'], ctx['hz']
+        nx, ny, nz = self.NOSTRIL_H
+        nos = np.exp(-(((hx - nx) / 0.012) ** 2 + ((hy - ny) / 0.016) ** 2 + ((hz - nz) / 0.020) ** 2))
+        fcol = _mix(fcol, C['muzzle'] * 0.45, smoothstep(0.25, 0.7, nos))          # the nostrils, dark openings
+        lips = smoothstep(-0.098, -0.108, hz) * smoothstep(-0.36, -0.40, hy)
+        fcol = _mix(fcol, C['muzzle'] * 0.6, 0.6 * lips)
         fcol = _mix(fcol, self._hair_col(ctx, (0.0, -0.3, -1.0)), ctx['mane'])      # the mane up to the poll
         return _mix(fcol, self._hair_col(ctx, (0.0, -1.0, -0.3)), self.forelock_mask(ctx))
 

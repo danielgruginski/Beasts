@@ -396,6 +396,12 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     mesh's lowest point: the deer's bends folded the thick neck into a U); the croup rides on the spine
     (`COAT_ON_TRUNK`; the thigh heaved it up in the stride). Hind stump rows must line up with the lower leg's first
     row (a 3 cm offset made a step at the gaskin). 5.2k tris.
+    Then "Keep working on the head, it has to look like a horse": the head is a wedge (`HEAD_PROFILE`: top, bottom
+    and width per row): deepest at a big flat round cheek, a straight face line, a smaller soft muzzle, the bottom
+    line climbing from the cheek's edge to the lips, a narrow throatlatch, a flat forehead with the eyes high at the
+    widest point. **No nose pad** (the deer's and wolf's glossy black pad read as a dog's nose): `NOSE_R` tiny and
+    hidden, comma-shaped nostril dents in `Horse.sculpt_face`, the nostrils and lips painted dark in `face_pattern`.
+    A strong brow ridge read as a visor over the eye; it is soft now.
     Still my calls, not reviewed: the coats, the horned cow, the leggy half-wild pig, a hen (no rooster).
   - The horse has no saddle socket or rider clips (`Socket_Back` sits over the saddle's place).
   - Young ones (lamb, kid, calf, foal, piglet, chicks) would be scaled copies with a bigger head (`KH`).
