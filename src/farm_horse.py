@@ -41,14 +41,17 @@ class Horse(farm_body.Hoofed):
     HEAD_LEN = 0.45
     EYE0_H = (0.084, -0.118, 0.008)            # high, at the head's widest, under a bony brow
     EYE_N_H = (0.86, -0.30, 0.30)
-    EYE_R = 0.030
+    EYE_R = 0.034
     EYE_AXIS = (0.0, 1.0, 0.20)
+    EYE_LONG, EYE_SHORT = 1.05, 0.92
+    EYE_INSET, EYE_DOME = 0.005, 0.010       # set into the head, not a bulging dome
+    EYE_RING = 0.35                           # a thin lid line, not the deer's dark ring
     NOSE_C, NOSE_R = (0.0, -0.30, -0.06), (0.001, 0.001, 0.001)   # no nose pad: a horse has a soft muzzle
     NOSTRIL_H = (0.034, -0.418, -0.048)       # the nostrils (left), on the muzzle's front corners
     EAR_BASE_H = (0.044, 0.000, 0.052)
     EAR_DIR = (0.22, 0.10, 0.97)              # upright, a little out
     EAR_LEN = 0.16
-    EAR_PROFILE = ((0.0, 0.032, 0.024), (0.35, 0.042, 0.028), (0.70, 0.032, 0.022), (0.92, 0.012, 0.010))
+    EAR_PROFILE = ((0.0, 0.036, 0.028), (0.35, 0.048, 0.032), (0.70, 0.036, 0.024), (0.92, 0.012, 0.010))
     EAR_FRONT = (0.25, -1.0, 0.0)
     TRUNK_ROWS = [(-0.66, 0.90, 0.140, 0.160, 0.170), (-0.52, 0.92, 0.200, 0.250, 0.280),   # breast, girth: deep
                   (-0.35, 0.93, 0.225, 0.255, 0.290), (-0.12, 0.93, 0.245, 0.240, 0.285),   # a round barrel
@@ -56,8 +59,8 @@ class Horse(farm_body.Hoofed):
                   (0.42, 0.97, 0.235, 0.220, 0.200), (0.56, 0.95, 0.200, 0.205, 0.220),     # croup and buttocks
                   (0.66, 0.92, 0.120, 0.140, 0.150)]
     NECK = [(0, -0.45, 0.98, 0.170, 0.220, 0.280), (0, -0.60, 1.10, 0.150, 0.180, 0.220),   # deep at the base,
-            (0, -0.72, 1.22, 0.135, 0.165, 0.165), (0, -0.82, 1.33, 0.108, 0.130, 0.115),   # a thick crest,
-            (0, -0.89, 1.42, 0.085, 0.095, 0.085)]                                          # a fine throatlatch
+            (0, -0.72, 1.22, 0.135, 0.165, 0.150), (0, -0.82, 1.33, 0.108, 0.130, 0.078),   # a thick crest,
+            (0, -0.89, 1.42, 0.085, 0.095, 0.048)]                      # (the throat narrow under the poll)                                          # a fine throatlatch
     NECK_BONES = [(0, -0.50, 1.060), (0, -0.65, 1.180), (0, -0.78, 1.310)]
     HIPS = ((0, 0.40, 1.000), (0, 0.66, 0.980))
     SPINE = [(0, 0.40, 1.020), (0, 0.10, 1.060), (0, -0.20, 1.080), (0, -0.50, 1.060)]
@@ -108,16 +111,28 @@ class Horse(farm_body.Hoofed):
     HEAD_SHAPE = 0.85
     HEAD_CAP = 0.45
     HEAD_BLOBS = [((0, -0.060, 0.004), (0.086, 0.095, 0.052), False),            # the cranium, a flat forehead
-                  ((0, 0.000, -0.098), (0.044, 0.060, 0.048), False),            # the throatlatch, narrow
+                  ((0, 0.010, -0.090), (0.040, 0.050, 0.040), False),            # the throatlatch, narrow
                   ((0.068, -0.118, 0.022), (0.018, 0.034, 0.012), True),         # the brow over the eye, soft
-                  ((0.064, -0.070, -0.092), (0.034, 0.085, 0.072), True),        # the cheek: a big flat round plate
-                  ((0.066, -0.175, -0.050), (0.020, 0.080, 0.026), True),        # the facial crest under the eye
+                  ((0.056, -0.050, -0.108), (0.036, 0.088, 0.088), True),        # the cheek: a big flat round plate, the jowl
                   ((0.040, -0.405, -0.042), (0.024, 0.036, 0.030), True),        # the nostril's rim
-                  ((0.028, -0.418, -0.094), (0.032, 0.040, 0.028), True),        # the rounded upper lip
-                  ((0.040, -0.200, -0.132), (0.040, 0.120, 0.036), True)]        # the jawline: skin over the jaw's back
+                  ((0.028, -0.418, -0.094), (0.032, 0.040, 0.028), True)]        # the rounded upper lip
     HINGE_H = (0.0, -0.07, -0.112)
-    JAW_H = [(0, -0.10, -0.146, 0.046, 0.030, 0.038), (0, -0.21, -0.134, 0.044, 0.028, 0.030),
-             (0, -0.31, -0.124, 0.042, 0.026, 0.026), (0, -0.40, -0.124, 0.036, 0.026, 0.030)]   # rising, a round chin
+    JAW_SCALE = 0.35                          # the fused lips only part a little (wider stretched them into a curtain)
+    JAW_PIECE = False                         # the lower jaw is skin to the lips: fused, moved by its weights (a
+    JAW_H = [(0, -0.10, -0.140, 0.046, 0.030, 0.036), (0, -0.21, -0.128, 0.042, 0.026, 0.028),   # separate jaw
+             (0, -0.31, -0.118, 0.040, 0.022, 0.024), (0, -0.39, -0.118, 0.034, 0.020, 0.024)]   # showed as a plank)
+    MOUTH_LINE = ((-0.44, -0.110), (-0.38, -0.112), (-0.31, -0.114))     # (y, z) of the lips' parting (head space)
+
+    def jaw_weight(self):
+        ys = np.array([p[0] for p in self.MOUTH_LINE])[::-1]
+        zs = np.array([p[1] for p in self.MOUTH_LINE])[::-1]
+
+        def fn(cu):
+            H = self.hx_inv(cu)
+            line = np.interp(H[:, 1], ys, zs)
+            return (smoothstep(line + 0.006, line - 0.010, H[:, 2]) * smoothstep(-0.18, -0.30, H[:, 1]) *
+                    smoothstep(0.075, 0.05, np.abs(H[:, 0])))
+        return fn
 
     def sculpt_face(self, co, no):
         """Eye sockets under the brow; the nostrils: deep comma-shaped dents on the muzzle's front corners."""

@@ -39,6 +39,8 @@ for st in steps:
     elif st == "body":
         body, arm, rep = FB.build_model(sp, paint=False, rig=False)
         out[st] = rep
+    elif st == "closeups":
+        out[st] = FB.head_closeups(sp)
     elif st == "heads":
         out[st] = FB.head_shots(sp)
     elif st == "coats":

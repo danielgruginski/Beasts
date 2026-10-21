@@ -125,7 +125,7 @@ def paint(D, sp, variant):
     for sfx in ('L', 'R'):
         c = np.array(D['eyes']['eye_' + sfx])
         d = np.linalg.norm(P - c, axis=1)
-        fcol = _mix(fcol, C['edge'], 0.8 * smoothstep(sp.EYE_R * 1.45, sp.EYE_R * 1.05, d))
+        fcol = _mix(fcol, C['edge'], sp.EYE_RING * smoothstep(sp.EYE_R * 1.45, sp.EYE_R * 1.05, d))
     ctx['fcol'] = fcol
     fcol = sp.face_pattern(ctx, fcol)
     col = np.where((furp | nosep)[:, None], _mix(col, fcol, head), col)

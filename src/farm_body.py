@@ -56,6 +56,9 @@ class Hoofed:
     EYE0_H = (0.082, -0.140, -0.010)
     EYE_N_H = (0.76, -0.50, 0.30)       # the eye's facing (head space)
     EYE_R, EYE_LONG, EYE_SHORT = 0.026, 1.15, 0.86
+    EYE_INSET, EYE_DOME = 0.003, 0.012  # the eye sunk this far into the socket, the dome's height (for EYE_R 0.026)
+    JAW_SCALE = 1.0                     # x the clips' jaw opening (farm_anim)
+    JAW_PIECE = True                    # False: the lower jaw is part of the fused head, moved by its weights
     EYE_AXIS = None                     # the almond's long axis in D (body space), or None: the deer's (head space)
     NOSE_C, NOSE_R = (0.0, -0.432, -0.083), (0.046, 0.020, 0.042)
     EAR_BASE_H = (0.064, -0.005, 0.042)
@@ -222,6 +225,8 @@ class Hoofed:
                 c, r = self.NOSE_C, self.NOSE_R
             for s in ((1, -1) if mirror else (1,)):
                 ellipsoid(bm, (s * c[0], c[1], c[2]), r)
+        if not self.JAW_PIECE:              # the lower jaw fused into the head (the horse): skin to the lips
+            loft(bm, self.JAW_H, up=(0, 0, 1), seg=12, per_seg=2, cap0=0.5, cap1=0.6, capk=2, shape=0.85)
         self.extra_head_parts(bm)
         new = [v for v in bm.verts if v not in before]
         for v in new:
@@ -479,16 +484,18 @@ class Hoofed:
         bm = bmesh.new()
         tags = {}
         before = set(bm.verts)
-        tags['jaw'] = loft(bm, self.JAW_H, up=(0, 0, 1), seg=8, per_seg=2, cap0=0.5, cap1=0.6, capk=2, shape=0.85)
+        if self.JAW_PIECE:
+            tags['jaw'] = loft(bm, self.JAW_H, up=(0, 0, 1), seg=8, per_seg=2, cap0=0.5, cap1=0.6, capk=2,
+                               shape=0.85)
         for v in [v for v in bm.verts if v not in before]:
             v.co = Vector(self.hx(v.co[:]))
         eyes = []
         for s in (1, -1):
             n = self.EYE_N * np.array((s, 1, 1))
-            c = _snap(bvh, self.EYE0 * np.array((s, 1, 1)), n, 0.06) - n * 0.003
+            c = _snap(bvh, self.EYE0 * np.array((s, 1, 1)), n, 0.06) - n * self.EYE_INSET
             self.LM['eye_L' if s > 0 else 'eye_R'] = c
             self.LM['eye_n_L' if s > 0 else 'eye_n_R'] = n
-            vs = dome(bm, c, n, self.EYE_R, 0.012 * self.EYE_R / 0.026, seg=12, rings=3)
+            vs = dome(bm, c, n, self.EYE_R, self.EYE_DOME * self.EYE_R / 0.026, seg=12, rings=3)
             t, b = (Vector(v) for v in self.eye_axes(n))
             nv, cv = Vector(n), Vector(c)
             for v in vs:
@@ -667,6 +674,7 @@ class Hoofed:
     PUPIL = 'bar'
     COAT_STYLE = 'sleek'
     EAR_RIM = 0.75
+    EYE_RING = 0.8                      # the dark rim painted round the eye (the deer's)
 
     def coat_pattern(self, ctx, col):
         return col
@@ -681,6 +689,11 @@ class Hoofed:
         return np.zeros(len(P))
 
     TAIL_TUBE = None                    # (D) loft rows of a separate tail tube (PART tail), root inside the rump
+
+    def jaw_weight(self):
+        """Species: fn(D positions) -> how much each skin vertex follows the jaw, or None for farm_rig's (the jowls'
+        bottoms; the jaw itself is a separate piece)."""
+        return None
 
     def skin_extra(self, body, rig, part):
         """Species: weights of its own shells (after the generic skin)."""

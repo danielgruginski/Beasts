@@ -37,7 +37,7 @@ def _jaw_weight(sp):
 
 
 def skin(sp, body, rig):
-    beast_rig.skin(body, rig, no_heat=("Root", "Motion", "Jaw"), unwarp=sp.W_inv, jaw_weight=_jaw_weight(sp))
+    beast_rig.skin(body, rig, no_heat=("Root", "Motion", "Jaw"), unwarp=sp.W_inv, jaw_weight=sp.jaw_weight() or _jaw_weight(sp))
     n = body["n_fur"]
     part, _ = read_info(body)
     _smooth_joins(sp, body, n)

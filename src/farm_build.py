@@ -214,3 +214,22 @@ def head_shots(sp, res=600):
         out.append(beast_scene.shot(f"{sp.PREFIX}_CAM_{v}", f"{sp.NAME.lower()}_head_{v.lower()}", res=res,
                                     color='SINGLE'))
     return out
+
+
+def head_closeups(sp, res=900, prefix=None):
+    """Big close-ups of the head, painted (EEVEE) and bare (Workbench): side, front, 3/4, from below.
+    renders/<name>_hc_<view>[_bare].png"""
+    setup_scene(sp)
+    scn = bpy.context.scene
+    c = sp.W(sp.hx((0, -0.18, -0.03)))
+    k = float(sp.W(np.array((0, 0, 1.15)))[2]) * 1.5
+    views = {"side": (1.0, 0.0, 0.0), "front": (0.25, -1.0, 0.05), "34": (0.75, -0.75, 0.25), "below": (0.6, -0.5, -0.45)}
+    eng = scn.render.engine
+    prefix = prefix or sp.NAME.lower()
+    out = []
+    for v, d in views.items():
+        d = np.array(d) / np.linalg.norm(d)
+        beast_scene._cam(scn, sp.PREFIX + "_CAM_HC", tuple(c + d * 1.2 * k), tuple(c), lens=85)
+        out.append(beast_scene.shot(sp.PREFIX + "_CAM_HC", f"{prefix}_hc_{v}", engine=eng, res=res))
+        out.append(beast_scene.shot(sp.PREFIX + "_CAM_HC", f"{prefix}_hc_{v}_bare", res=res, color='SINGLE'))
+    return out

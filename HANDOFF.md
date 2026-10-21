@@ -402,6 +402,12 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     widest point. **No nose pad** (the deer's and wolf's glossy black pad read as a dog's nose): `NOSE_R` tiny and
     hidden, comma-shaped nostril dents in `Horse.sculpt_face`, the nostrils and lips painted dark in `face_pattern`.
     A strong brow ridge read as a visor over the eye; it is soft now.
+    Then "keep working on this head": the lower jaw is **fused** for the horse (`JAW_PIECE = False`: `JAW_H` lofted into
+    the head, moved by `Horse.jaw_weight` below `MOUTH_LINE`), since the separate jaw still showed as a dark plank
+    along the bottom; `JAW_SCALE` 0.35 in the clips (opened wider, the fused lips stretched into a curtain). The eye
+    is bigger and set in (`EYE_INSET`, `EYE_DOME`), with a thin lid line (`EYE_RING`) instead of the deer's dark ring;
+    the cheek plate sits back and low as the jowl, the throat under the poll is narrow (the throatlatch). Close-ups:
+    `farm_run ... closeups` (`farm_build.head_closeups`: side, front, 3/4, below; painted and bare).
     Still my calls, not reviewed: the coats, the horned cow, the leggy half-wild pig, a hen (no rooster).
   - The horse has no saddle socket or rider clips (`Socket_Back` sits over the saddle's place).
   - Young ones (lamb, kid, calf, foal, piglet, chicks) would be scaled copies with a bigger head (`KH`).

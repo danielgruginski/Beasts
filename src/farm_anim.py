@@ -55,8 +55,22 @@ class FarmAnim:
             self.EVENTS["Attack"] = [("Bite", 15.0 / FPS * self.ts)]
         self.CLIPS.update({"Hit": self._clip_hit, "Death": self._clip_death, "Sleep": self._clip_sleep,
                            "Wake": self._clip_wake})
+        if sp.JAW_SCALE != 1.0:                         # a fused jaw (the horse) stretches its skin: open it less
+            self.CLIPS = {n: self._jaw_scaled(c, sp.JAW_SCALE) for n, c in self.CLIPS.items()}
         self.MOVING = {"Graze", "Walk", "Trot", "Run"}
         self.SHEET_FRAMES = {n: self._sheet(n) for n in self.CLIPS}
+
+    @staticmethod
+    def _jaw_scaled(clip, k):
+        def wrapped():
+            N, fn, loop = clip()
+
+            def fn2(f):
+                p = fn(f)
+                p.jaw *= k
+                return p
+            return N, fn2, loop
+        return wrapped
 
     # ------------------------------------------------------------------ helpers
     def N(self, n):
