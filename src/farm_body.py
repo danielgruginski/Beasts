@@ -464,7 +464,10 @@ class Hoofed:
         bm.to_mesh(ob.data)
         bm.free()
 
-    def build_fur_body(self, fillet_iters=60):
+    FILLET = 60                         # the fuse's concave-crease fillet iterations (fewer keep sharper notches)
+
+    def build_fur_body(self, fillet_iters=None):
+        fillet_iters = fillet_iters or self.FILLET
         bm = bmesh.new()
         self.build_trunk(bm)
         self.build_head(bm)

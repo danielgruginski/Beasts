@@ -408,6 +408,16 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     is bigger and set in (`EYE_INSET`, `EYE_DOME`), with a thin lid line (`EYE_RING`) instead of the deer's dark ring;
     the cheek plate sits back and low as the jowl, the throat under the poll is narrow (the throatlatch). Close-ups:
     `farm_run ... closeups` (`farm_build.head_closeups`: side, front, 3/4, below; painted and bare).
+    Then Daniel sent a reference (an Arabian-type horse head and neck): the neck is now **arched** (its centre line
+    curves forward over the poll, the throat coming in high and thin), the head hangs nearly upright (`HEAD_PITCH`
+    66) and is a short wedge (`HEAD_LEN` 0.39, a deep jowl, a small muzzle, flared nostril rims); the jowl is a big
+    disc standing out sideways from a narrower head body, with a painted shadow round its edge; the throatlatch notch
+    survives because the horse fuses with less fillet (`FILLET` 35); small upright ears; the brow volume made a fin
+    at the eye's corner and is gone. **With the head upright the jowl sits behind the poll**, so the neck's last rings
+    must stay high and thin or they swallow it. **The fused jaw's weight mask (head space) needs bounds on every side:**
+    with the head steeper, belly skin between the forelegs fell inside it and was pulled down with the head while
+    grazing (`Horse.jaw_weight` is bounded below the mouth line and behind the chin now). Grazing re-searched on the
+    mesh's lowest point (`GRAZE` (-55, -12, -10), 68).
     Still my calls, not reviewed: the coats, the horned cow, the leggy half-wild pig, a hen (no rooster).
   - The horse has no saddle socket or rider clips (`Socket_Back` sits over the saddle's place).
   - Young ones (lamb, kid, calf, foal, piglet, chicks) would be scaled copies with a bigger head (`KH`).

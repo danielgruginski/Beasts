@@ -22,9 +22,10 @@ class Horse(farm_body.Hoofed):
     # tables made a long flat barrel, a llama's neck and deer legs. A plain 1.2x warp now, the tables a 1.21 m horse
     # in deer units: body length = withers height, the girth at half of it, knee 0.28, hock 0.32, fetlock 0.12.
     KX, KY, KL, KB = 1.20, 1.08, 1.20, 1.20                 # y shorter: body length = withers height
-    KH = (0.92, 1.16, 1.12)
+    KH = (0.95, 1.16, 1.12)
     VOXEL, BODY_TRIS = 0.006, 3400
     CREASE_DEG = 40
+    FILLET = 35                               # keep the throatlatch's notch behind the jowl
 
     J = dict(SCAP=(0.100, -0.38, 1.130), SHO=(0.160, -0.62, 0.800), ELB=(0.160, -0.42, 0.640),
              WRI=(0.150, -0.442, 0.345), FPAW=(0.145, -0.455, 0.145), FTOE=(0.142, -0.570, 0.008),
@@ -36,32 +37,34 @@ class Horse(farm_body.Hoofed):
                  (0, 0.730, 0.900, 0.046, 0.048, 0.048), (0, 0.760, 0.720, 0.055, 0.058, 0.058),
                  (0, 0.770, 0.520, 0.058, 0.058, 0.058), (0, 0.770, 0.400, 0.045, 0.045, 0.045),
                  (0, 0.765, 0.340, 0.016, 0.016, 0.016)]                 # a full rope of hair to the hocks
-    POLL = (0.0, -0.94, 1.47)
-    HEAD_PITCH = 52.0
-    HEAD_LEN = 0.45
-    EYE0_H = (0.084, -0.118, 0.008)            # high, at the head's widest, under a bony brow
+    POLL = (0.0, -0.95, 1.49)
+    HEAD_PITCH = 66.0                         # the face hangs nearly upright off an arched neck
+    HEAD_LEN = 0.39
+    EYE0_H = (0.086, -0.108, 0.010)            # high, at the head's widest, under a bony brow
     EYE_N_H = (0.86, -0.30, 0.30)
-    EYE_R = 0.034
+    EYE_R = 0.037
     EYE_AXIS = (0.0, 1.0, 0.20)
     EYE_LONG, EYE_SHORT = 1.05, 0.92
-    EYE_INSET, EYE_DOME = 0.005, 0.010       # set into the head, not a bulging dome
+    EYE_INSET, EYE_DOME = 0.004, 0.011       # large, set into the head, not a bulging dome
     EYE_RING = 0.35                           # a thin lid line, not the deer's dark ring
     NOSE_C, NOSE_R = (0.0, -0.30, -0.06), (0.001, 0.001, 0.001)   # no nose pad: a horse has a soft muzzle
-    NOSTRIL_H = (0.034, -0.418, -0.048)       # the nostrils (left), on the muzzle's front corners
-    EAR_BASE_H = (0.044, 0.000, 0.052)
-    EAR_DIR = (0.22, 0.10, 0.97)              # upright, a little out
-    EAR_LEN = 0.16
-    EAR_PROFILE = ((0.0, 0.036, 0.028), (0.35, 0.048, 0.032), (0.70, 0.036, 0.024), (0.92, 0.012, 0.010))
+    NOSTRIL_H = (0.031, -0.364, -0.036)       # the nostrils (left), on the muzzle's front corners
+    EAR_BASE_H = (0.042, 0.004, 0.056)
+    EAR_DIR = (0.10, 0.06, 0.99)              # small, upright, close together
+    EAR_LEN = 0.13
+    EAR_PROFILE = ((0.0, 0.034, 0.026), (0.35, 0.044, 0.030), (0.70, 0.030, 0.020), (0.94, 0.008, 0.006))
     EAR_FRONT = (0.25, -1.0, 0.0)
     TRUNK_ROWS = [(-0.66, 0.90, 0.140, 0.160, 0.170), (-0.52, 0.92, 0.200, 0.250, 0.280),   # breast, girth: deep
                   (-0.35, 0.93, 0.225, 0.255, 0.290), (-0.12, 0.93, 0.245, 0.240, 0.285),   # a round barrel
                   (0.10, 0.94, 0.245, 0.230, 0.260), (0.28, 0.96, 0.230, 0.220, 0.205),     # the flank tucks up
                   (0.42, 0.97, 0.235, 0.220, 0.200), (0.56, 0.95, 0.200, 0.205, 0.220),     # croup and buttocks
                   (0.66, 0.92, 0.120, 0.140, 0.150)]
-    NECK = [(0, -0.45, 0.98, 0.170, 0.220, 0.280), (0, -0.60, 1.10, 0.150, 0.180, 0.220),   # deep at the base,
-            (0, -0.72, 1.22, 0.135, 0.165, 0.150), (0, -0.82, 1.33, 0.108, 0.130, 0.078),   # a thick crest,
-            (0, -0.89, 1.42, 0.085, 0.095, 0.048)]                      # (the throat narrow under the poll)                                          # a fine throatlatch
-    NECK_BONES = [(0, -0.50, 1.060), (0, -0.65, 1.180), (0, -0.78, 1.310)]
+    NECK = [(0, -0.45, 0.98, 0.170, 0.220, 0.280), (0, -0.57, 1.13, 0.150, 0.190, 0.200),   # an arched neck:
+            (0, -0.66, 1.29, 0.130, 0.165, 0.110), (0, -0.76, 1.41, 0.105, 0.120, 0.045),   # the crest curves
+            (0, -0.88, 1.46, 0.085, 0.095, 0.032)]                                          # forward over the
+    # poll and the throat comes in high and thin, behind the jowl (with the head upright the jowl sits behind the
+    # poll: a fuller throat swallowed it)
+    NECK_BONES = [(0, -0.50, 1.060), (0, -0.62, 1.210), (0, -0.74, 1.370)]
     HIPS = ((0, 0.40, 1.000), (0, 0.66, 0.980))
     SPINE = [(0, 0.40, 1.020), (0, 0.10, 1.060), (0, -0.20, 1.080), (0, -0.50, 1.060)]
     BACK_SOCKET = (0, -0.15, 1.240)
@@ -104,24 +107,23 @@ class Horse(farm_body.Hoofed):
 
     # The head as a wedge (head space): deepest at the big flat cheek, a straight face line, tapering to a smaller
     # soft muzzle; the bottom line climbs from the cheek's round edge to the lips. (y, top, bottom, half width)
-    HEAD_PROFILE = [(0.03, 0.055, -0.120, 0.068), (-0.05, 0.052, -0.162, 0.090), (-0.13, 0.040, -0.152, 0.080),
-                    (-0.22, 0.022, -0.124, 0.062), (-0.31, 0.004, -0.110, 0.054), (-0.38, -0.010, -0.112, 0.056),
-                    (-0.43, -0.020, -0.116, 0.052)]
+    HEAD_PROFILE = [(0.03, 0.050, -0.105, 0.060), (-0.04, 0.055, -0.175, 0.072), (-0.12, 0.045, -0.165, 0.072),
+                    (-0.20, 0.025, -0.115, 0.062), (-0.28, 0.008, -0.090, 0.050), (-0.34, -0.004, -0.088, 0.050),
+                    (-0.38, -0.012, -0.090, 0.047)]     # a short wedge: a deep jowl, a small muzzle
     HEAD_ROWS = [(y, (t + b) / 2, w, (t - b) / 2, (t - b) / 2) for y, t, b, w in HEAD_PROFILE]
     HEAD_SHAPE = 0.85
     HEAD_CAP = 0.45
     HEAD_BLOBS = [((0, -0.060, 0.004), (0.086, 0.095, 0.052), False),            # the cranium, a flat forehead
                   ((0, 0.010, -0.090), (0.040, 0.050, 0.040), False),            # the throatlatch, narrow
-                  ((0.068, -0.118, 0.022), (0.018, 0.034, 0.012), True),         # the brow over the eye, soft
-                  ((0.056, -0.050, -0.108), (0.036, 0.088, 0.088), True),        # the cheek: a big flat round plate, the jowl
-                  ((0.040, -0.405, -0.042), (0.024, 0.036, 0.030), True),        # the nostril's rim
-                  ((0.028, -0.418, -0.094), (0.032, 0.040, 0.028), True)]        # the rounded upper lip
+                  ((0.066, -0.050, -0.110), (0.042, 0.104, 0.104), True),        # the jowl: a big round disc, standing out
+                  ((0.036, -0.352, -0.032), (0.022, 0.030, 0.026), True),        # the nostril's flared rim
+                  ((0.026, -0.372, -0.078), (0.028, 0.034, 0.024), True)]        # the rounded upper lip
     HINGE_H = (0.0, -0.07, -0.112)
     JAW_SCALE = 0.35                          # the fused lips only part a little (wider stretched them into a curtain)
     JAW_PIECE = False                         # the lower jaw is skin to the lips: fused, moved by its weights (a
-    JAW_H = [(0, -0.10, -0.140, 0.046, 0.030, 0.036), (0, -0.21, -0.128, 0.042, 0.026, 0.028),   # separate jaw
-             (0, -0.31, -0.118, 0.040, 0.022, 0.024), (0, -0.39, -0.118, 0.034, 0.020, 0.024)]   # showed as a plank)
-    MOUTH_LINE = ((-0.44, -0.110), (-0.38, -0.112), (-0.31, -0.114))     # (y, z) of the lips' parting (head space)
+    JAW_H = [(0, -0.10, -0.150, 0.044, 0.030, 0.034), (0, -0.18, -0.118, 0.040, 0.024, 0.026),   # separate jaw
+             (0, -0.26, -0.100, 0.036, 0.020, 0.020), (0, -0.34, -0.098, 0.032, 0.020, 0.022)]   # showed as a plank)
+    MOUTH_LINE = ((-0.39, -0.090), (-0.33, -0.092), (-0.27, -0.094))     # (y, z) of the lips' parting (head space)
 
     def jaw_weight(self):
         ys = np.array([p[0] for p in self.MOUTH_LINE])[::-1]
@@ -130,8 +132,10 @@ class Horse(farm_body.Hoofed):
         def fn(cu):
             H = self.hx_inv(cu)
             line = np.interp(H[:, 1], ys, zs)
-            return (smoothstep(line + 0.006, line - 0.010, H[:, 2]) * smoothstep(-0.18, -0.30, H[:, 1]) *
-                    smoothstep(0.075, 0.05, np.abs(H[:, 0])))
+            return (smoothstep(line + 0.006, line - 0.010, H[:, 2]) * smoothstep(-0.16, -0.26, H[:, 1]) *
+                    smoothstep(0.075, 0.05, np.abs(H[:, 0])) *          # bounded on every side: with the head
+                    smoothstep(line - 0.090, line - 0.060, H[:, 2]) *     # upright, belly skin between the forelegs
+                    smoothstep(-0.48, -0.44, H[:, 1]))                    # fell inside it and grazed with the head
         return fn
 
     def sculpt_face(self, co, no):
@@ -151,7 +155,7 @@ class Horse(farm_body.Hoofed):
     FUR_BASE = 0.0015
     PUPIL = 'oval'
     EAR_RIM = 0.4
-    GRAZE = ((-58, -12, -10), 80, 0.08, 0.0)  # the neck reaches forward and down from its base, nearly straight
+    GRAZE = ((-55, -12, -10), 68, 0.08, 0.0)  # the neck reaches forward and down from its base, nearly straight
     GRAZE_PITCH = -16                         # (the deer's bends folded the horse's thick neck into a U)
     COAT_ON_TRUNK = (0.84, 1.02, 0.20)        # the croup's muscle rides on the spine (the thigh heaved it up)
 
@@ -231,7 +235,10 @@ class Horse(farm_body.Hoofed):
         nx, ny, nz = self.NOSTRIL_H
         nos = np.exp(-(((hx - nx) / 0.012) ** 2 + ((hy - ny) / 0.016) ** 2 + ((hz - nz) / 0.020) ** 2))
         fcol = _mix(fcol, C['muzzle'] * 0.45, smoothstep(0.25, 0.7, nos))          # the nostrils, dark openings
-        lips = smoothstep(-0.098, -0.108, hz) * smoothstep(-0.36, -0.40, hy)
+        jr = np.sqrt(((hy + 0.050) / 0.104) ** 2 + ((hz + 0.110) / 0.104) ** 2)       # the jowl's round edge:
+        fcol = _mix(fcol, C['muzzle'], 0.30 * smoothstep(0.80, 0.95, jr) * smoothstep(1.12, 0.97, jr) *   # a soft
+                    smoothstep(0.03, 0.06, hx))                                                          # shadow
+        lips = smoothstep(-0.086, -0.096, hz) * smoothstep(-0.30, -0.34, hy)
         fcol = _mix(fcol, C['muzzle'] * 0.6, 0.6 * lips)
         fcol = _mix(fcol, self._hair_col(ctx, (0.0, -0.3, -1.0)), ctx['mane'])      # the mane up to the poll
         return _mix(fcol, self._hair_col(ctx, (0.0, -1.0, -0.3)), self.forelock_mask(ctx))
