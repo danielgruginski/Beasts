@@ -11,7 +11,7 @@ from mathutils import Vector
 from beast_common import loft, smoothstep
 from beast_body import PART
 import farm_body
-from farm_paint import _mix, _streaks, patches
+from farm_paint import _mix, _streaks, patches, horns
 
 
 class Goat(farm_body.Hoofed):
@@ -103,25 +103,7 @@ class Goat(farm_body.Hoofed):
 
     def paint_pieces(self, ctx, col, smooth):
         part, P, M, C = ctx['part'], ctx['P'], ctx['M'], ctx['C']
-        horn = part == PART['horn']
-        if horn.any():
-            Ph = P[horn]
-            t = np.zeros(len(Ph))
-            best = np.full(len(Ph), 1e9)
-            for s in (1, -1):
-                rows = np.array(self.horn_rows(s))
-                for i in range(len(rows) - 1):
-                    a, ab = rows[i, :3], rows[i + 1, :3] - rows[i, :3]
-                    u = np.clip(((Ph - a) @ ab) / (ab @ ab), 0, 1)
-                    d = np.linalg.norm(Ph - (a + u[:, None] * ab), axis=1)
-                    m = d < best
-                    best[m] = d[m]
-                    t[m] = (i + u[m]) / (len(rows) - 1)
-            ridges = 0.5 + 0.5 * np.sin(t * 2 * np.pi * 14)               # the growth ridges across the horn
-            hc = _mix(np.tile(M['horn'], (len(Ph), 1)), M['horn_dark'], 0.35 * ridges * 0.6 + 0.3 * smoothstep(0.2, 0.0, t))
-            hc = _mix(hc, M['horn_tip'], smoothstep(0.65, 0.98, t))
-            col[horn] = hc
-            smooth[horn] = 0.30
+        col, smooth = horns(self, ctx, col, smooth)
         beard = part == PART['hair']
         if beard.any():
             s3 = _streaks(P, np.tile((0.0, 0.2, -1.0), (len(P), 1)), 95, across=0.006, length=0.10, steps=9)

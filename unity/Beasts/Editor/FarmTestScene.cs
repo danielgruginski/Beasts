@@ -48,7 +48,8 @@ namespace Beasts.EditorTools
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(a.PrefabPath);
                 var set = AssetDatabase.LoadAssetAtPath<BeastAnimationSet>(a.SetPath);
                 if (prefab == null || set == null) continue;
-                var parent = new GameObject(name + "s").transform;
+                var plural = name == "Sheep" ? "Sheep" : name + "s";
+                var parent = new GameObject(plural).transform;
                 var taken = new List<Vector3>();
                 for (int i = 0; i < count; i++)
                 {
@@ -70,7 +71,7 @@ namespace Beasts.EditorTools
                     ra.separation = separation;
                     ra.labelHeight = labelHeight;
                 }
-                counts.Add($"{count} {name.ToLowerInvariant()}s");
+                counts.Add($"{count} {plural.ToLowerInvariant()}");
             }
             int goblins = BeastsTestScene.AddGoblins(rng, 3, 15f, 2f);
             var cam = new GameObject("Camera").AddComponent<Camera>();

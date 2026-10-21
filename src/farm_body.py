@@ -250,7 +250,7 @@ class Hoofed:
                 near = lambda p: math.hypot(p.x - c.x, p.y - c.y) < self.GRAFT_NEAR and p.z < zc + 0.08
                 dead = [f for f in bm.faces if any(v.co.z < zc for v in f.verts) and near(f.calc_center_median())]
                 bmesh.ops.delete(bm, geom=dead, context='FACES')
-                rim = {v for e in bm.edges if e.is_boundary for v in e.verts if near(v.co)}
+                rim = self._rim(bm, near)
                 for v in rim:
                     v.co = self._ellipse(c, rows, math.atan2(v.co.y - c.y, v.co.x - c.x))
                 vs = loft(bm, *self.leg_loft(rows, s))
@@ -267,12 +267,42 @@ class Hoofed:
                 for _ in range(4):
                     bmesh.ops.smooth_vert(bm, verts=relax, factor=0.5, use_axis_x=True, use_axis_y=True,
                                           use_axis_z=True)
+        bad = {f for e in bm.edges if len(e.link_faces) > 2 for f in e.link_faces}   # the zip doubled a face
+        if bad:                                                  # onto an edge (the cow): drop them, refill below
+            bmesh.ops.delete(bm, geom=list(bad), context='FACES_ONLY')
+        left = [e for e in bm.edges if e.is_boundary]           # slivers the zip missed (a rim loop pinched into a
+        if left:                                                 # figure 8): small holes, filled
+            bmesh.ops.holes_fill(bm, edges=left, sides=12)
+            bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
         bm.verts.index_update()
-        idx = [v.index for v in legs]
+        idx = [v.index for v in legs if v.is_valid]
         bm.to_mesh(ob.data)
         bm.free()
         return np.array(idx)
+
+    @staticmethod
+    def _rim(bm, near):
+        """The stump's cut rim: the longest boundary loop near the leg. Deleting the stump's faces can also open small
+        holes beside it (the flank fold, the cow's udder); those are filled, or they stayed open (2026-10-20)."""
+        edges = {e for e in bm.edges if e.is_boundary and any(near(v.co) for v in e.verts)}
+        loops, seen = [], set()
+        for e0 in list(edges):
+            if e0 in seen:
+                continue
+            loop, stack = [], [e0]
+            while stack:
+                e = stack.pop()
+                if e in seen:
+                    continue
+                seen.add(e)
+                loop.append(e)
+                stack += [x for v in e.verts for x in v.link_edges if x.is_boundary and x not in seen]
+            loops.append(loop)
+        loops.sort(key=len, reverse=True)
+        for small in loops[1:]:
+            bmesh.ops.holes_fill(bm, edges=small, sides=0)
+        return {v for e in loops[0] for v in e.verts} if loops else set()
 
     def leg_centre(self, rows, z):
         zs = np.array([r[2] for r in rows])[::-1]
@@ -388,7 +418,10 @@ class Hoofed:
                  self.HIND_STUMP[0][2] + 0.02))
         return 1.0 - 0.45 * float(face) - 0.20 * float(tail) - 0.35 * float(legs)
 
-    def relax_creases(self, ob, deg=55, passes=4):
+    CREASE_DEG = 55                     # decimation creases sharper than this are relaxed (the deer's slit down the back)
+
+    def relax_creases(self, ob, deg=None, passes=4):
+        deg = deg or self.CREASE_DEG
         bm = bmesh.new()
         bm.from_mesh(ob.data)
         lim = math.radians(deg)
@@ -459,6 +492,8 @@ class Hoofed:
                     for base, tip in self.dewclaws(kind, s):
                         claws += cone(bm, base, tip, 0.008 * self.HOOF_K, seg=4)
         tags['claw'] = claws
+        if self.TAIL_TUBE:                   # a clean tube (fused and decimated, a long thin tail went flat)
+            tags['tail'] = loft(bm, self.TAIL_TUBE, up=(0, 1, 0), seg=8, per_seg=3, cap0=0.0, cap1=0.6, capk=2)
         if self.HORN_BASE_H is not None:
             tags['horn'] = self.build_horns(bm)
         self.extra_pieces(bm, bvh, tags)
@@ -622,6 +657,8 @@ class Hoofed:
 
     def wool_mask(self, P):
         return np.zeros(len(P))
+
+    TAIL_TUBE = None                    # (D) loft rows of a separate tail tube (PART tail), root inside the rump
 
     def skin_extra(self, body, rig, part):
         """Species: weights of its own shells (after the generic skin)."""

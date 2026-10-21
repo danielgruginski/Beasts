@@ -76,7 +76,8 @@ def paint(D, sp, variant):
     jawp = part == PART['jaw']
     earp = part == PART['ear']
     nosep = part == PART['nose']
-    fur = furp | legp | hair | earp | jawp | nosep
+    tailp = part == PART['tail']                      # a separate tail tube (the cow's)
+    fur = furp | legp | hair | earp | jawp | nosep | tailp
     F = sp.fur_flow(P, N)
     n_big = fbm(P * 3.0, 3, seed=91)
     n_mid = fbm(P * 10.0, 3, seed=92)
@@ -99,7 +100,7 @@ def paint(D, sp, variant):
              smoothstep(sp.NECK[0][1] - 0.10, sp.NECK[0][1] + 0.04, y) * furp * ~legp)
     col = _mix(col, C['belly'], 0.85 * belly)
     tt, td = polyline_t(P, sp.TAIL)
-    tail = smoothstep(0.070, 0.050, td) * smoothstep(0.10, 0.30, tt) * furp
+    tail = np.maximum(smoothstep(0.070, 0.050, td) * smoothstep(0.10, 0.30, tt) * furp, tailp)
     col = _mix(col, C['tail'], 0.85 * tail)
     cxf = sp.leg_centre(sp.FRONT_LEG_T, z)[0]
     cxh = sp.leg_centre(sp.HIND_LEG_T, z)[0]
@@ -217,6 +218,33 @@ def paint(D, sp, variant):
     sm = np.zeros(H * Wd)
     sm[idx] = np.clip(smooth, 0, 1)
     return out.reshape(H, Wd, 3), sm.reshape(H, Wd)
+
+
+def horns(sp, ctx, col, smooth, ridges=14, root_dark=0.3, tip_from=0.65):
+    """Horn colour along each horn (PART horn, sp.horn_rows): base colour, growth ridges, a darker root, the tip
+    toward horn_tip."""
+    part, P, M = ctx['part'], ctx['P'], ctx['M']
+    horn = part == PART['horn']
+    if not horn.any():
+        return col, smooth
+    Ph = P[horn]
+    t = np.zeros(len(Ph))
+    best = np.full(len(Ph), 1e9)
+    for s in (1, -1):
+        rows = np.array(sp.horn_rows(s))
+        for i in range(len(rows) - 1):
+            a, ab = rows[i, :3], rows[i + 1, :3] - rows[i, :3]
+            u = np.clip(((Ph - a) @ ab) / (ab @ ab), 0, 1)
+            d = np.linalg.norm(Ph - (a + u[:, None] * ab), axis=1)
+            m = d < best
+            best[m] = d[m]
+            t[m] = (i + u[m]) / (len(rows) - 1)
+    rid = 0.5 + 0.5 * np.sin(t * 2 * np.pi * ridges) if ridges else np.zeros(len(Ph))
+    hc = _mix(np.tile(M['horn'], (len(Ph), 1)), M['horn_dark'], 0.35 * rid * 0.6 + root_dark * smoothstep(0.2, 0.0, t))
+    hc = _mix(hc, M['horn_tip'], smoothstep(tip_from, 0.98, t))
+    col[horn] = hc
+    smooth[horn] = 0.30
+    return col, smooth
 
 
 def patches(P, seed, scale=2.2, thresh=0.0, soft=0.06, warp=0.35):

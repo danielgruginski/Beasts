@@ -53,11 +53,46 @@ def skin(sp, body, rig):
         for s, sfx in ((1, "L"), (-1, "R")):
             sel = claw[((co[:, 1] < 0) == front) & ((co[:, 0] > 0) == (s > 0))]
             set_rigid(body, sel, ("FrontToes" if front else "HindToes") + sfx)
+    _skin_tail(sp, body, part)
     if sp.COAT_ON_TRUNK:
         _coat_on_trunk(sp, body, n)
     sp.skin_extra(body, rig, part)
     clean_weights(body)
     return weight_report(body)
+
+
+def _skin_tail(sp, body, part):
+    """The separate tail tube (sp.TAIL_TUBE) blends along the tail bones by where it lies on the tail's line: Hips
+    at the root, Tail1 .. TailN down it."""
+    idx = np.nonzero(part == PART['tail'])[0]
+    if not len(idx):
+        return
+    from beast_paint import polyline_t
+    co = sp.W_inv(np.array([body.data.vertices[int(i)].co[:] for i in idx]))
+    t, _ = polyline_t(co, sp.TAIL)
+    nb = len(sp.TAIL) - 1
+    for g in body.vertex_groups:
+        g.remove([int(i) for i in idx])
+    for i, ti in zip(idx, t):
+        u = ti * nb                                       # 0 .. nb along the bones
+        w = {}
+        if u < 0.15:                                      # the root, in the rump
+            k = float(smoothstep(-0.05, 0.15, u))
+            w = {"Hips": 1 - k, "Tail1": k}
+        else:
+            j = min(int(u - 0.15 + 0.5), nb - 1)          # blend across each joint
+            f = u - j
+            if j > 0 and f < 0.5:
+                k = float(smoothstep(-0.25, 0.25, f))
+                w = {f"Tail{j}": 1 - k, f"Tail{j + 1}": k}
+            elif j < nb - 1 and f > 0.5:
+                k = float(smoothstep(0.75, 1.25, f))
+                w = {f"Tail{j + 1}": 1 - k, f"Tail{j + 2}": k}
+            else:
+                w = {f"Tail{j + 1}": 1.0}
+        for b, wt in w.items():
+            if wt > 1e-4:
+                body.vertex_groups[b].add([int(i)], wt, 'REPLACE')
 
 
 def _coat_on_trunk(sp, body, n):
