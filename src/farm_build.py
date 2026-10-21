@@ -198,3 +198,19 @@ def coat_shots(sp, cam="34", res=700):
         paths.append(beast_scene.shot(f"{sp.PREFIX}_CAM_{cam}", f"{sp.NAME.lower()}_coat_{c}", engine=eng, res=res))
     tex.image = first
     return paths
+
+
+def head_shots(sp, res=600):
+    """The bare head (Workbench, one colour) from the side, the front and 3/4: renders/<name>_head_<view>.png. For
+    iterating on a head's shape with build_model(sp, paint=False, rig=False)."""
+    setup_scene(sp)
+    scn = bpy.context.scene
+    head = sp.W(sp.hx((0, -0.22, -0.04)))
+    k = float(sp.W(np.array((0, 0, 1.15)))[2])
+    beast_scene._cam(scn, sp.PREFIX + "_CAM_HD34", tuple(head + np.array((0.9, -1.1, 0.25)) * 1.0 * k), tuple(head),
+                     lens=60)
+    out = []
+    for v in ("HeadSide", "HeadFront", "HD34"):
+        out.append(beast_scene.shot(f"{sp.PREFIX}_CAM_{v}", f"{sp.NAME.lower()}_head_{v.lower()}", res=res,
+                                    color='SINGLE'))
+    return out

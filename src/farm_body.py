@@ -87,6 +87,7 @@ class Hoofed:
                  (-0.31, -0.074, 0.056, 0.048, 0.070), (-0.38, -0.082, 0.052, 0.045, 0.066),
                  (-0.42, -0.085, 0.049, 0.044, 0.062)]
     HEAD_SHAPE = 0.9
+    HEAD_CAP = 0.4                      # the head loft's front cap (lower = a blunter muzzle)
     HEAD_BLOBS = [((0, -0.05, 0.010), (0.075, 0.090, 0.070), False),             # the cranium
                   ('nose', None, False),                                         # the nose pad (NOSE_C, NOSE_R)
                   ((0, -0.03, -0.125), (0.052, 0.075, 0.062), False),            # throat latch
@@ -214,7 +215,7 @@ class Hoofed:
     def build_head(self, bm):
         before = set(bm.verts)
         loft(bm, [(0, y, z, a, b, c) for y, z, a, b, c in self.HEAD_ROWS], up=(0, 0, 1), seg=24, cap0=0.5,
-             cap1=0.4, shape=self.HEAD_SHAPE)
+             cap1=self.HEAD_CAP, shape=self.HEAD_SHAPE)
         for c, r, mirror in self.HEAD_BLOBS:
             if c == 'nose':
                 c, r = self.NOSE_C, self.NOSE_R

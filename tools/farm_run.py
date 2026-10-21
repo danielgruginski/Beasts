@@ -36,6 +36,11 @@ for st in steps:
         out[st] = FB.lowest(sp)
     elif st == "export":
         out[st] = FB.export(sp)
+    elif st == "body":
+        body, arm, rep = FB.build_model(sp, paint=False, rig=False)
+        out[st] = rep
+    elif st == "heads":
+        out[st] = FB.head_shots(sp)
     elif st == "coats":
         out[st] = FB.coat_shots(sp)
     elif st == "nosave":

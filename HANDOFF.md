@@ -380,7 +380,13 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     `SM_VK_Animal_*` placements (Hamlet.unity 9, Saltmere_Farms.unity 7, ShepherdDowns.unity 2, Greywall.unity 1,
     and entries in `Assets/Game/Resources/KitSeeThroughCaps.asset`) for the new prefabs; only then take the animals out
     of the kit (`vk_mod_humble.py` farmsteads, `Hovel_Cruck` / `Hovel_Hip`, the package).
-  - Not reviewed by Daniel yet; my calls: the coats, the horned cow, the leggy half-wild pig, a hen (no rooster).
+  - Daniel's first look (2026-10-20, in Farm_Test): "Goat is awesome actually"; the pig's snout too long, the cow's
+    and the horse's snouts weird. Reshaped the same day: the deer's tapering muzzle with its thin separate jaw read as
+    a beak with a bar under it on the bigger heads. Now the cow has a broad, deep, blunt muzzle (`HEAD_CAP`, a muzzle
+    box, a heavy jaw), the horse a wedge-shaped face with facial crests, a soft muzzle and a tucked chin, the pig a
+    much shorter snout (`KH` y 0.85), and all three a **jawline** volume that wraps the jaw's back half in skin, so
+    only the mouth at the front shows. `farm_run ... body heads nosave` renders the bare head fast for such work.
+    Still my calls, not reviewed: the coats, the horned cow, the leggy half-wild pig, a hen (no rooster).
   - The horse has no saddle socket or rider clips; its forelock reads as a small dark wedge between the eyes.
   - Young ones (lamb, kid, calf, foal, piglet, chicks) would be scaled copies with a bigger head (`KH`).
 
