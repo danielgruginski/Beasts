@@ -376,10 +376,17 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
 ## Open / next
 
 - **Farm animals:**
-  - Game side (not this repo; ask Daniel first, the scenes belong to the game session): swap the game's
-    `SM_VK_Animal_*` placements (Hamlet.unity 9, Saltmere_Farms.unity 7, ShepherdDowns.unity 2, Greywall.unity 1,
-    and entries in `Assets/Game/Resources/KitSeeThroughCaps.asset`) for the new prefabs; only then take the animals out
-    of the kit (`vk_mod_humble.py` farmsteads, `Hovel_Cruck` / `Hovel_Hip`, the package).
+  - **In the game (2026-10-21, the user: "place those on the game and remove the placeholder animal props"; his
+    picks: ambient in place, the game's layouts place them).** MedievalSetting `Assets/Game/Farm/`: `Animal_Goat/
+    Sheep/Cow/Horse/Pig.prefab` (the Beasts prefab unpacked, an `AC_<Animal>_AmbientA/B` controller, no root motion,
+    cull-update, a BoxCollider at 85% of the mesh so the sheep stay shearable through `GatherDef.prop`
+    "Animal_Sheep") and `Animal_Chickens.prefab` (five hens, A/B alternating, no collider). The controllers chain
+    Idle/Graze/Call/Alert/Sleep/Wake (hens: Peck/Scratch/Call/Idle/Alert/Flap) by exit time; every other instance
+    runs B so neighbours drift apart. 40 animals placed: Hamlet 12, Saltmere_Farms 10, ShepherdDowns 9, Greywall 3,
+    MonasteryRoad 1, OrcHold 5 (the 19 loose kit props swapped in place, 21 where the kit's pens and yards held them),
+    and the 21 pen ones written into the layouts (Tools~ `*_layout.py` + JSON, "z" = the old floor height) so a level
+    rebuild keeps them. Built by RunCommand, not in FarmSetup.cs yet (adding it means a recompile: wait for a free
+    editor). The kit lost its animals in MedievalVillageKit d89bbb0 (HANDOFF 138). Not play-tested.
   - Daniel's first look (2026-10-20, in Farm_Test): "Goat is awesome actually"; the pig's snout too long, the cow's
     and the horse's snouts weird. Reshaped the same day: the deer's tapering muzzle with its thin separate jaw read as
     a beak with a bar under it on the bigger heads. Now the cow has a broad, deep, blunt muzzle (`HEAD_CAP`, a muzzle
