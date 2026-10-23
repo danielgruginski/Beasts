@@ -1075,3 +1075,13 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   face on its front face with the opposite normal, 0 unweighted. `renders/bat_underside_before_after.png` (EEVEE; the
   old look emulated with the back faces' normal flipped back to the front one). Not run in Unity. The dragon's wings
   and the hydra's fins have the same issue (`MakeTwoSided`), not changed.
+- 2026-10-23 (later): **Zombie wolf spine** (Daniel: "Do these tasks you mentioned", from the polish list): at the game
+  camera the pale bald strip down the back (`zwolf_body.SPINE_BALD`, grey-green skin + bone-pale processes) read as a
+  racing stripe. Paint only (`zwolf_paint`; the mesh, the strip's sunk skin and the processes' bumps unchanged): inside
+  `_spine_strip` the skin is dark grey-green mixed 40% toward the coat's saddle colour (so the pale coat doesn't get a
+  dark stripe instead), matted fur crosses it in stretches (fbm along the back, seed 91), the processes are stained dark
+  except `PALE_KNOBS` (1, 2, 6, 10, 11, 15: six of seventeen, bone x0.75), the gaps between them a little lighter than
+  before. `zwolf_run.py -- paint coats game export` (same UVs; FBX and clips re-exported unchanged). Checked at full
+  res: the game sheet, `renders/zwolf_vs_wolf_game.png` (redone from the saved `zwolf_ref_wolf_game*.png`),
+  `renders/zwolf_spine_game_before_after.png`, top/above/34/34r and the three coats: no stripe, a dotted knobbly line
+  with a few pale knobs. `docs/images/zwolf_game.png` and `zwolf_34r.png` updated.

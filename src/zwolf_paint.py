@@ -9,8 +9,8 @@ T_ZombieWolf_Pale (a white wolf's, yellowed). A = smoothness. What makes it read
 and high-contrast:
   - bald, grey-green rotting skin (zwolf_body.BALD, the same mask that keeps the fur sculpt off it) with bruises, green
     rot and dark veins; the fur matted dark round each patch;
-  - ribs drawn down both flanks (strong through the bald skin), the spine's processes, hip points and pin bones
-    picked out pale;
+  - ribs drawn down both flanks (strong through the bald skin), hip points and pin bones picked out pale; the spine a
+    broken line of knobs through dark rotten skin and matted fur, only a few of them bone-pale (PALE_KNOBS);
   - the torn flank: a near-black cavity, wet red walls, a pale torn edge, a crust of dried blood and drips under it,
     a bruised halo; the rib bars bone-pale, stained where they go into the flesh; the haunch's torn patch the same;
   - milky white eyes in dark, sunken sockets; dark gums and yellow teeth under the drawn-back lips, blood crusted round
@@ -49,6 +49,20 @@ ROT = dict(skin='#7f8b72', skin2='#8e9680', rot='#56663a', bruise='#4c3b4b', vei
            crust='#2b1310', eye='#d2d8d1', eye_dim='#8d9a99', gum='#4a1d24', lip='#1b1617', palate='#3c1a1f',
            tooth='#c8b88e', tooth_root='#5f4c33', tongue='#6a4a52', tongue_dark='#463037', nose='#2b2727',
            pad='#29231f', claw='#26201b')
+
+
+# The spine (2026-10-23, Daniel: "Do these tasks you mentioned"; at the game camera the pale bald strip down the back
+# read as a racing stripe): the strip's skin is dark grey-green near the coat's own back colour, matted fur crosses it
+# in stretches, most of the processes are stained dark and only these few stay bone-pale (index k of zwolf_body's
+# processes, y = -0.36 + k * SPINE_STEP, withers to croup).
+PALE_KNOBS = (1, 2, 6, 10, 11, 15)
+
+
+def _spine_strip(x, y, z):
+    """0..1: the spine's bald strip (zwolf_body.SPINE_BALD) and a margin, from the top line down."""
+    y0, y1, hw_, dz = Z.SPINE_BALD
+    along = smoothstep(y0 - 0.08, y0 + 0.02, y) * smoothstep(y1 + 0.08, y1 - 0.02, y)
+    return along * np.exp(-0.5 * ((x / (1.6 * hw_)) ** 2 + ((z - Z.top_z(y)) / (1.6 * dz)) ** 2))
 
 
 def _rib_shade(ph):
@@ -172,6 +186,13 @@ def paint(D, variant='grey'):
     scol = scol * (1 - 0.30 * tail)[:, None]                                    # the tail's end: a dark rat's tail
     # the fur thins out into the skin in strands round each patch (a hard edge read as a sticker)
     skin_w = smoothstep(0.30, 0.72, b + 0.35 * s1 + 0.15 * s2)
+    # the spine's strip: dark grey-green rotten skin close to the coat's back, matted fur across it in stretches
+    spn = _spine_strip(x, y, z) * furb
+    sk_dark = _mix(_mix(np.tile(R['skin'] * 0.55, (n, 1)), R['rot'] * 0.7, 0.35 + 0.25 * n_mid), C['saddle'], 0.40)
+    sk_dark = _mix(sk_dark, R['bruise'] * 0.8, 0.25 * smoothstep(0.10, 0.65, fbm(Pu * 13.0, 3, seed=52)))
+    scol = _mix(scol, sk_dark * (0.88 + 0.18 * fbm(Pu * 70.0, 2, seed=54))[:, None], spn)
+    across = smoothstep(-0.10, 0.18, fbm(np.stack([y * 15.0, x * 3.0 + 1.7, z * 3.0], -1), 2, seed=91))
+    skin_w = skin_w * (1 - 0.9 * spn * across * smoothstep(0.15, 0.55, s3 + 0.5))
     col = _mix(col, C['mark'], 0.22 * smoothstep(0.0, 0.35, b) * (1 - skin_w))
     col = _mix(col, scol, skin_w)
     smooth = np.where(skin_w > 0.5, 0.22, smooth)
@@ -189,8 +210,11 @@ def paint(D, variant='grey'):
     pv = (y + 0.36) / Z.SPINE_STEP
     pph = pv - np.round(pv)
     ridge = furb * smoothstep(-0.38, -0.34, y) * smoothstep(0.44, 0.40, y) * np.exp(-(x / 0.016) ** 2) * smoothstep(-0.03, -0.005, z - tz)
-    col = _mix(col, R['bone'] * 0.8, 0.55 * ridge * np.exp(-(pph / 0.22) ** 2) * (0.4 + 0.6 * b))
-    col = _mix(col, R['crust'] * 0.5, 0.45 * ridge * np.exp(-((np.abs(pph) - 0.5) / 0.14) ** 2))
+    knob = ridge * np.exp(-(pph / 0.20) ** 2)
+    pale_k = np.isin(np.round(pv), PALE_KNOBS)
+    col = _mix(col, _mix(R['bone_dark'] * 0.55, R['rot'] * 0.6, 0.3), 0.45 * knob * ~pale_k)
+    col = _mix(col, R['bone'] * 0.75, 0.60 * knob * pale_k * (0.6 + 0.4 * b))
+    col = _mix(col, R['crust'] * 0.5, 0.40 * ridge * np.exp(-((np.abs(pph) - 0.5) / 0.14) ** 2))
     for s in (1, -1):
         for c, r in (((0.058, 0.285, float(Z.top_z(0.285)) - 0.004), (0.016, 0.022, 0.012)),
                      ((0.040, 0.474, 0.660), (0.014, 0.014, 0.014)),

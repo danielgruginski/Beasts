@@ -666,7 +666,7 @@ The grey wolf dead and risen: starved, mangy, torn open. Its own file, `blender/
 
 ![The zombie wolf from the right: the torn flank, the torn ear, bared teeth](docs/images/zwolf_34r.png)
 
-![At the game camera (22 m, 50°, fov 30), blown up x3: the broken pale spine, the dark thin body, the red flank](docs/images/zwolf_game.png)
+![At the game camera (22 m, 50°, fov 30), blown up x3: the dark thin body, a knobbly spine, the red flank](docs/images/zwolf_game.png)
 
 | Part | Triangles | Texture |
 |---|---|---|
@@ -697,8 +697,10 @@ How it is built:
   symmetrize), the upper lip drawn back off the teeth (the muzzle's lip line raised, the upper teeth rooted in the gum
   and hanging outside the lower jaw), deep sockets, gaunt cheeks and temples, eyes 1.12x the wolf's.
 - **Paint** (`zwolf_paint`, the wolf's layout dulled and dirty): grey-green rotting skin with bruises, green rot and
-  veins, the fur thinning into it in strands; ribs drawn on both flanks, the spine's processes and hip bones picked out
-  pale; the cavity near-black with wet red walls, a pale torn edge, dried blood round it and drips below; milky eyes in
+  veins, the fur thinning into it in strands; ribs drawn on both flanks, hip bones picked out pale; the spine a broken
+  line of knobs (2026-10-23: the bald strip had read as a racing stripe at the game camera): its skin dark grey-green
+  near the coat's own back colour, matted fur across it in stretches, most processes stained dark and only six
+  (`PALE_KNOBS`) bone-pale; the cavity near-black with wet red walls, a pale torn edge, dried blood round it and drips below; milky eyes in
   dark sockets, dark gums, yellow teeth, blood round the mouth and down the throat, the torn ear's edge crusted. The
   rot is the Humans zombies' (`#7f8b72`, `#8e9680`, bone `#d8cfb4`). Coats: grey (default), dark (a black wolf's),
   pale (a white wolf's, yellowed).
@@ -716,7 +718,8 @@ blender.exe -b --factory-startup blender/zombie_wolf.blend --python tools/zwolf_
 `paint` repaints the built model (same UVs) for paint-only changes. Renders: `renders/zwolf_<view>.png` (34, 34r, side,
 sider, top, face, facer, headside(r), headfront, rear, wound, above, colony), `zwolf_game_sheet.png` (the game camera:
 22 m, 50°, fov 30, the wolf ~90 px, blown up x3), `zwolf_frames_<Clip>.png` (EEVEE frames round the wound and the face),
-`zwolf_clip_<Clip>.png`, `zwolf_coats.png`, `uv_layout_zwolf.png`.
+`zwolf_clip_<Clip>.png`, `zwolf_coats.png`, `uv_layout_zwolf.png`, `zwolf_vs_wolf_game.png` (the grey wolf above, the
+zombie below, at the game camera) and `zwolf_spine_game_before_after.png` (the spine before and after 2026-10-23).
 
 **In Unity:** copy the new files (assets first, then the script) and run Tools > Beasts > Rebuild Zombie Wolf
 (`ZombieWolfSetup.cs`; it also runs by itself on the first import). It makes `M_ZombieWolf` (+ `_Dark`, `_Pale`),
