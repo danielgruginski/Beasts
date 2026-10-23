@@ -751,8 +751,8 @@ cameras `BAT_CAM_*`), built headless.
 | Arms, fingers, thumbs, hind legs (clean lofts); claws | 632; 88 | |
 | Ears, eyes, fangs, lower jaw | 156, 100, 68, 220 | |
 | **BatBody** | **3,160** | `M_Bat` |
-| **BatWing**: the membranes (Coons patches) | **960** | `M_BatWing`: the same texture, drawn from both sides |
-| **Bat** | **4,120** | |
+| **BatWing**: the membranes (Coons patches), 960, and their underside (the same faces copied and flipped), 960 | **1,920** | `M_BatWing`: the same texture, back faces culled |
+| **Bat** | **5,080** | |
 
 How it is built:
 
@@ -765,8 +765,15 @@ How it is built:
 - **Pieces in a `dragon_body.Acc`**, so every vertex carries its own weights: chain weights along the arm, finger and
   leg lofts, the membranes' Coons weights, ears, eyes, fangs and jaw rigid. The fused fur gets heat weights solved on
   a copy of the fur alone (`bat_body.heat_weights`), so the membrane sheets stay out of the heat solve.
-- **The wings are split off after painting** (`BatWing`), only to get a two-sided material; both meshes share the UVs
-  and `T_Bat`. The membranes face up in the bind pose (`_membranes_up`).
+- **The wings are split off after painting** (`BatWing`); both meshes share the UVs and `T_Bat`. The membranes face up
+  in the bind pose (`_membranes_up`).
+- **The membrane has an underside of its own** (2026-10-23): `bat_build._two_layers` copies every wing face onto new
+  vertices (same UVs, weights, info), flips the copies and tags them (`back` face attribute); `M_BatWing` culls back
+  faces, in Blender and in Unity. A material drawn from both sides (URP Lit `_Cull` 0) lit the underside with the upper
+  side's normals, so it read as bright as the top from below; now each side is lit with its own normal in any shader
+  or render path. `paint` bakes the single sheet (`_one_layer`) and puts the underside back.
+  `renders/bat_underside_before_after.png`: from below and from a low 3/4, left the old look (back faces shaded with
+  the front normal, as Unity did), right the two layers.
 - **Paint** (`bat_paint`): fur strokes along the flow, a grizzled crown, the bare face, the ears' cross ridges, the
   wings darker along the bones with veins branching off them and creases along the fingers.
 
@@ -802,7 +809,7 @@ Renders: `renders/bat_<view>.png` (front, side, top, below, 34, 34r, rear, face,
 `bat_clip_<Clip>.png`, `bat_frames_<Clip>.png`, `bat_hero*.png`, `uv_layout_bat.png`.
 
 **In Unity:** copy the files (assets first, then the script) and run Tools > Beasts > Rebuild Bat (`BatSetup.cs`; it
-also runs by itself on the first import). It makes `M_Bat`, `M_BatWing` (two-sided), `Prefabs/Bat` (Animator,
+also runs by itself on the first import). It makes `M_Bat`, `M_BatWing` (back faces culled, `_Cull` 2), `Prefabs/Bat` (Animator,
 `BeastAppearance` for the size, `BeastEvents`; the renderers' bounds padded for the wings), `Animation/BatAnims`
 (Idle and Hover, Fly, Screech leading into Dive, Hit, Death) and lineup renders in `Logs/BatSetup` (a preview scene).
 It touches no scene.

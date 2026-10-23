@@ -18,8 +18,10 @@ namespace Beasts.EditorTools
     ///   Anims/Bat@*.fbx    seven clips (Idle, Hover, Fly, Dive, Screech, Hit, Death), avatar copied from Bat.fbx; loop
     ///                      flags, root motion (Fly) and animation events (OnBeastEvent: Bite, Screech, Dead) from
     ///                      Anims/bat_clips.json
-    ///   Materials          M_Bat and M_BatWing (the same T_Bat, the wing drawn from both sides); smoothness from the
-    ///                      texture's alpha
+    ///   Materials          M_Bat and M_BatWing (the same T_Bat); smoothness from the texture's alpha. BatWing has two
+    ///                      layers (2026-10-23): the membrane's faces plus a flipped copy for the underside, so M_BatWing
+    ///                      culls back faces like any opaque material (URP Lit drawn from both sides, _Cull 0, lit the
+    ///                      underside with the upper side's normals: bright from below)
     ///   Prefabs/Bat        Animator + BeastAppearance (size) + BeastEvents
     ///   Animation/BatAnims clip pools for BeastRandomAnimator
     /// No scene is touched (the game side is to come). Runs once by itself the first time the files are imported;
@@ -75,7 +77,8 @@ namespace Beasts.EditorTools
                 ConfigureSmoothnessTexture(Textures + "/T_Bat.png");
                 var hide = MakeLit("M_Bat", Textures + "/T_Bat.png", Color.white);
                 var wingMat = MakeLit("M_BatWing", Textures + "/T_Bat.png", Color.white);
-                MakeTwoSided(wingMat);
+                if (wingMat.HasProperty("_Cull")) wingMat.SetFloat("_Cull", 2f);   // back faces culled: the underside is
+                wingMat.doubleSidedGI = false;                                       // a layer of its own in the mesh
 
                 var (avatar, motionPath, model) = ConfigureModel(ModelPath, new[] { ("M_Bat", hide), ("M_BatWing", wingMat) }, log);
                 var clips = ConfigureClips("Bat", Anims + "/bat_clips.json", avatar, motionPath, EventFunction, log);
@@ -91,7 +94,8 @@ namespace Beasts.EditorTools
                 look.skins = new[] { hide };
                 look.scale = new Vector2(0.92f, 1.08f);
                 if (go.GetComponent<BeastEvents>() == null) go.AddComponent<BeastEvents>();
-                log.AppendLine($"  Bat.prefab: body={body != null} wing={wing != null}");
+                log.AppendLine($"  Bat.prefab: body={body != null} wing={wing != null}" +
+                               (wing != null ? $" wing tris={wing.sharedMesh.triangles.Length / 3} (two layers: 1920)" : ""));
                 var prefab = PrefabUtility.SaveAsPrefabAsset(go, PrefabPath);
                 Object.DestroyImmediate(go);
                 log.AppendLine("  prefab: " + PrefabPath);

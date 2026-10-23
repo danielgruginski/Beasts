@@ -615,8 +615,7 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - not installed in Unity, not seen by Daniel; no game side (a creature definition, the `Bite`/`Screech` events,
     sounds), by his call. The game moves it on the ground: it must not collide as a ground creature would (its body is
     1.6 m up);
-  - the upper side of the wing is lit for both sides (`_Cull` 0 does not flip the normal): the underside in shadow
-    reads lit when the sun is low;
+  - the underside lit like the top: fixed 2026-10-23 (below, "Bat wing underside");
   - the arms and fingers are thin tubes (4-6 sides), fine at the game camera, faceted up close; the head is a smooth
     fused shape with painted fur;
   - maybe: a roost (hanging) idle with a drop into flight, a glide, a hit while diving.
@@ -1063,3 +1062,16 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   between the carapace's edge and the plastron, the skin going in under it. The painter reads only the outline, so the
   scutes still fit. Lowest-vertex and the Walk trace unchanged; Withdraw now pulls the head in under the front arch.
   Re-exported (model, clips, texture) and reinstalled in MedievalSetting (Rebuild Turtle: OK).
+- 2026-10-23 (later): **Bat wing underside** (Daniel: "Do these tasks you mentioned", from the polish list). In URP the
+  membrane was drawn from both sides (`MakeTwoSided`, `_Cull` 0), and URP Lit does not flip the normal on back faces,
+  so the underside was lit like the top: bright from below. URP Lit and URP Shader Graph have no back-face flip (only
+  SpeedTree uses `FRONT_FACE_SEMANTIC`); the dragon and hydra use the same `MakeTwoSided`, so nothing to reuse. Fix in
+  the mesh: `bat_build._two_layers` copies the wing's faces onto new vertices (UVs, weights, info kept), flips them
+  and tags them (`back` face attribute); `M_BatWing` culls back faces in Blender, and `BatSetup` sets `_Cull` 2 and
+  `doubleSidedGI` false (the old material asset kept `_Cull` 0 otherwise) and logs the wing's triangles (1920).
+  BatWing 960 -> 1,920 tris, the bat 4,120 -> 5,080. `paint` bakes one sheet (`_one_layer`: the layers share UVs, and
+  Cycles would bake both) and puts the underside back. Applied with `creature_run.py -- bat paint lowest export` on the
+  saved file (same mesh and UVs; lowest unchanged). Export re-imported: BatWing 1,232 verts, 1,920 tris, every back
+  face on its front face with the opposite normal, 0 unweighted. `renders/bat_underside_before_after.png` (EEVEE; the
+  old look emulated with the back faces' normal flipped back to the front one). Not run in Unity. The dragon's wings
+  and the hydra's fins have the same issue (`MakeTwoSided`), not changed.

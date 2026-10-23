@@ -58,17 +58,59 @@ def work_layer(on):
 
 
 def _wing_material(wing):
-    """M_BatWing: M_Bat's texture, drawn from both sides (the Unity setup makes it two-sided too)."""
+    """M_BatWing: M_Bat's texture, back faces culled: the membrane has an underside of its own (_two_layers), so each
+    side shows its own faces and normals (the Unity setup culls them too)."""
     src = bpy.data.materials["M_Bat"]
     m = bpy.data.materials.get("M_BatWing")
     if m is not None:
         bpy.data.materials.remove(m)
     m = src.copy()
     m.name = "M_BatWing"
-    m.use_backface_culling = False
+    m.use_backface_culling = True
     wing.data.materials.clear()
     wing.data.materials.append(m)
     return m
+
+
+BACK = "back"          # int face attribute: 1 on the membrane's underside (the copied, flipped faces)
+
+
+def _one_layer(wing):
+    """Drop the underside layer (faces with BACK = 1 and their vertices), back to the painted single sheet."""
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(wing.data)
+    lay = bm.faces.layers.int.get(BACK)
+    if lay is not None:
+        back = [f for f in bm.faces if f[lay]]
+        verts = {v for f in back for v in f.verts}
+        bmesh.ops.delete(bm, geom=back, context='FACES_ONLY')
+        bmesh.ops.delete(bm, geom=[v for v in verts if not v.link_faces], context='VERTS')
+        bm.faces.layers.int.remove(lay)
+    bm.to_mesh(wing.data)
+    bm.free()
+    wing.data.update()
+
+
+def _two_layers(wing):
+    """The membrane's underside as faces of its own (2026-10-23, Daniel: "Do these tasks you mentioned"): every face
+    copied onto new vertices (same UVs, weights and info) and flipped, tagged BACK. Unity's URP Lit drawn from both
+    sides (_Cull 0) lit the underside with the upper side's normals, so from below it read as bright as the top; with
+    two layers and back faces culled each side is lit with its own normal, in any shader and render path. +960 tris."""
+    import bmesh
+    _one_layer(wing)
+    bm = bmesh.new()
+    bm.from_mesh(wing.data)
+    lay = bm.faces.layers.int.new(BACK)
+    ret = bmesh.ops.duplicate(bm, geom=list(bm.verts) + list(bm.edges) + list(bm.faces))
+    new = [g for g in ret['geom'] if isinstance(g, bmesh.types.BMFace)]
+    bmesh.ops.reverse_faces(bm, faces=new)
+    for f in new:
+        f[lay] = 1
+    bm.to_mesh(wing.data)
+    bm.free()
+    wing.data.update()
+    return {"faces": len(wing.data.polygons), "back": len(new)}
 
 
 def build_model(tex=1024):
@@ -105,6 +147,7 @@ def _split_wing(body):
     sel = part == PART['membrane']
     beast_rig.split_part(body, sel, WING_OB, [g.name for g in body.vertex_groups])
     wing = bpy.data.objects[WING_OB]
+    _two_layers(wing)
     _wing_material(wing)
     return wing
 
@@ -121,7 +164,9 @@ def paint():
     body, wing = bpy.data.objects[BODY], bpy.data.objects[WING_OB]
     work_layer(True)
     D = bake_data(body, size=1024, ao_dist=0.12)
+    _one_layer(wing)                                            # the bake sees one sheet (the layers share UVs)
     D2 = bake_data(wing, size=1024, ao_dist=0.12)
+    _two_layers(wing)
     for k in ("P", "N", "part", "on_jaw", "aux", "ao", "info"):
         D[k] = np.where(D2['valid'][(...,) + (None,) * (D[k].ndim - 2)], D2[k], D[k])
     D['valid'] = D['valid'] | D2['valid']
