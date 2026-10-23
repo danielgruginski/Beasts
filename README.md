@@ -24,7 +24,9 @@ in Unity (MedievalSetting, `Assets/Beasts`), with shared code in the `beast_*` m
   code, always in the air; seven clips; exported with a Unity setup, not installed yet (see [Giant bat](#giant-bat));
 - the **giant turtle** (2026-10-23, Daniel's card game): a 2.6 m mossy shell with three knobbed keels on elephantine
   legs, a snapping turtle's hooked beak; seven clips including Withdraw into the shell; exported with a Unity setup,
-  not installed yet (see [Giant turtle](#giant-turtle)).
+  not installed yet (see [Giant turtle](#giant-turtle));
+- the **leech** (2026-10-23, Daniel's card game): a 1.8 m swamp leech, a chain that loops like an inchworm, a toothed
+  oral sucker, swelling pulses; five clips; exported with a Unity setup, not installed yet (see [Leech](#leech)).
 
 ![The wolf in the bind pose](docs/images/wolf_34.png)
 
@@ -98,6 +100,7 @@ the UVs. Always export after a rebuild, so the FBX and the textures in `textures
 | `zwolf_body.py`, `zwolf_rig.py`, `zwolf_paint.py`, `zwolf_anim.py`, `zwolf_build.py`, `tools/zwolf_run.py` | The zombie wolf on the wolf's skeleton: starved body, bald patches, the torn flank with rib bars, torn ear, bared teeth; the rot painter; the wolf's clips; headless build (see [Zombie wolf](#zombie-wolf)) |
 | `bat_body.py`, `bat_anim.py`, `bat_paint.py`, `bat_build.py` | The giant bat: fused fur body, lofted arms, fingers and legs, the dragon's membranes with a bat `WingSpec`; its own small pose system with the dragon's wing strokes; built headless by `tools/creature_run.py` (see [Giant bat](#giant-bat)) |
 | `turtle_body.py`, `turtle_anim.py`, `turtle_paint.py`, `turtle_build.py` | The giant turtle: fused skin, a parametric carapace (closed shell, keels, scutes), plastron and bridges; beast_anim's quadruped clips with the neck sliding into the shell (`p.retract`) (see [Giant turtle](#giant-turtle)) |
+| `leech_body.py`, `leech_anim.py`, `leech_paint.py`, `leech_build.py` | The leech: a ringed tube built ring by ring with a toothed cup and a rear disc; a chain posed along curves (flat stretches, fitted arches and Beziers), swell bones for the pulses (see [Leech](#leech)) |
 | `beast_review.py`, `tools/creature_run.py` | Headless builds in files of their own: scene, game cameras, the wolf appended for scale, render sheets, lowest vertex per clip, a root-motion trace, a UV overlap count; the runner (`-- <creature> <steps>`) |
 | `ooze_body.py`, `ooze_contents.py`, `ooze_paint.py`, `ooze_rig.py`, `ooze_anim.py`, `ooze_scene.py`, `ooze_build.py` | The dungeon ooze: a distance-field shell meshed with openvdb, the contents, charted UVs and per-texel paint without Cycles bakes, the rig, the clips and their checks, EEVEE review renders (see [Dungeon ooze](#dungeon-ooze)) |
 | `beast_coat.py` | Long coats: coat volumes (lofts), hem fringes snapped to their volume or dropped onto the body, clumps, the hair's root-to-tip `t` |
@@ -884,6 +887,74 @@ Copy-Item "$B\export\Anims\Turtle@*.fbx" "$U\Models\Anims\"
 Copy-Item "$B\export\Anims\turtle_clips.json" "$U\Models\Anims\"
 Copy-Item "$B\textures\T_Turtle.png" "$U\Textures\"
 Copy-Item "$B\unity\Beasts\Editor\TurtleSetup.cs" "$U\Scripts\Editor\"
+```
+
+## Leech
+
+The third card-game unit of the round (2026-10-23; no game side). My calls: a medicinal leech made big and swampy,
+1.8 m long stretched out and 0.25 m across, flattened with a flat belly, ringed all along; the back dark olive to
+black with two rows of rusty spots and a thin broken pale stripe, the belly a mottled yellow-olive; the front narrows
+to a round oral sucker, a cup with three rows of teeth inside (a lamprey's mouth more than a leech's: it reads from
+the game camera), five pairs of eye spots; a broad rear sucker under the tail end; wet and glossy. Its own file,
+`blender/leech.blend` (scene **Leech**, cameras `LCH_CAM_*`), built headless.
+
+![Crawling: the rear sucker drawn up behind the front one](docs/images/leech_crawl.png)
+
+![The oral sucker](docs/images/leech_mouth.png)
+
+![At the game camera (22 m, 50°, fov 30), blown up x3, the grey wolf beside it for scale](docs/images/leech_game.png)
+
+| Part | Triangles | Texture |
+|---|---|---|
+| The tube (rear cap, 71 rings of 14, the lip, the cup) | 2,128 | `T_Leech` 1024², A = smoothness (wet) |
+| Teeth (30), rear sucker disc | 120, 128 | |
+| **LeechBody** | **2,376** | `M_Leech` |
+
+How it is built:
+
+- **One clean tube, ring by ring** (`leech_body.build_tube`; no voxel fuse): a flattened section (the belly flatter),
+  every other ring 3% fatter for the annuli, the front folding inward into the cup and a throat, the rear capped over
+  the disc. Its faces are oriented by hand (the outside test, fooled by the cup folding inward, turned it inside
+  out). Seams down the belly and round two rings: three short islands pack better than one 1.8 m strip.
+- **A chain** (the ooze and the centipede are the other path bodies): Sucker, Body1-10, Head, rear to front, weights by
+  arc length; a leaf **Swell<k>** on each body bone takes 60% of it (35% on the belly) and its uniform scale swells
+  the segment. `beast_rig.apply_pose(scale_bones=...)` keys their scale (leaf bones only: no shear in Unity).
+- **Poses are curves** (`leech_anim`): flat stretches on the ground, bell-shaped arches fitted to a length
+  (`arch_fit`) and Beziers fitted to a length (`bezier_fit`); the bones sit at their rest arc positions scaled to the
+  curve's length (it stretches and shrinks), framed by parallel transport from the rear, with a roll. The world curve
+  is turned into the skeleton's frame once; Motion carries the root motion.
+
+| Clip | Length | Notes |
+|---|---|---|
+| Idle | 3.0 s loop | lying stretched out, the front end raised and searching side to side, two pulses running down the body |
+| Crawl | 2.0 s loop | looping like an inchworm: the rear sucker lets go and is drawn up behind the front one (the body arches ~0.45 m), then the front reaches forward; root motion 0.33 m/s |
+| Lunge | 2.2 s | rears its front up and back, strikes 0.3 m past its head and latches on 0.4 m up (event `Bite` at 0.6 s), drinks (swellings run back from the mouth, the body pumps; events `Drain` 1.1 s, `Drain2` 1.5 s), lets go |
+| Hit | 0.5 s | a writhe, the front recoiling |
+| Death | 2.0 s | writhes, curls into a C on its side and shrinks; event `Dead` at 1.6 s; holds |
+
+Lowest vertex: 2 mm above the ground in every clip but Death (-1.8 cm while it rolls onto its side). Crawl traced
+over 3 loops: 0.65 m a loop, Motion's turn 0, the head's step at the seam 0.1 mm (inside the loop up to 13 mm: it
+stops and goes). Export re-imported: 26 bones, one mesh, the Swell bones' scale keys kept.
+
+Rebuild (headless, under a minute):
+
+```
+blender.exe -b --factory-startup --python tools/creature_run.py -- leech build review game clips lowest trace sheets closeups hero export
+blender.exe -b --factory-startup blender/leech.blend --python tools/creature_run.py -- leech paint review
+```
+
+**In Unity:** copy the files (assets first, then the script) and run Tools > Beasts > Rebuild Leech
+(`LeechSetup.cs`; it also runs by itself on the first import). It makes `M_Leech`, `Prefabs/Leech` (Animator,
+`BeastAppearance` for the size, `BeastEvents`; bounds padded for the arch), `Animation/LeechAnims` and lineup renders
+in `Logs/LeechSetup`. It touches no scene.
+
+```
+$B = "E:\Unity\Projects\GameArtGeneration\Beasts"; $U = "E:\Unity\Projects\MedievalSetting\Assets\Beasts"
+Copy-Item "$B\export\Leech.fbx" "$U\Models\"
+Copy-Item "$B\export\Anims\Leech@*.fbx" "$U\Models\Anims\"
+Copy-Item "$B\export\Anims\leech_clips.json" "$U\Models\Anims\"
+Copy-Item "$B\textures\T_Leech.png" "$U\Textures\"
+Copy-Item "$B\unity\Beasts\Editor\LeechSetup.cs" "$U\Scripts\Editor\"
 ```
 
 ## Dragon and hydra

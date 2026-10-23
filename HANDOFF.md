@@ -481,6 +481,31 @@ checks.
       the head's underside, skin-coloured behind its horn tip, its top tucked inside the upper beak's edge; from the
       side it still reads as a lip.
 
+- **Leech (2026-10-23):** the third unit of the round (Daniel's words as for the bat). Built headless into
+  `blender/leech.blend`: `tools/creature_run.py -- leech <steps>`.
+  - My calls: a medicinal leech made big and swampy: 1.8 m, flattened, ringed, dark olive-black with two rows of rusty
+    spots and a broken pale stripe, a mottled yellow belly; a round oral sucker with three rows of teeth (a lamprey's
+    mouth: it reads at the game camera), eye spots, a broad rear disc; glossy wet. 1024² (the brief allowed 512).
+  - Built: 2,376 tris (tube 2,128, teeth 120, disc 128), 26 bones (Sucker, Body1-10, Head, Swell1-10, sockets),
+    `T_Leech`; weights unweighted 0, over4 0 (by arc length, no heat map); non-manifold 0; UV overlap 0.
+  - Clips (`leech_anim`, a pose = a curve): Idle 3.0 s, Crawl 2.0 s (inchworm, 0.33 m/s), Lunge 2.2 s (`Bite` 0.6 s,
+    `Drain` 1.1 s, `Drain2` 1.5 s: the hydra's numbering for repeated events), Hit 0.5 s, Death 2.0 s (`Dead` 1.6 s).
+    Lowest vertex 2 mm except Death -1.8 cm. Crawl traced over 3 loops (0.65 m a loop, Motion's turn 0, seam step
+    0.1 mm). The export keeps the Swell bones' scale keys (checked on a re-import).
+  - Checked by eye: the 3/4, top, side and mouth views, the texture and UV layout, every clip from two sides, the
+    crawl, lunge and death close-ups, the game camera beside the wolf (a dark stick with orange dots, about the wolf's
+    length). `LeechSetup.cs` compiled offline.
+  - Gotchas:
+    - **`recalc_face_normals` turned the tube inside out** (the cup folding inward fools the outside test): the
+      painter's back/belly masks swapped (spots on the belly). `build_body` orients the tube by a test on its middle
+      rings and builds with `recalc=False`.
+    - **Seams the builder marks are kept only outside `n_fur`:** `beast_paint.mark_seams` redraws seams on the fused
+      part, so the leech sets `n_fur = 0` (all of it is "pieces") and keeps its own cuts.
+    - **A Bezier arch peaks into a V:** the crawl's loop is a bell (`sin^1.4`) fitted to the length; the lunge's
+      latched body needs slack (1.24x) or it hangs straight as a stick.
+    - **Rolling onto its side needs the centre line lifted** by the section's half-width (`_clip_death`).
+    - `beast_rig.apply_pose(scale_bones=())`: new, default off (every other creature keys as before).
+
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
 
@@ -600,6 +625,11 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - the lower beak is a separate tube (from the side it reads as a lip); the forelegs fold beside the head when
     withdrawn rather than closing over the opening; the neck slides in rather than folding into an S;
   - maybe: a Swim clip, a tower or howdah on `Socket_Back`.
+- **Leech (2026-10-23):**
+  - not installed in Unity, not seen by Daniel; no game side (latching: the game would hold the leech's mouth on the
+    victim between `Bite` and the end of Lunge; `Drain` / `Drain2` for damage over time);
+  - Lunge latches onto a point 0.4 m up in front of it, not onto a victim's real position (no IK);
+  - maybe: a Swim clip (vertical undulation), a turn in place, a smaller swarm variant.
 - **More beasts:** a howdah on the mammoth's `Socket_Back` (the driver on the neck is done, "Riders"), giant elk, boar and dire variants can reuse the
   pipeline: parts, tufts, fuse, heat weights, and the painter's flow strokes.
 - **Ooze, Unity side:**

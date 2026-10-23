@@ -220,20 +220,24 @@ def to_basis(rig, desired, R=None):
     return basis, world
 
 
-def apply_pose(rig, desired, frame=None, R=None, keys=True):
+def apply_pose(rig, desired, frame=None, R=None, keys=True, scale_bones=()):
+    """scale_bones: leaf bones whose (uniform) scale is kept and keyed too (2026-10-23, the leech's swell bones;
+    only leaves, so Unity never inherits a shear). Every other bone stays at scale 1."""
     basis, world = to_basis(rig, desired, R)
     for n, m in basis.items():
         pb = rig.pose.bones[n]
-        loc, rot, _ = m.decompose()
+        loc, rot, sc = m.decompose()
         pb.location = loc
         q = rot
         if keys and frame is not None and pb.rotation_quaternion.dot(q) < 0:
             q = -q                      # keep quaternions on one hemisphere so the curves don't flip
         pb.rotation_quaternion = q
-        pb.scale = (1, 1, 1)
+        pb.scale = sc if n in scale_bones else (1, 1, 1)
         if keys and frame is not None:
             pb.keyframe_insert("location", frame=frame, group=n)
             pb.keyframe_insert("rotation_quaternion", frame=frame, group=n)
+            if n in scale_bones:
+                pb.keyframe_insert("scale", frame=frame, group=n)
     return world
 
 
