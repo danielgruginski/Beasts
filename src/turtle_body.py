@@ -107,11 +107,29 @@ def _rim_xy(phi):
     return x, y
 
 
+# The openings (Daniel, 2026-10-23: "The head and limbs emerge right from the cask wall, there should be some space where
+# they are inserted"): the rim arches up over the neck, each leg and the tail, so they leave the shell through a gap
+# between the carapace's edge and the plastron, not through its wall. (angle, half-width, lift): the lift puts the edge
+# ~0.07-0.1 m over the top of what passes under it (the leg at the rim: front 0.86 m, hind 0.82, neck 1.05, tail 0.80).
+ARCHES = ((0.0, 0.42, 0.30), (0.85, 0.36, 0.26), (-0.85, 0.36, 0.26), (2.29, 0.34, 0.24), (-2.29, 0.34, 0.24),
+          (math.pi, 0.26, 0.12))
+
+
+def _arch(phi):
+    """The rim's lift at angle phi: a smooth cos^2 bump per opening."""
+    h = 0.0
+    for a, w, lift in ARCHES:
+        d = (phi - a + math.pi) % (2 * math.pi) - math.pi
+        if abs(d) < w:
+            h = max(h, lift * math.cos(0.5 * math.pi * d / w) ** 2)
+    return h
+
+
 def _rim_z(phi):
     S = SHELL
     c = math.cos(phi)
     return (S['rim_side'] + (S['rim_front'] - S['rim_side']) * max(c, 0.0) ** 2 +
-            (S['rim_back'] - S['rim_side']) * max(-c, 0.0) ** 2)
+            (S['rim_back'] - S['rim_side']) * max(-c, 0.0) ** 2) + _arch(phi)
 
 
 def _relief(x, y, r):

@@ -1054,3 +1054,12 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     - `contents_out == 0`;
     - `contents_low >= 0`.
   - Then `ooze_build.clip_sheets()`, and check `renders/check_tex_*.png` (the UV layout over the texture).
+
+- 2026-10-23 (later): **turtle shell openings** (Daniel: "The turtle cask is not right. The head and limbs emerge right
+  from the cask wall, there should be some space where they are inserted"). The rim sat at a fixed height (0.62 m at the
+  sides, 0.90 at the front) under the tops of what leaves the shell (front leg 0.86 m where it crosses the rim, hind 0.82,
+  neck 1.05, tail 0.80), so they came out through the carapace's wall. `turtle_body.ARCHES` lifts the rim in a cos^2 arch
+  over each opening (neck +0.30, front legs +0.26, hind legs +0.24, tail +0.12), so the neck and legs leave through a gap
+  between the carapace's edge and the plastron, the skin going in under it. The painter reads only the outline, so the
+  scutes still fit. Lowest-vertex and the Walk trace unchanged; Withdraw now pulls the head in under the front arch.
+  Re-exported (model, clips, texture) and reinstalled in MedievalSetting (Rebuild Turtle: OK).
