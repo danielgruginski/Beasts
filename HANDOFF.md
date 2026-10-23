@@ -453,6 +453,34 @@ checks.
       `bat_anim._wings` bisects the stroke's 'Y' until every wing joint and finger tip clears `Pose.floor` by 2 cm.
     - The ground disc hides an underside shot (`review` hides it for `Below`).
 
+- **Giant turtle (2026-10-23):** the second unit of the round (Daniel's words as for the bat). Built headless into
+  `blender/turtle.blend`: `tools/creature_run.py -- turtle <steps>`.
+  - My calls: after the alligator snapping turtle, made huge and slow: a 2.6 m carapace 1.6 m high, domed, three keels
+    of pointed knobs, a saw-toothed back rim, moss, lichen and barnacles; a small plastron with bridges; a big wedge
+    head with a hooked beak, amber star-pupilled eyes, the pink tongue lure (Idle gapes to show it); a thick wrinkled
+    neck; columnar elephantine legs on round feet; a short crested tail. One texture (1024 was enough for the shell).
+  - Built: 5,832 tris (skin 2,796, shell 2,208, lower beak 312, eyes 120, claws 396), 35 bones, `T_Turtle` 1024²;
+    weights unweighted 0, over4 0; UV overlap 0.
+  - Clips (beast_anim, `Species(extra=_retract)`): Idle 4.0 s, Walk 1.6 s (0.34 m/s), Bite 1.1 s (`Bite` 0.53 s),
+    Withdraw 1.2 s (holds), Emerge 1.4 s, Hit 0.5 s, Death 2.5 s (`Dead` 2.0 s). Lowest vertex: standing clips 1.6 cm,
+    Withdraw/Emerge 3.1 cm (a hind foot's pad on the way in), Death 1.9 cm. Walk traced over 3 loops: 0.55 m a loop,
+    Motion's turn 0, head step at the seam 1.7 mm (inside 2.5 mm). Export re-imported: 35 bones, one mesh, one UV
+    layer.
+  - Checked by eye: the face and head from the side and 3/4, the shell from above (scute layout), the texture and UV
+    layout, every clip from two sides, Bite/Withdraw/Death close-ups, the game camera beside the wolf (it reads as a
+    big mossy knobbed shell; the head is ~10 px). `TurtleSetup.cs` compiled offline.
+  - Gotchas:
+    - **Shared code, additive:** `beast_rig.heat_weights` / `skin_with_pieces` (the bat's heat-on-the-fused-part-alone
+      moved there; the bat rebuilt with the same report) and `beast_paint.unwrap(island_scale=)` (default None: the
+      others unchanged). The carapace's hidden inner dome and the plastron are tagged in `info.b` and packed small.
+    - **The withdraw drops the shell after the legs fold** (`ease(k) ** 1.6`): dropping it first pushed the feet 6 cm
+      into the ground; the hind toes curl up when tucked, not down.
+    - **Death's head:** with the shell 0.4 m lower, the standing neck bends put the head 45 cm under the ground; the
+      neck barely bends now and the head slides out (`retract` -0.3).
+    - **A separate lower beak reads as a tube under the head** (the wolf's jaw lesson again): it is deep and as wide as
+      the head's underside, skin-coloured behind its horn tip, its top tucked inside the upper beak's edge; from the
+      side it still reads as a lip.
+
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
 
@@ -567,6 +595,11 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - the arms and fingers are thin tubes (4-6 sides), fine at the game camera, faceted up close; the head is a smooth
     fused shape with painted fur;
   - maybe: a roost (hanging) idle with a drop into flight, a glide, a hit while diving.
+- **Giant turtle (2026-10-23):**
+  - not installed in Unity, not seen by Daniel; no game side (a creature definition, Withdraw as a defence state);
+  - the lower beak is a separate tube (from the side it reads as a lip); the forelegs fold beside the head when
+    withdrawn rather than closing over the opening; the neck slides in rather than folding into an S;
+  - maybe: a Swim clip, a tower or howdah on `Socket_Back`.
 - **More beasts:** a howdah on the mammoth's `Socket_Back` (the driver on the neck is done, "Riders"), giant elk, boar and dire variants can reuse the
   pipeline: parts, tufts, fuse, heat weights, and the painter's flow strokes.
 - **Ooze, Unity side:**

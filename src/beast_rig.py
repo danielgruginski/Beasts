@@ -357,3 +357,62 @@ def split_part(body, sel, name, keep_groups):
     for k in [k for k in ob.keys()]:
         del ob[k]
     return {"verts": len(ob.data.vertices), "tris": sum(len(p.vertices) - 2 for p in ob.data.polygons)}
+
+
+# ----------------------------------------------------------------------------------------- fused body + weighted pieces
+def heat_weights(body, rig, n, bones):
+    """Heat-map weights for the first n vertices (the fused body) from `bones`, solved on a copy of those vertices
+    alone, so separate pieces (membrane sheets, shells, thin lofts) stay out of the solve (one bad face there fails
+    it for every bone). -> per vertex {bone: w} (2026-10-23, the bat, the turtle)"""
+    import bmesh
+    me = body.data.copy()
+    tmp = bpy.data.objects.new("_heat_tmp", me)
+    bpy.context.scene.collection.objects.link(tmp)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.index >= n], context='VERTS')
+    bm.to_mesh(me)
+    bm.free()
+    tmp.vertex_groups.clear()
+    ad = rig.data
+    keep = {b.name: b.use_deform for b in ad.bones}
+    for b in ad.bones:
+        b.use_deform = b.name in bones
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    tmp.select_set(True)
+    rig.select_set(True)
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+    for nm, d in keep.items():
+        ad.bones[nm].use_deform = d
+    names = {g.index: g.name for g in tmp.vertex_groups}
+    out = [{names[g.group]: g.weight for g in v.groups if g.weight > 1e-4} for v in me.vertices]
+    bpy.data.objects.remove(tmp, do_unlink=True)
+    bpy.data.meshes.remove(me)
+    return out
+
+
+def skin_with_pieces(body, rig, piece_w, heat_bones, smooth=3):
+    """Heat weights on the fused body (its first body['n_fur'] vertices, smoothed) and the separate pieces' own
+    weights (piece_w: per piece vertex {bone: w}, in vertex order), 4 influences, bound. -> weight report"""
+    n = body["n_fur"]
+    V = len(body.data.vertices)
+    body.vertex_groups.clear()
+    for m in [m for m in body.modifiers if m.type == 'ARMATURE']:
+        body.modifiers.remove(m)
+    W = heat_weights(body, rig, n, heat_bones) + list(piece_w)
+    assert len(W) == V, (len(W), V)
+    groups = {}
+    for i, w in enumerate(W):
+        for b, x in w.items():
+            g = groups.get(b) or body.vertex_groups.get(b) or body.vertex_groups.new(name=b)
+            groups[b] = g
+            g.add([i], float(x), 'REPLACE')
+    if smooth:
+        smooth_weights(body, np.arange(n), iterations=smooth, factor=0.5)
+    clean_weights(body)
+    rep = bind(body, rig)
+    rep["fur_unweighted"] = sum(1 for i in range(n) if not W[i])
+    return rep

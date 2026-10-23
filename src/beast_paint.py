@@ -118,8 +118,10 @@ def mark_seams(ob, part, vbone, cut, unwarp=None, min_piece=8):
     return {f.index: label[f] for f in bm.faces}
 
 
-def unwrap(ob, cut, scales, unwarp=None, margin=0.003, relax=40):
-    """Seams (mark_seams), angle-based unwrap, one density, then per-region scales ({region: k}, 'sole' for soles)."""
+def unwrap(ob, cut, scales, unwarp=None, margin=0.003, relax=40, island_scale=None):
+    """Seams (mark_seams), angle-based unwrap, one density, then per-region scales ({region: k}, 'sole' for soles).
+    island_scale(face index) -> an extra factor (2026-10-23, the turtle's hidden inner shell); it must be the same
+    for every face of an island."""
     vl = bpy.context.view_layer
     for o in bpy.context.selected_objects:
         o.select_set(False)
@@ -148,6 +150,8 @@ def unwrap(ob, cut, scales, unwarp=None, margin=0.003, relax=40):
         k = scales.get(lab.split('_')[0], 1.0)
         if lab.endswith('_sole'):
             k = scales.get('sole', 1.0)
+        if island_scale is not None:
+            k *= island_scale(f.index)
         if k != 1.0:
             for l in f.loops:
                 l[uv].uv *= k

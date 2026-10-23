@@ -301,55 +301,9 @@ HEAT = ("Hips", "Spine1", "Chest", "Neck1", "Head", "ThighL", "ThighR", "WingSca
 
 
 def heat_weights(body, rig, n, bones=HEAT):
-    """Heat-map weights for the first n vertices (the fused fur) from `bones`, solved on a copy of the fur alone
-    (the membrane sheets and thin lofts stay out of the solve). -> per vertex {bone: w}"""
-    import bmesh as _bm
-    me = body.data.copy()
-    tmp = bpy.data.objects.new("_bat_heat", me)
-    bpy.context.scene.collection.objects.link(tmp)
-    bm = _bm.new()
-    bm.from_mesh(me)
-    bm.verts.ensure_lookup_table()
-    _bm.ops.delete(bm, geom=[v for v in bm.verts if v.index >= n], context='VERTS')
-    bm.to_mesh(me)
-    bm.free()
-    tmp.vertex_groups.clear()
-    ad = rig.data
-    keep = {b.name: b.use_deform for b in ad.bones}
-    for b in ad.bones:
-        b.use_deform = b.name in bones
-    for o in bpy.context.selected_objects:
-        o.select_set(False)
-    tmp.select_set(True)
-    rig.select_set(True)
-    bpy.context.view_layer.objects.active = rig
-    bpy.ops.object.parent_set(type='ARMATURE_AUTO')
-    for nm, d in keep.items():
-        ad.bones[nm].use_deform = d
-    names = {g.index: g.name for g in tmp.vertex_groups}
-    out = [{names[g.group]: g.weight for g in v.groups if g.weight > 1e-4} for v in me.vertices]
-    bpy.data.objects.remove(tmp, do_unlink=True)
-    bpy.data.meshes.remove(me)
-    return out
+    return beast_rig.heat_weights(body, rig, n, bones)
 
 
 def skin(body, rig, acc):
     """Heat on the fur (smoothed), the pieces' own weights from the Acc, 4 influences."""
-    n = body["n_fur"]
-    V = len(body.data.vertices)
-    body.vertex_groups.clear()
-    for m in [m for m in body.modifiers if m.type == 'ARMATURE']:
-        body.modifiers.remove(m)
-    W = heat_weights(body, rig, n) + list(acc.W)
-    assert len(W) == V, (len(W), V)
-    groups = {}
-    for i, w in enumerate(W):
-        for b, x in w.items():
-            g = groups.get(b) or body.vertex_groups.get(b) or body.vertex_groups.new(name=b)
-            groups[b] = g
-            g.add([i], float(x), 'REPLACE')
-    beast_rig.smooth_weights(body, np.arange(n), iterations=3, factor=0.5)
-    beast_rig.clean_weights(body)
-    rep = beast_rig.bind(body, rig)
-    rep["fur_unweighted"] = sum(1 for i in range(n) if not W[i])
-    return rep
+    return beast_rig.skin_with_pieces(body, rig, acc.W, HEAT)

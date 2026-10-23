@@ -21,7 +21,10 @@ in Unity (MedievalSetting, `Assets/Beasts`), with shared code in the `beast_*` m
   wolf's clips play on it unchanged; three coats; exported with a Unity setup, not installed yet (see
   [Zombie wolf](#zombie-wolf));
 - the **giant bat** (2026-10-23, Daniel's card game): wolf-sized body, 2.9 m of leathery wings on the dragon's membrane
-  code, always in the air; seven clips; exported with a Unity setup, not installed yet (see [Giant bat](#giant-bat)).
+  code, always in the air; seven clips; exported with a Unity setup, not installed yet (see [Giant bat](#giant-bat));
+- the **giant turtle** (2026-10-23, Daniel's card game): a 2.6 m mossy shell with three knobbed keels on elephantine
+  legs, a snapping turtle's hooked beak; seven clips including Withdraw into the shell; exported with a Unity setup,
+  not installed yet (see [Giant turtle](#giant-turtle)).
 
 ![The wolf in the bind pose](docs/images/wolf_34.png)
 
@@ -94,6 +97,7 @@ the UVs. Always export after a rebuild, so the FBX and the textures in `textures
 | `chicken_body.py`, `chicken_anim.py`, `chicken_paint.py`, `chicken_build.py` | The hen: bird body and rig, her own pose system (shank tilt + two-bone leg IK), plumage, build |
 | `zwolf_body.py`, `zwolf_rig.py`, `zwolf_paint.py`, `zwolf_anim.py`, `zwolf_build.py`, `tools/zwolf_run.py` | The zombie wolf on the wolf's skeleton: starved body, bald patches, the torn flank with rib bars, torn ear, bared teeth; the rot painter; the wolf's clips; headless build (see [Zombie wolf](#zombie-wolf)) |
 | `bat_body.py`, `bat_anim.py`, `bat_paint.py`, `bat_build.py` | The giant bat: fused fur body, lofted arms, fingers and legs, the dragon's membranes with a bat `WingSpec`; its own small pose system with the dragon's wing strokes; built headless by `tools/creature_run.py` (see [Giant bat](#giant-bat)) |
+| `turtle_body.py`, `turtle_anim.py`, `turtle_paint.py`, `turtle_build.py` | The giant turtle: fused skin, a parametric carapace (closed shell, keels, scutes), plastron and bridges; beast_anim's quadruped clips with the neck sliding into the shell (`p.retract`) (see [Giant turtle](#giant-turtle)) |
 | `beast_review.py`, `tools/creature_run.py` | Headless builds in files of their own: scene, game cameras, the wolf appended for scale, render sheets, lowest vertex per clip, a root-motion trace, a UV overlap count; the runner (`-- <creature> <steps>`) |
 | `ooze_body.py`, `ooze_contents.py`, `ooze_paint.py`, `ooze_rig.py`, `ooze_anim.py`, `ooze_scene.py`, `ooze_build.py` | The dungeon ooze: a distance-field shell meshed with openvdb, the contents, charted UVs and per-texel paint without Cycles bakes, the rig, the clips and their checks, EEVEE review renders (see [Dungeon ooze](#dungeon-ooze)) |
 | `beast_coat.py` | Long coats: coat volumes (lofts), hem fringes snapped to their volume or dropped onto the body, clumps, the hair's root-to-tip `t` |
@@ -807,6 +811,79 @@ Copy-Item "$B\export\Anims\Bat@*.fbx" "$U\Models\Anims\"
 Copy-Item "$B\export\Anims\bat_clips.json" "$U\Models\Anims\"
 Copy-Item "$B\textures\T_Bat.png" "$U\Textures\"
 Copy-Item "$B\unity\Beasts\Editor\BatSetup.cs" "$U\Scripts\Editor\"
+```
+
+## Giant turtle
+
+The second card-game unit of the round (2026-10-23; no game side). My calls: a huge, slow land and swamp turtle
+after the alligator snapping turtle: a 2.6 m carapace standing 1.6 m high, domed, with three keels of pointed knobs
+and a saw-toothed back rim, moss over the top and lichen and barnacle crusts toward the rim; a small plastron joined
+by bridges; a big wedge-shaped head with a hooked beak, amber eyes with a dark star, a pink mouth with the snapper's
+worm-like lure on its tongue; a thick wrinkled neck; columnar, elephantine legs on round feet with blunt claws; a
+short crested tail. 3.5 m from beak to tail tip. Its own file, `blender/turtle.blend` (scene **Turtle**, cameras
+`TRT_CAM_*`), built headless.
+
+![The turtle gaping (its Idle's lure), 3/4 view](docs/images/turtle_34.png)
+
+![At the game camera (22 m, 50°, fov 30), blown up x3, the grey wolf beside it for scale](docs/images/turtle_game.png)
+
+| Part | Triangles | Texture |
+|---|---|---|
+| Fused skin (a core under the shell, neck, head, legs and feet, tail) | 2,796 | `T_Turtle` 1024², A = smoothness |
+| Carapace (outer dome, rolled lip, inner dome), plastron, bridges | 2,208 | |
+| Lower beak, eyes, claws | 312, 120, 396 | |
+| **TurtleBody** | **5,832** | `M_Turtle` |
+
+How it is built:
+
+- **The carapace is one parametric closed shell** (`turtle_body.build_carapace`): a superellipse outline, rim heights
+  lower at the sides than at the front and back (the leg and neck openings), a domed profile plus the keels' knobs
+  (`_relief`), the marginal scutes rolled out and under into a lip, and an inner dome back up. It rides rigid on
+  Spine1; the spine never bends.
+- **The skin is fused** (`beast_body.fuse_body`, 12 mm voxels) and heat-weighted on its own
+  (`beast_rig.skin_with_pieces`, shared with the bat); the lower beak is a separate loft on `Jaw`, and the skin under
+  the head follows it (`jaw_weight`, bounded on every side).
+- **UVs:** the carapace unwraps as one disc (its builder cuts round the rim); the hidden inner dome and the plastron
+  are packed small (`beast_paint.unwrap(island_scale=...)`, from tags in `info.b`). **Paint:** the scutes laid out
+  like a turtle's (vertebrals with chevron borders, costals fanning out, marginals), grooves and growth rings, worn
+  knobs, moss, lichen and barnacles, mud low down; mottled scaly skin, a pale throat, the horn beaks.
+
+| Clip | Length | Notes |
+|---|---|---|
+| Idle | 4.0 s loop | slow breathing, looks one way and the other, gapes for a while (the lure) and shuts |
+| Walk | 1.6 s loop | a slow lateral walk, the shell rocking; root motion 0.34 m/s |
+| Bite | 1.1 s | draws the head back, jaw wide, then the neck shoots 0.36 m out and the beak snaps shut; event `Bite` at 0.53 s |
+| Withdraw | 1.2 s | the head and neck slide into the shell, the legs fold in, the shell drops onto its plastron; holds |
+| Emerge | 1.4 s | out again and a look round |
+| Hit | 0.5 s | a jolt, the head half pulled in |
+| Death | 2.5 s | the legs give way, the shell drops and tips a little, the head slides out onto the ground, jaw slack; event `Dead` at 2.0 s; holds |
+
+`p.retract` (`turtle_anim`) slides the neck, head and jaw along the trunk (back into the shell, or out for the snap)
+in the Species' extra hook. Lowest vertex: standing clips within 1.6 cm, Withdraw/Emerge 3.1 cm (a foot pad mid-way),
+Death 1.9 cm. Walk traced over 3 loops: 0.55 m a loop, Motion's turn 0, the head steady.
+
+Bones: the beasts' names with 3 neck and 3 tail bones, no tongue, no ears; sockets `Socket_Head`, `Socket_Mouth`,
+`Socket_Back` (on the shell's top: a rider or a howdah). 35 bones.
+
+Rebuild (headless, under a minute):
+
+```
+blender.exe -b --factory-startup --python tools/creature_run.py -- turtle build review game clips lowest trace sheets closeups hero export
+blender.exe -b --factory-startup blender/turtle.blend --python tools/creature_run.py -- turtle paint review
+```
+
+**In Unity:** copy the files (assets first, then the script) and run Tools > Beasts > Rebuild Turtle
+(`TurtleSetup.cs`; it also runs by itself on the first import). It makes `M_Turtle`, `Prefabs/Turtle` (Animator,
+`BeastAppearance` for the size, `BeastEvents`), `Animation/TurtleAnims` (Withdraw holds 3 s, then Emerge) and lineup
+renders in `Logs/TurtleSetup`. It touches no scene.
+
+```
+$B = "E:\Unity\Projects\GameArtGeneration\Beasts"; $U = "E:\Unity\Projects\MedievalSetting\Assets\Beasts"
+Copy-Item "$B\export\Turtle.fbx" "$U\Models\"
+Copy-Item "$B\export\Anims\Turtle@*.fbx" "$U\Models\Anims\"
+Copy-Item "$B\export\Anims\turtle_clips.json" "$U\Models\Anims\"
+Copy-Item "$B\textures\T_Turtle.png" "$U\Textures\"
+Copy-Item "$B\unity\Beasts\Editor\TurtleSetup.cs" "$U\Scripts\Editor\"
 ```
 
 ## Dragon and hydra
