@@ -367,6 +367,54 @@ checks.
     - A fleece over the leg tops must ride on the spine (`COAT_ON_TRUNK`), but only near the legs' axes and never the
       grafted lower legs (they stretched into boots, and the belly sagged with the stride).
 
+- **Zombie wolf (2026-10-23):** a unit from Daniel's card game ("zombie wolf"), in the undead batch (zombies,
+  skeletons and the ghoul are Humans). Daniel: "don't bother with adding them to the game, build the creatures" - so
+  model, paint and export, no game wiring, nothing copied into MedievalSetting. Built headless into its own
+  `blender/zombie_wolf.blend` (the live Blender had humans.blend open for another session): `tools/zwolf_run.py`.
+  - **The wolf's skeleton exactly** (`wolf_body.rest_bones`, landmarks, head warp) and the rig is named `WolfRig`:
+    the export's bind pose matches Wolf.fbx bone for bone (checked: max rest-matrix difference 0.0), so the wolf's clips
+    bind to it in Unity too. `zwolf_anim` keys `wolf_anim.CLIPS` onto it (`ZombieWolf_<clip>` actions, exported as
+    `ZombieWolf@<clip>.fbx`, so `ZombieWolfSetup` stands alone).
+  - Built: 5,076 tris (fur 3,891, jaw 392, tongue 108, teeth 256, eyes 120, rib bars 300), 41 bones, one mesh with
+    35 groups, one UV layer; three coats `T_ZombieWolf` (grey), `_Dark`, `_Pale` at 1024², no normal map (the wolf
+    has none). Geometry: the starved body (narrow ribcage, tucked-up belly, wasted thighs/shoulders/neck, thin legs,
+    knobby joints, thin tail), the spine's processes, hip points, pin bones, shoulder-blade ridges, the torn right
+    flank (a 3.4 cm cavity, raised torn rim, five rib bars, one snapped), a shallow torn patch on the left haunch, the
+    torn right ear, the drawn-back upper lip with the upper teeth hanging outside the jaw, deep sockets, gaunt cheeks,
+    bald patches sunk 2.5 mm. Paint: the rot, bruises, veins, the painted ribs, the cavity, blood, milky eyes, gums,
+    yellow teeth, the mud and grime. Coats and the second wound are my calls, not reviewed.
+  - Checked: `weights` unweighted 0, over4 0; non-manifold edges 0 after `tidy`; lowest vertex per clip (standing
+    clips 0.0, Lunge -0.008, Death and GetUp -0.025); EEVEE frames of Walk, Run, Bite, Lunge and Death round the wound
+    and the face (no tearing; the ribs stay seated); the stress-test pose; the UV layout and the textures; the game
+    camera (22 m, 50°, fov 30) against the wolf's (a one-off render of beasts.blend's wolf at the same cameras,
+    `renders/zwolf_vs_wolf_game.png`: thin and dark, the broken pale spine and the red flank read; the eyes are a
+    pixel). Dead, the thinner trunk lies 5.9 cm up at its lowest, the
+    wolf's 4.8 cm: no clip change needed. `ZombieWolfSetup.cs` compiled offline against MedievalSetting's editor
+    assembly (output in a temp folder).
+  - Gotchas:
+    - **One degenerate face fails the heat map for every bone.** Tufts at 0.62 of the wolf's radius collapsed in the
+      decimation into "pillows" (two faces on three vertices) and fins: 2,098 of 2,619 vertices came out unweighted
+      with only "Bone Heat Weighting: failed to find solution for one or more bones" in the log. The tufts are 0.85
+      now, the centre-line ones dropped, and `zwolf_body.tidy` drops pillows and degenerate faces after the
+      decimation and reports the non-manifold edges. Check `weights.unweighted` after every build.
+    - **One-sided sculpts** (the wound, the ear) run after `fuse_body`'s symmetrize, and the collapse is not
+      symmetric: `beast_body.fuse_body(dec_symmetry=False)` (new parameter, default True: the others are unchanged).
+      `PART['bone']` = 17 is new too.
+    - **Paint "inside the hole" from the outline alone** painted a red face where the sculpt had not dented (skin
+      facing up at the top of the outline). Each vertex's real depth under the old surface goes into `info.b`
+      (`wound_dent`) and gates the painter.
+    - **What read wrong:** round Gaussian bald patches looked like stickers with a dark outline; a patch ringing a
+      leg looked like a bandage; the continuous spine strip like a zipper; the first coat came out near-black (the
+      wolf's layout lost). Now the patches are domain-warped and frayed, the fur thins into them in strands, the leg
+      patches sit on the outside, the spine strip is broken, the coat is lighter.
+    - **Headless:** `uv.export_layout` fails, so `farm_paint.uv_png` draws the layout. Open .blend files with
+      `--factory-startup` too: without it the user's add-ons load (MPFB, the Blender MCP add-on).
+  - Unity install (Daniel runs it): copy `export/ZombieWolf.fbx`, `export/Anims/ZombieWolf@*.fbx` +
+    `zombiewolf_clips.json`, `textures/T_ZombieWolf*.png`, then `unity/Beasts/Editor/ZombieWolfSetup.cs` (commands in
+    the README), then Tools > Beasts > Rebuild Zombie Wolf; check `Logs/ZombieWolfSetup/setup_report.txt` (avatar
+    valid, moving clips `dir=(0,0,1)`). It makes the materials, `Prefabs/ZombieWolf`, `Animation/ZombieWolfAnims` and
+    lineup renders; it does not touch Beasts_Test or any scene.
+
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
 
@@ -463,6 +511,15 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - up close the hair clumps still read a little like blades; the coat's relief is only the normal map;
   - in Death it lies on its left side: the stirrup on that side goes into the ground;
   - game side: a `Creature` definition (wild packs; ridden by goblin raiders), the Bite/Howl events.
+- **Zombie wolf (2026-10-23):**
+  - not installed in Unity yet, not seen by Daniel; no game side (a creature definition, sounds), by his call;
+  - suggestion, not built: a lower head carriage and a slower, dragging walk would sell "undead" in motion. It is
+    cheap in `zwolf_anim`: wrap the wolf's clip functions and add neck pitch (Neck1 -8, Head +4) to every pose, and
+    scale Walk's cadence; the leg IK and events stay the wolf's;
+  - the teeth are thin cones: from the side, up close, they read as needles with gaps; the lower teeth hide behind
+    the uppers;
+  - the wolf's own limits remain: the lower jaw is a plain tube (a dark plank when open), the ears are thin edge-on;
+  - not in the itch.io Creatures pack.
 - **More beasts:** a howdah on the mammoth's `Socket_Back` (the driver on the neck is done, "Riders"), giant elk, boar and dire variants can reuse the
   pipeline: parts, tufts, fuse, heat weights, and the painter's flow strokes.
 - **Ooze, Unity side:**

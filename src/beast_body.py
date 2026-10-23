@@ -12,7 +12,7 @@ from beast_common import loft, mesh_obj, get_coll, remove_obj, smoothstep, fbm
 
 # part ids in the "info" attribute (info.g = 1 on pieces that ride on the lower jaw)
 PART = dict(fur=1, nose=2, eye=3, tooth=4, jaw=5, tongue=6, tail=7, whisker=8, horn=9, spear=10, hair=11, ear=12,
-            claw=13, tusk=14, proboscis=15, antler=16)
+            claw=13, tusk=14, proboscis=15, antler=16, bone=17)
 
 
 def ellipsoid(bm, center, radii, rot=None, seg=16, rings=10):
@@ -170,9 +170,11 @@ def sculpt_fur(co, no, flow, amount, seed=5, across=0.040, along_len=0.110):
 
 
 def fuse_body(bm, prefix, voxel, target_tris, sculpts=(), dec_weight=None, seam_x=0.012, flat_z=0.004,
-              fillet_iters=80):
+              fillet_iters=80, dec_symmetry=True):
     """-> (decimated body `<prefix>_Fur` in <prefix>_Body, dense copy `<prefix>_BodyHi` in <prefix>_Work).
-    sculpts: functions (co, no) -> co applied in turn on the dense mesh. dec_weight(co) -> 0..1 (lower keeps more)."""
+    sculpts: functions (co, no) -> co applied in turn on the dense mesh (after the symmetrize, so they may be
+    one-sided). dec_weight(co) -> 0..1 (lower keeps more). dec_symmetry: a symmetric collapse (off for a body sculpted
+    differently on each side: the zombie wolf's wound and torn ear)."""
     coll = get_coll(prefix + "_Body")
     work = get_coll(prefix + "_Work")
     remove_obj(prefix + "_Parts")
@@ -225,7 +227,7 @@ def fuse_body(bm, prefix, voxel, target_tris, sculpts=(), dec_weight=None, seam_
     dec = body.modifiers.new("decimate", 'DECIMATE')
     dec.decimate_type = 'COLLAPSE'
     dec.ratio = min(1.0, target_tris / tris)
-    dec.use_symmetry = True
+    dec.use_symmetry = dec_symmetry
     dec.symmetry_axis = 'X'
     if dec_weight is not None:
         g = body.vertex_groups.new(name="_decimate")

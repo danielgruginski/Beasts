@@ -16,7 +16,10 @@ in Unity (MedievalSetting, `Assets/Beasts`), with shared code in the `beast_*` m
   class warped to each animal) and a hen on a bird rig of her own; 3-4 coats and 11-12 clips each, in Unity through
   `FarmSetup.cs` and `Scenes/Farm_Test`. Built headless into `blender/farm_<name>.blend`:
   `blender.exe -b --factory-startup --python tools/farm_run.py -- goat build review coats clips lowest sheets export`
-  (see HANDOFF.md, "Farm animals").
+  (see HANDOFF.md, "Farm animals");
+- the **zombie wolf** (2026-10-23, the undead batch): the wolf dead and risen on the wolf's own skeleton, so the
+  wolf's clips play on it unchanged; three coats; exported with a Unity setup, not installed yet (see
+  [Zombie wolf](#zombie-wolf)).
 
 ![The wolf in the bind pose](docs/images/wolf_34.png)
 
@@ -87,6 +90,7 @@ the UVs. Always export after a rebuild, so the FBX and the textures in `textures
 | `rhino_*.py`, `bear_*.py`, `mammoth_*.py`, `deer_*.py` | The same for the woolly rhino, the cave bear, the woolly mammoth and the red deer (body, rig, paint, anim, build) |
 | `farm_body.py`, `farm_rig.py`, `farm_paint.py`, `farm_anim.py`, `farm_build.py`, `farm_goat.py` ... `farm_pig.py` | The hoofed farm animals: the deer's recipe as a class in deer units, warped to each species; skinning, painter, clips and builds shared; one species module each |
 | `chicken_body.py`, `chicken_anim.py`, `chicken_paint.py`, `chicken_build.py` | The hen: bird body and rig, her own pose system (shank tilt + two-bone leg IK), plumage, build |
+| `zwolf_body.py`, `zwolf_rig.py`, `zwolf_paint.py`, `zwolf_anim.py`, `zwolf_build.py`, `tools/zwolf_run.py` | The zombie wolf on the wolf's skeleton: starved body, bald patches, the torn flank with rib bars, torn ear, bared teeth; the rot painter; the wolf's clips; headless build (see [Zombie wolf](#zombie-wolf)) |
 | `ooze_body.py`, `ooze_contents.py`, `ooze_paint.py`, `ooze_rig.py`, `ooze_anim.py`, `ooze_scene.py`, `ooze_build.py` | The dungeon ooze: a distance-field shell meshed with openvdb, the contents, charted UVs and per-texel paint without Cycles bakes, the rig, the clips and their checks, EEVEE review renders (see [Dungeon ooze](#dungeon-ooze)) |
 | `beast_coat.py` | Long coats: coat volumes (lofts), hem fringes snapped to their volume or dropped onto the body, clumps, the hair's root-to-tip `t` |
 | `beast_body.py` | Mesh helpers and the body pipeline: `fuse_body` (voxel fuse, fillet, sculpts, decimate, edge flips, fold relaxing), `build_tufts`, `sculpt_fur`, `join_pieces` |
@@ -640,6 +644,81 @@ warg_build.show()
 body, rig, report = warg_build.build_model()      # body, rig, weights, UVs, coats
 import warg_tack; warg_tack.build(body, rig)      # the tack and the mask (work layer on: warg_build.work_layer(True))
 warg_build.export()                               # clips + Warg.fbx + textures into export/
+```
+
+## Zombie wolf
+
+A unit from Daniel's card game, in the undead batch (the zombies, skeletons and the ghoul are in the Humans repo).
+Daniel: "don't bother with adding them to the game, build the creatures" - so model, paint and export; no game side.
+The grey wolf dead and risen: starved, mangy, torn open. Its own file, `blender/zombie_wolf.blend` (scene
+**ZombieWolf**, cameras `ZWF_CAM_*`), built headless.
+
+![The zombie wolf from the right: the torn flank, the torn ear, bared teeth](docs/images/zwolf_34r.png)
+
+![At the game camera (22 m, 50°, fov 30), blown up x3: the broken pale spine, the dark thin body, the red flank](docs/images/zwolf_game.png)
+
+| Part | Triangles | Texture |
+|---|---|---|
+| Fur body (starved, the cavity, spine processes, hip points) | 3,891 | `T_ZombieWolf` (grey), `T_ZombieWolf_Dark`, `T_ZombieWolf_Pale` 1024², A = smoothness, no normal map (the wolf has none) |
+| Lower jaw, tongue, nose | 392, 108, 9 | |
+| Teeth (bared), eyes (milky) | 256, 120 | |
+| Rib bars across the hole | 300 | |
+| **ZombieWolfBody** | **5,076** | |
+
+**The wolf's skeleton, exactly.** `zwolf_body` keeps `wolf_body`'s landmarks, head warp and `rest_bones()`; the rig is
+named `WolfRig` like the wolf's. So every wolf clip plays on it unchanged, in Blender and in Unity (the clips' curve
+paths are the same: the export's bind pose matches Wolf.fbx bone for bone). `zwolf_anim` keys `wolf_anim.CLIPS` onto it
+and they are exported as `ZombieWolf@<clip>.fbx`, so its Unity setup stands alone.
+
+How it is built:
+
+- **Starved:** the wolf's lofts with a narrow ribcage, the belly drawn up behind the last ribs, wasted thighs,
+  shoulders and neck, thin upper legs with knobby wrists and stifles, a thin tail. Fused ellipsoids under the skin:
+  the spine's processes (withers to croup), hip points, pin bones and the shoulder blades' ridges.
+- **Mangy:** nine of the wolf's tufts, longer and thinner; bald patches (`BALD`, one mask shared by the fur sculpt and
+  the painter, domain-warped and frayed) get no fur and sink 2.5 mm. The spine's strip is broken, the tail's end bare in
+  patches, the leg patches on the outside only.
+- **The torn right flank** (`WOUND`): a cavity sculpted 3.4 cm deep with a ragged outline and a raised torn rim, high
+  on the flank (the game camera looks down at 50°), with five rib bars across it as separate lofts (each its own width
+  and depth, one snapped), laid on the flank's surface from before the cavity and weighted from the skin under them.
+  The painter knows how deep each vertex really sits (`info.b`). A shallow torn patch over the left haunch (`GASH`).
+- **Face:** the right ear torn (its tip gone, a V out of its outer edge: a clamp in the ear's own frame, after the
+  symmetrize), the upper lip drawn back off the teeth (the muzzle's lip line raised, the upper teeth rooted in the gum
+  and hanging outside the lower jaw), deep sockets, gaunt cheeks and temples, eyes 1.12x the wolf's.
+- **Paint** (`zwolf_paint`, the wolf's layout dulled and dirty): grey-green rotting skin with bruises, green rot and
+  veins, the fur thinning into it in strands; ribs drawn on both flanks, the spine's processes and hip bones picked out
+  pale; the cavity near-black with wet red walls, a pale torn edge, dried blood round it and drips below; milky eyes in
+  dark sockets, dark gums, yellow teeth, blood round the mouth and down the throat, the torn ear's edge crusted. The
+  rot is the Humans zombies' (`#7f8b72`, `#8e9680`, bone `#d8cfb4`). Coats: grey (default), dark (a black wolf's),
+  pale (a white wolf's, yellowed).
+
+Clips: the wolf's twelve (see [Clips](#clips-30-fps)). Death lies on its left side, so the torn flank faces up. Lowest
+vertex: standing clips 0.0, Lunge -0.008, Death and GetUp -0.025.
+
+Rebuild (headless; two to three minutes for everything):
+
+```
+blender.exe -b --factory-startup --python tools/zwolf_run.py -- build review game clips lowest testpose closeups sheets coats export
+blender.exe -b --factory-startup blender/zombie_wolf.blend --python tools/zwolf_run.py -- paint review game
+```
+
+`paint` repaints the built model (same UVs) for paint-only changes. Renders: `renders/zwolf_<view>.png` (34, 34r, side,
+sider, top, face, facer, headside(r), headfront, rear, wound, above, colony), `zwolf_game_sheet.png` (the game camera:
+22 m, 50°, fov 30, the wolf ~90 px, blown up x3), `zwolf_frames_<Clip>.png` (EEVEE frames round the wound and the face),
+`zwolf_clip_<Clip>.png`, `zwolf_coats.png`, `uv_layout_zwolf.png`.
+
+**In Unity:** copy the new files (assets first, then the script) and run Tools > Beasts > Rebuild Zombie Wolf
+(`ZombieWolfSetup.cs`; it also runs by itself on the first import). It makes `M_ZombieWolf` (+ `_Dark`, `_Pale`),
+`Prefabs/ZombieWolf` (Animator, `BeastAppearance` with the three coats, `BeastEvents`), `Animation/ZombieWolfAnims`
+(the wolf's pools) and lineup renders in `Logs/ZombieWolfSetup` (a preview scene). It touches no scene.
+
+```
+$B = "E:\Unity\Projects\GameArtGeneration\Beasts"; $U = "E:\Unity\Projects\MedievalSetting\Assets\Beasts"
+Copy-Item "$B\export\ZombieWolf.fbx" "$U\Models\"
+Copy-Item "$B\export\Anims\ZombieWolf@*.fbx" "$U\Models\Anims\"
+Copy-Item "$B\export\Anims\zombiewolf_clips.json" "$U\Models\Anims\"
+Copy-Item "$B\textures\T_ZombieWolf*.png" "$U\Textures\"
+Copy-Item "$B\unity\Beasts\Editor\ZombieWolfSetup.cs" "$U\Scripts\Editor\"
 ```
 
 ## Dragon and hydra
