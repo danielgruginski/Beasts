@@ -45,6 +45,36 @@ WING = dict(root=(0.18, -0.90, 2.82), sho=(0.55, -1.15, 2.95), elb=(1.88, -0.75,
 FINGER_SEGS = (3, 3, 2, 2)
 FINGER_BOW = 0.05                 # fingers bow toward the leading edge (fraction of their length)
 
+
+class WingSpec:
+    """A membrane wing for the wing code below (2026-10-23: parametrised so the giant bat reuses it; the dragon's is
+    DRAGON_WING, every default being the dragon's own constant, so the dragon builds exactly as before).
+
+    wing: joints of the left wing in the bind pose (root, sho, elb, wri, knu, thumb, att, tips: one per finger);
+    segs: bones per finger; bow: fingers bow toward the leading edge; nu, nv, mem_i, mem_j: the arm panel's grid and
+    its helper bones' nodes; trunk: the bones the flank edge leans on; sag / finger_sag: the trailing edge's scallops;
+    lead: how far the leading edge's membrane stands in front of the shoulder-wrist line; flank(B, s_, sfx, nv):
+    optional left edge (P, W) of the arm panel from the shoulder to `att` (the dragon's is a straight line on the
+    trunk); att_w(B, s_, sfx): optional weights at `att`; rest_bones: the creature's bone table (for membrane_pose)."""
+
+    def __init__(self, wing=None, segs=None, bow=None, nu=15, nv=10, mem_i=(3, 6, 9, 12), mem_j=(3, 6, 9),
+                 trunk=("Chest", "Spine2", "Spine1", "Hips"), sag=0.12, finger_sag=0.18, lead=(0, -0.12, 0.02),
+                 flank=None, att_w=None, rest_bones=None, name="dragon"):
+        self.wing = wing if wing is not None else WING
+        self.segs = segs if segs is not None else FINGER_SEGS
+        self.bow = bow if bow is not None else FINGER_BOW
+        self.nu, self.nv, self.mem_i, self.mem_j = nu, nv, mem_i, mem_j
+        self.trunk, self.sag, self.finger_sag, self.lead = trunk, sag, finger_sag, lead
+        self.flank, self.att_w, self.rest_bones, self.name = flank, att_w, rest_bones, name
+        self.panel = {}
+
+    def bones(self):
+        if self.rest_bones is None:
+            return rest_bones_cached()
+        if "B" not in self.panel:
+            self.panel["B"] = self.rest_bones()
+        return self.panel["B"]
+
 # neck -> trunk -> tail loft: x, y, z, a (half width), b (dorsal), c (ventral). The spine runs near the top of the
 # back, so the trunk hangs below it (c >> b); the throat swells into the chest.
 BODY_ROWS = (
@@ -120,14 +150,15 @@ def tail_pts():
     return _curve(TAIL_CTRL, TAIL_N, TAIL_RATIO)
 
 
-def finger_pts(i):
+def finger_pts(i, ws=None):
     """Joints of finger i (0 = the leading one, to the wing tip), left wing, knuckle first."""
-    k, t = np.array(WING["knu"], float), np.array(WING["tips"][i], float)
+    ws = ws or DRAGON_WING
+    k, t = np.array(ws.wing["knu"], float), np.array(ws.wing["tips"][i], float)
     d = t - k
     L = np.linalg.norm(d)
     lead = -np.cross((0, 0, 1), d / L)
     lead /= np.linalg.norm(lead)
-    return np.array([k + d * x + lead * FINGER_BOW * L * 4 * x * (1 - x) for x in np.linspace(0, 1, FINGER_SEGS[i] + 1)])
+    return np.array([k + d * x + lead * ws.bow * L * 4 * x * (1 - x) for x in np.linspace(0, 1, ws.segs[i] + 1)])
 
 
 def _m(p, s):
@@ -157,12 +188,34 @@ def _bone(B, name, head, tail, zhint, parent, deform=True):
     B[name] = (head, _frame(tail - head, zhint), (tail - head).length, parent, deform)
 
 
-def wing_chain(sfx):
+def wing_chain(sfx, ws=None):
     """The wing bones below WingScap, parents first."""
+    ws = ws or DRAGON_WING
     names = [f"WingArm{sfx}", f"WingForearm{sfx}", f"WingHand{sfx}", f"WingThumb{sfx}"]
-    for i in range(4):
-        names += [f"WingF{i + 1}_{k + 1}{sfx}" for k in range(FINGER_SEGS[i])]
+    for i in range(len(ws.segs)):
+        names += [f"WingF{i + 1}_{k + 1}{sfx}" for k in range(ws.segs[i])]
     return names
+
+
+def wing_bones(B, s, sfx, ws=None, parent="Chest", zhint=UP):
+    """The wing's bones (WingScap .. the fingers) and the arm panel's helpers into the bone table B."""
+    ws = ws or DRAGON_WING
+    m = lambda p: _m(p, s)
+    W = ws.wing
+    _bone(B, f"WingScap{sfx}", m(W["root"]), m(W["sho"]), zhint, parent)
+    _bone(B, f"WingArm{sfx}", m(W["sho"]), m(W["elb"]), zhint, f"WingScap{sfx}")
+    _bone(B, f"WingForearm{sfx}", m(W["elb"]), m(W["wri"]), zhint, f"WingArm{sfx}")
+    _bone(B, f"WingHand{sfx}", m(W["wri"]), m(W["knu"]), zhint, f"WingForearm{sfx}")
+    _bone(B, f"WingThumb{sfx}", m(W["wri"]), m(W["thumb"]), zhint, f"WingHand{sfx}")
+    for i in range(len(ws.segs)):
+        P, par = finger_pts(i, ws), f"WingHand{sfx}"
+        for k in range(len(P) - 1):
+            name = f"WingF{i + 1}_{k + 1}{sfx}"
+            _bone(B, name, m(P[k]), m(P[k + 1]), zhint, par)
+            par = name
+    P, _ = coons(*arm_panel(B, s, sfx, ws))                 # the arm panel's helper bones (membrane_pose)
+    for n, (h, fr) in _mem_frames(P, sfx, ws).items():
+        B[n] = (Vector(h), fr, 0.25, f"WingScap{sfx}", True)
 
 
 def rest_bones():
@@ -202,20 +255,7 @@ def rest_bones():
         _bone(B, f"Shin{sfx}", m(H["knee"]), m(H["hock"]), FWD, f"Thigh{sfx}")
         _bone(B, f"HindFoot{sfx}", m(H["hock"]), m(H["paw"]), FWD, f"Shin{sfx}")
         _bone(B, f"HindToes{sfx}", m(H["paw"]), m(H["toe"]), UP, f"HindFoot{sfx}")
-        _bone(B, f"WingScap{sfx}", m(W["root"]), m(W["sho"]), UP, "Chest")
-        _bone(B, f"WingArm{sfx}", m(W["sho"]), m(W["elb"]), UP, f"WingScap{sfx}")
-        _bone(B, f"WingForearm{sfx}", m(W["elb"]), m(W["wri"]), UP, f"WingArm{sfx}")
-        _bone(B, f"WingHand{sfx}", m(W["wri"]), m(W["knu"]), UP, f"WingForearm{sfx}")
-        _bone(B, f"WingThumb{sfx}", m(W["wri"]), m(W["thumb"]), UP, f"WingHand{sfx}")
-        for i in range(4):
-            P, par = finger_pts(i), f"WingHand{sfx}"
-            for k in range(len(P) - 1):
-                name = f"WingF{i + 1}_{k + 1}{sfx}"
-                _bone(B, name, m(P[k]), m(P[k + 1]), UP, par)
-                par = name
-        P, _ = coons(*arm_panel(B, s, sfx))                  # the arm panel's helper bones (membrane_pose)
-        for n, (h, fr) in _mem_frames(P, sfx).items():
-            B[n] = (Vector(h), fr, 0.25, f"WingScap{sfx}", True)
+        wing_bones(B, s, sfx)
     mouth = Vector(DH.to_body(DH.MOUTH))                     # sockets: head = attach point, +Y up, +Z forward
     _bone(B, "Socket_Mouth", mouth, mouth + Vector((0, 0, 0.2)), FWD, "Head")
     return B
@@ -566,25 +606,30 @@ MEM_J = (3, 6, 9)                # ... and rows (arm -> trailing edge; 9 = on th
 _PANEL = {}
 
 
-def arm_panel(B, s_, sfx):
+def arm_panel(B, s_, sfx, ws=None):
     """The arm + flank membrane's edges (rest): bottom = shoulder, elbow, wrist, knuckle; top = the trailing edge
     from the flank to the last finger's tip; left = the flank; right = the last finger. Each (P, weights)."""
+    ws = ws or DRAGON_WING
     m = lambda p: _m(p, s_)
-    W = WING
+    W = ws.wing
     sh, el, wr, kn, att = (np.array(m(W[k])) for k in ("sho", "elb", "wri", "knu", "att"))
-    f4 = np.array([m(p) for p in finger_pts(3)])
-    fb4 = [f"WingF4_{k + 1}{sfx}" for k in range(FINGER_SEGS[3])]
-    trunk = _bones_of(B, ["Chest", "Spine2", "Spine1", "Hips"])
-    nu, nv = NU_ARM, NV_ARM
+    last = len(ws.segs) - 1
+    f4 = np.array([m(p) for p in finger_pts(last, ws)])
+    fb4 = [f"WingF{last + 1}_{k + 1}{sfx}" for k in range(ws.segs[last])]
+    trunk = _bones_of(B, list(ws.trunk))
+    nu, nv = ws.nu, ws.nv
     bottom = polyline([sh, el, wr, kn], [f"WingArm{sfx}", f"WingForearm{sfx}", f"WingHand{sfx}"], nu,
                       start=f"WingScap{sfx}")
-    topP = _sag(att, f4[-1], el, nu, 0.12)
-    top = (topP, [_wmix([(1 - u, chain_weights(att[None], trunk)[0]), (u, {fb4[-1]: 1.0})])
-                  for u in np.linspace(0, 1, nu)])
-    leftP = np.linspace(sh, att, nv)
-    lw = chain_weights(leftP, trunk)
-    left = (leftP, [_wmix([(1 - smoothstep(0, 0.35, v), {f"WingScap{sfx}": 1.0}), (smoothstep(0, 0.35, v), w)])
-                    for v, w in zip(np.linspace(0, 1, nv), lw)])
+    topP = _sag(att, f4[-1], el, nu, ws.sag)
+    att_w = ws.att_w(B, s_, sfx) if ws.att_w is not None else chain_weights(att[None], trunk)[0]
+    top = (topP, [_wmix([(1 - u, att_w), (u, {fb4[-1]: 1.0})]) for u in np.linspace(0, 1, nu)])
+    if ws.flank is not None:
+        left = ws.flank(B, s_, sfx, nv)
+    else:
+        leftP = np.linspace(sh, att, nv)
+        lw = chain_weights(leftP, trunk)
+        left = (leftP, [_wmix([(1 - smoothstep(0, 0.35, v), {f"WingScap{sfx}": 1.0}), (smoothstep(0, 0.35, v), w)])
+                        for v, w in zip(np.linspace(0, 1, nv), lw)])
     right = polyline(f4, fb4, nv, start=f"WingHand{sfx}")
     return bottom, top, left, right
 
@@ -598,24 +643,26 @@ def coons_P(Pb, Pt, Pl, Pr):
             - ((1 - u) * (1 - v) * Pb[0] + u * (1 - v) * Pb[-1] + (1 - u) * v * Pt[0] + u * v * Pt[-1]))
 
 
-def _mem_frames(P, sfx):
+def _mem_frames(P, sfx, ws=None):
     """Helper bone frames on a Coons grid P: at each (MEM_I, MEM_J) node, +Y along the arm, +Z the surface normal."""
+    ws = ws or DRAGON_WING
     out = {}
-    for a, i in enumerate(MEM_I):
-        for b, j in enumerate(MEM_J):
+    for a, i in enumerate(ws.mem_i):
+        for b, j in enumerate(ws.mem_j):
             du = P[i + 1, j] - P[i - 1, j]
             dv = P[i, min(j + 1, len(P[0]) - 1)] - P[i, j - 1]
             out[f"WingMem{a + 1}{b + 1}{sfx}"] = (P[i, j], _frame(du, np.cross(du, dv)))
     return out
 
 
-def _mem_weights(W, sfx):
+def _mem_weights(W, sfx, ws=None):
     """The arm panel's weights: its edges keep their own; inside, bilinear over a lattice of nodes, the edge nodes
     carrying the edge weights there and the inner ones a helper bone each."""
+    ws = ws or DRAGON_WING
     nu, nv = len(W), len(W[0])
-    I = [0, *MEM_I, nu - 1]
-    J = [0, *MEM_J] + ([nv - 1] if MEM_J[-1] != nv - 1 else [])
-    top_helpers = MEM_J[-1] == nv - 1              # the trailing edge rides on helpers too
+    I = [0, *ws.mem_i, nu - 1]
+    J = [0, *ws.mem_j] + ([nv - 1] if ws.mem_j[-1] != nv - 1 else [])
+    top_helpers = ws.mem_j[-1] == nv - 1              # the trailing edge rides on helpers too
 
     def node(a, b):
         i, j = I[a], J[b]
@@ -642,15 +689,17 @@ def _mem_weights(W, sfx):
     return out
 
 
-def membrane_pose(Wm, R):
+def membrane_pose(Wm, R, ws=None):
     """Add the arm panels' helper bones to a pose. Wm: armature-space matrices of (at least) the trunk, wing and
     finger bones; R: rest matrices. The panel's edges ride on their bones -- except the trailing edge, which spans
     its posed ends with its rest sag (blending trunk and finger there swung it out too) -- and the helpers sit on the
     Coons surface between them."""
+    ws = ws or DRAGON_WING
+    cache = _PANEL if ws is DRAGON_WING else ws.panel
     for s_, sfx in SIDES:
-        if sfx not in _PANEL:
-            _PANEL[sfx] = arm_panel(rest_bones_cached(), s_, sfx)
-        bottom, top, left, right = _PANEL[sfx]
+        if sfx not in cache:
+            cache[sfx] = arm_panel(ws.bones(), s_, sfx, ws)
+        bottom, top, left, right = cache[sfx]
 
         def lbs(P, Ws):
             out = np.zeros((len(P), 3))
@@ -663,9 +712,9 @@ def membrane_pose(Wm, R):
             return out
         Pb, Pl, Pr = lbs(*bottom), lbs(*left), lbs(*right)
         el = np.array(Wm[f"WingForearm{sfx}"].translation)
-        Pt = _sag(Pl[-1], Pr[-1], el, len(Pb), 0.12)
+        Pt = _sag(Pl[-1], Pr[-1], el, len(Pb), ws.sag)
         P = coons_P(Pb, Pt, Pl, Pr)
-        for n, (h, fr) in _mem_frames(P, sfx).items():
+        for n, (h, fr) in _mem_frames(P, sfx, ws).items():
             Wm[n] = Matrix.Translation(Vector(h)) @ fr.to_4x4()
     return Wm
 
@@ -679,33 +728,40 @@ def rest_bones_cached():
     return _REST
 
 
-def build_membranes(mem, B, s_, sfx):
+DRAGON_WING = WingSpec()
+
+
+def build_membranes(mem, B, s_, sfx, ws=None, n_finger=12, n_tip=6, n_lead=10):
     """One wing's membranes into an Acc: Coons patches whose boundaries run along the bones' joints, so a patch edge
-    rides on its bone; the arm panel's inside rides on its helper bones (arm_panel, membrane_pose)."""
+    rides on its bone; the arm panel's inside rides on its helper bones (arm_panel, membrane_pose). n_finger,
+    n_tip, n_lead: the finger panels' rows along and across, the leading edge's rows (the dragon's 12, 6, 10)."""
+    ws = ws or DRAGON_WING
     m = lambda p: _m(p, s_)
-    W = WING
+    W = ws.wing
+    nf = len(ws.segs)
     sh, el, wr, kn = (np.array(m(W[k])) for k in ("sho", "elb", "wri", "knu"))
-    fingers = [np.array([m(p) for p in finger_pts(i)]) for i in range(4)]
-    fbones = [[f"WingF{i + 1}_{k + 1}{sfx}" for k in range(FINGER_SEGS[i])] for i in range(4)]
+    fingers = [np.array([m(p) for p in finger_pts(i, ws)]) for i in range(nf)]
+    fbones = [[f"WingF{i + 1}_{k + 1}{sfx}" for k in range(ws.segs[i])] for i in range(nf)]
     tips_ = [f[-1] for f in fingers]
     last = [fb_[-1] for fb_ in fbones]
     arm_bones = [f"WingArm{sfx}", f"WingForearm{sfx}", f"WingHand{sfx}"]
 
     # arm + flank membrane: arm (bottom), trailing edge flank -> F4 tip (top), flank (left), F4 (right)
-    P, Wc = coons(*arm_panel(B, s_, sfx))
-    Wc = _mem_weights(Wc, sfx)
+    P, Wc = coons(*arm_panel(B, s_, sfx, ws))
+    Wc = _mem_weights(Wc, sfx, ws)
     mem.add(lambda bm: _patch(bm, P, Wc))
     # between the fingers: finger i (bottom), finger i+1 (top), the knuckle (left), trailing edge (right)
-    for i in range(3):
-        fb0 = polyline(fingers[i], fbones[i], 12, start=f"WingHand{sfx}")
-        fb1 = polyline(fingers[i + 1], fbones[i + 1], 12, start=f"WingHand{sfx}")
-        leftK = (np.repeat(kn[None], 6, axis=0), [{f"WingHand{sfx}": 1.0}] * 6)
-        te = _sag(tips_[i], tips_[i + 1], kn, 6, 0.18)
-        rightT = (te, [{last[i]: 1 - v, last[i + 1]: v} for v in np.linspace(0, 1, 6)])
+    for i in range(nf - 1):
+        fb0 = polyline(fingers[i], fbones[i], n_finger, start=f"WingHand{sfx}")
+        fb1 = polyline(fingers[i + 1], fbones[i + 1], n_finger, start=f"WingHand{sfx}")
+        leftK = (np.repeat(kn[None], n_tip, axis=0), [{f"WingHand{sfx}": 1.0}] * n_tip)
+        te = _sag(tips_[i], tips_[i + 1], kn, n_tip, ws.finger_sag)
+        rightT = (te, [{last[i]: 1 - v, last[i + 1]: v} for v in np.linspace(0, 1, n_tip)])
         mem.add(lambda bm: _patch(bm, *coons(fb0, fb1, leftK, rightT), weld_u0=True))
     # leading edge: shoulder -> elbow -> wrist (bottom), the straight shoulder -> wrist line pushed forward (top)
-    armP = polyline([sh, el, wr], arm_bones[:2], 10, start=f"WingScap{sfx}", end=f"WingHand{sfx}")
-    lead = np.linspace(sh, wr, 10) + np.array((0, -0.12, 0.02)) * np.sin(np.linspace(0, math.pi, 10))[:, None]
+    armP = polyline([sh, el, wr], arm_bones[:2], n_lead, start=f"WingScap{sfx}", end=f"WingHand{sfx}")
+    lead = (np.linspace(sh, wr, n_lead) + np.array(ws.lead) * np.array((s_, 1, 1)) *
+            np.sin(np.linspace(0, math.pi, n_lead))[:, None])
     topL = (lead, armP[1])
     mem.add(lambda bm: _patch(bm, *coons(armP, topL, (np.array([sh, sh, sh]), [armP[1][0]] * 3),
                                          (np.array([wr, wr, wr]), [armP[1][-1]] * 3)), weld_u0=True, weld_u1=True))

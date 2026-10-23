@@ -415,6 +415,44 @@ checks.
     valid, moving clips `dir=(0,0,1)`). It makes the materials, `Prefabs/ZombieWolf`, `Animation/ZombieWolfAnims` and
     lineup renders; it does not touch Beasts_Test or any scene.
 
+- **Giant bat (2026-10-23):** a unit from Daniel's card game, the first of three (bat, giant turtle, leech). Daniel:
+  "Keep moving on the creatures" and "don't bother with adding them to the game, build the creatures" - model, paint,
+  clips and export; no game wiring, nothing copied into MedievalSetting. Built headless into `blender/bat.blend`
+  (the live Blender is another session's): `tools/creature_run.py -- bat <steps>` runs `bat_build`'s steps.
+  - My calls (Daniel gave no details): wolf-sized body (0.80 m nose to rump), 2.9 m span, big upright ears, a pug
+    snout with an upturned nose pad and a nose leaf, two long upper fangs outside the lower jaw, red eyes, dark
+    brown-black fur with a rusty mantle, dark leather wings thinning and reddening toward the trailing edge; no tail,
+    no tail membrane; always in the air: the bind pose flies with the body 1.6 m over the Root (`bat_body.H`), so the
+    game moves it on the ground and only Death comes down. Idle is a lazy hover (no roost: a hanging idle needs a
+    ceiling at a known height).
+  - **The dragon's wing code takes a `WingSpec`** (`dragon_body`: `finger_pts`, `wing_chain`, the new `wing_bones`,
+    `arm_panel`, `_mem_frames`, `_mem_weights`, `membrane_pose`, `build_membranes` take `ws`; the dragon's is
+    `DRAGON_WING`, every default its old constant). Checked against a snapshot taken before the change: the dragon's
+    rest bones, arm panels, membranes (positions and weights) and the matrices of 8 clips at 18 frames are
+    bit-identical. The bat's spec: 4 fingers (2, 3, 3, 2 bones), a flank edge down the body to the knee and the ankle
+    (`flank`, weighted Chest, Spine1, Thigh, Shin), the ankle's weight on Shin (`att_w`), smaller scallops.
+  - Built: 4,120 tris (`BatBody` 3,160: fur 1,896, arm/finger/leg lofts 632, claws 88, ears 156, eyes 100, fangs 68,
+    jaw 220; `BatWing` 960), 74 bones (24 of them the arm panels' helpers), `T_Bat` 1024² for both meshes,
+    `M_BatWing` two-sided. Weights: unweighted 0, over4 0; the fur's heat solve runs on a copy of the fur alone
+    (`bat_body.heat_weights`), the pieces carry their own weights (a `dragon_body.Acc`).
+  - Clips (`bat_anim`, its own pose system in the hen's style with the dragon's wing strokes and fold): Idle 1.6 s,
+    Hover 1.07 s, Fly 0.67 s (4.5 m/s), Dive 1.5 s (`Bite` 0.73 s), Screech 1.8 s (`Screech` 0.5 s), Hit 0.5 s, Death
+    2.0 s (`Dead` 1.3 s). Lowest vertex: flying clips above 0.6 m, Dive 0.19 m, Death -0.012 at the landing. Fly
+    traced over 3 loops (`beast_review.motion_trace`): 3.0 m a loop along -Y, Motion's turn 0, the head's step at the
+    seam 2 mm (inside the loop up to 3 mm). Export re-imported in a background Blender: 74 bones (Motion a root,
+    sibling of Root), two meshes with one UV layer each, Fly's Motion -3.0 m with the head steady.
+  - Checked by eye: EEVEE close-ups of the face, the wing from above and below, every clip's frames from two sides,
+    the UV layout and texture, the game camera beside the wolf (appended from `blender/beasts.blend`,
+    `renders/bat_vs_wolf_game.png`: the red-brown wings carry it, the body is a dark dot between them).
+    `BatSetup.cs` compiled offline against MedievalSetting's editor assembly (output in a temp folder).
+  - Gotchas:
+    - **A crashed headless run writes the textures but not the .blend.** The next run on the old file painted a new
+      `T_Bat` layout over old UVs: scrambled wings (an eye on the membrane). Rebuild in one run (`build ... export`).
+    - **`n.startswith("WingF")` also matches WingForearm**: finger tests need `n[5].isdigit()` (the dragon's way).
+    - **The depth cap by the shoulder's height was not enough lying down** (roll, yaw and curl lower the tips too):
+      `bat_anim._wings` bisects the stroke's 'Y' until every wing joint and finger tip clears `Pose.floor` by 2 cm.
+    - The ground disc hides an underside shot (`review` hides it for `Below`).
+
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
 
@@ -520,6 +558,15 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     the uppers;
   - the wolf's own limits remain: the lower jaw is a plain tube (a dark plank when open), the ears are thin edge-on;
   - not in the itch.io Creatures pack.
+- **Giant bat (2026-10-23):**
+  - not installed in Unity, not seen by Daniel; no game side (a creature definition, the `Bite`/`Screech` events,
+    sounds), by his call. The game moves it on the ground: it must not collide as a ground creature would (its body is
+    1.6 m up);
+  - the upper side of the wing is lit for both sides (`_Cull` 0 does not flip the normal): the underside in shadow
+    reads lit when the sun is low;
+  - the arms and fingers are thin tubes (4-6 sides), fine at the game camera, faceted up close; the head is a smooth
+    fused shape with painted fur;
+  - maybe: a roost (hanging) idle with a drop into flight, a glide, a hit while diving.
 - **More beasts:** a howdah on the mammoth's `Socket_Back` (the driver on the neck is done, "Riders"), giant elk, boar and dire variants can reuse the
   pipeline: parts, tufts, fuse, heat weights, and the painter's flow strokes.
 - **Ooze, Unity side:**

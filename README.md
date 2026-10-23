@@ -19,7 +19,9 @@ in Unity (MedievalSetting, `Assets/Beasts`), with shared code in the `beast_*` m
   (see HANDOFF.md, "Farm animals");
 - the **zombie wolf** (2026-10-23, the undead batch): the wolf dead and risen on the wolf's own skeleton, so the
   wolf's clips play on it unchanged; three coats; exported with a Unity setup, not installed yet (see
-  [Zombie wolf](#zombie-wolf)).
+  [Zombie wolf](#zombie-wolf));
+- the **giant bat** (2026-10-23, Daniel's card game): wolf-sized body, 2.9 m of leathery wings on the dragon's membrane
+  code, always in the air; seven clips; exported with a Unity setup, not installed yet (see [Giant bat](#giant-bat)).
 
 ![The wolf in the bind pose](docs/images/wolf_34.png)
 
@@ -91,6 +93,8 @@ the UVs. Always export after a rebuild, so the FBX and the textures in `textures
 | `farm_body.py`, `farm_rig.py`, `farm_paint.py`, `farm_anim.py`, `farm_build.py`, `farm_goat.py` ... `farm_pig.py` | The hoofed farm animals: the deer's recipe as a class in deer units, warped to each species; skinning, painter, clips and builds shared; one species module each |
 | `chicken_body.py`, `chicken_anim.py`, `chicken_paint.py`, `chicken_build.py` | The hen: bird body and rig, her own pose system (shank tilt + two-bone leg IK), plumage, build |
 | `zwolf_body.py`, `zwolf_rig.py`, `zwolf_paint.py`, `zwolf_anim.py`, `zwolf_build.py`, `tools/zwolf_run.py` | The zombie wolf on the wolf's skeleton: starved body, bald patches, the torn flank with rib bars, torn ear, bared teeth; the rot painter; the wolf's clips; headless build (see [Zombie wolf](#zombie-wolf)) |
+| `bat_body.py`, `bat_anim.py`, `bat_paint.py`, `bat_build.py` | The giant bat: fused fur body, lofted arms, fingers and legs, the dragon's membranes with a bat `WingSpec`; its own small pose system with the dragon's wing strokes; built headless by `tools/creature_run.py` (see [Giant bat](#giant-bat)) |
+| `beast_review.py`, `tools/creature_run.py` | Headless builds in files of their own: scene, game cameras, the wolf appended for scale, render sheets, lowest vertex per clip, a root-motion trace, a UV overlap count; the runner (`-- <creature> <steps>`) |
 | `ooze_body.py`, `ooze_contents.py`, `ooze_paint.py`, `ooze_rig.py`, `ooze_anim.py`, `ooze_scene.py`, `ooze_build.py` | The dungeon ooze: a distance-field shell meshed with openvdb, the contents, charted UVs and per-texel paint without Cycles bakes, the rig, the clips and their checks, EEVEE review renders (see [Dungeon ooze](#dungeon-ooze)) |
 | `beast_coat.py` | Long coats: coat volumes (lofts), hem fringes snapped to their volume or dropped onto the body, clumps, the hair's root-to-tip `t` |
 | `beast_body.py` | Mesh helpers and the body pipeline: `fuse_body` (voxel fuse, fillet, sculpts, decimate, edge flips, fold relaxing), `build_tufts`, `sculpt_fur`, `join_pieces` |
@@ -719,6 +723,90 @@ Copy-Item "$B\export\Anims\ZombieWolf@*.fbx" "$U\Models\Anims\"
 Copy-Item "$B\export\Anims\zombiewolf_clips.json" "$U\Models\Anims\"
 Copy-Item "$B\textures\T_ZombieWolf*.png" "$U\Textures\"
 Copy-Item "$B\unity\Beasts\Editor\ZombieWolfSetup.cs" "$U\Scripts\Editor\"
+```
+
+## Giant bat
+
+A unit from Daniel's card game (2026-10-23; "Keep moving on the creatures", "don't bother with adding them to the
+game, build the creatures"): model, paint, clips and export, no game side. My calls: a wolf-sized body (0.80 m nose to
+rump), 2.9 m across the wings, big upright ears, a short pug snout with an upturned nose pad and a nose leaf, two long
+upper fangs outside the lower jaw, red eyes, dark brown-black fur with a rusty mantle, dark leather wings that thin
+and redden toward the trailing edge; no tail and no tail membrane. Its own file, `blender/bat.blend` (scene **Bat**,
+cameras `BAT_CAM_*`), built headless.
+
+![Hovering, the tense hover before a dive](docs/images/bat_hover.png)
+
+![At the game camera (22 m, 50°, fov 30), blown up x3, the grey wolf beside it for scale](docs/images/bat_game.png)
+
+| Part | Triangles | Texture |
+|---|---|---|
+| Fused fur body (trunk, mantle, shoulders, pectorals, thigh stumps, head, muzzle, nose pad and leaf, brows) | 1,896 | `T_Bat` 1024², A = smoothness, one texture for both meshes |
+| Arms, fingers, thumbs, hind legs (clean lofts); claws | 632; 88 | |
+| Ears, eyes, fangs, lower jaw | 156, 100, 68, 220 | |
+| **BatBody** | **3,160** | `M_Bat` |
+| **BatWing**: the membranes (Coons patches) | **960** | `M_BatWing`: the same texture, drawn from both sides |
+| **Bat** | **4,120** | |
+
+How it is built:
+
+- **Always in the air.** The bind pose is the flying pose with the body's centre 1.6 m over the Root (`bat_body.H`).
+  The game moves it on the ground like the other beasts; only Death brings it down.
+- **The dragon's wings, parametrised** (`dragon_body.WingSpec`; the dragon's own is `DRAGON_WING`, and its bones,
+  membranes and helper poses come out bit-identical): four fingers (digit 2 along the leading edge, 3 to the tip, 4
+  and 5), the thumb with its claw, the arm panel's flank edge running down the body to the knee and the ankle
+  (`WS.flank`, weighted on Chest, Spine1, Thigh, Shin) and its 12 helper bones (`WingMem*`), finer scallops.
+- **Pieces in a `dragon_body.Acc`**, so every vertex carries its own weights: chain weights along the arm, finger and
+  leg lofts, the membranes' Coons weights, ears, eyes, fangs and jaw rigid. The fused fur gets heat weights solved on
+  a copy of the fur alone (`bat_body.heat_weights`), so the membrane sheets stay out of the heat solve.
+- **The wings are split off after painting** (`BatWing`), only to get a two-sided material; both meshes share the UVs
+  and `T_Bat`. The membranes face up in the bind pose (`_membranes_up`).
+- **Paint** (`bat_paint`): fur strokes along the flow, a grizzled crown, the bare face, the ears' cross ridges, the
+  wings darker along the bones with veins branching off them and creases along the fingers.
+
+Bones: Root, Motion, Hips, Spine1, Chest, Neck1, Head, Jaw, EarL/R, Thigh/Shin/HindFoot/HindToes, the dragon's wing
+chain (WingScap, WingArm, WingForearm, WingHand, WingThumb, WingF1_1..F4_2) and `WingMem<i><j>` per side; sockets
+`Socket_Head`, `Socket_Mouth`. 74 bones.
+
+| Clip | Length | Notes |
+|---|---|---|
+| Idle | 1.6 s loop | a lazy hover: two slow beats, the body raised, legs hanging, looking round, an ear flick |
+| Hover | 1.07 s loop | the tense hover facing a target: two quicker beats, upright, jaw ajar, claws forward |
+| Fly | 0.67 s loop | one wingbeat, down and forward, up with the hand drawn in; root motion 4.5 m/s |
+| Dive | 1.5 s | rears, half folds and swoops 1 m forward and 0.8 m down to bite, the hind claws reaching, and beats back up (in place); event `Bite` at 0.73 s |
+| Screech | 1.8 s | rears with the wings spread, head out, jaw wide, ears back; event `Screech` at 0.5 s |
+| Hit | 0.5 s | knocked back and up, the wings flinch |
+| Death | 2.0 s | the wings jerk and fold, it drops and lies on its belly, the wings flat, the head turned; event `Dead` at 1.3 s; holds |
+
+Wing strokes are the dragon's: the spread wing turned about the shoulder (`Y` down/up, `Z` sweep, `X` pitch), blended
+bone by bone toward the folded wing (`bat_anim.FOLD`) and curled. A stroke that would put a joint or finger tip under
+the ground is lifted (`Pose.floor`, bisected). Lowest vertex: the flying clips stay above 0.6 m, the Dive's wingtips
+0.19 m, Death -0.012 at the landing. Fly traced over 3 loops: 3.0 m a loop, Motion's turn 0, the head's step at the
+seam as inside the loop.
+
+Rebuild (headless, about a minute):
+
+```
+blender.exe -b --factory-startup --python tools/creature_run.py -- bat build review game clips lowest trace sheets closeups hero export
+blender.exe -b --factory-startup blender/bat.blend --python tools/creature_run.py -- bat paint review
+```
+
+Renders: `renders/bat_<view>.png` (front, side, top, below, 34, 34r, rear, face, facer, headside, headfront, wing),
+`bat_game_sheet.png`, `bat_vs_wolf_game.png` and `bat_vs_wolf_34.png` (the wolf from `blender/beasts.blend`),
+`bat_clip_<Clip>.png`, `bat_frames_<Clip>.png`, `bat_hero*.png`, `uv_layout_bat.png`.
+
+**In Unity:** copy the files (assets first, then the script) and run Tools > Beasts > Rebuild Bat (`BatSetup.cs`; it
+also runs by itself on the first import). It makes `M_Bat`, `M_BatWing` (two-sided), `Prefabs/Bat` (Animator,
+`BeastAppearance` for the size, `BeastEvents`; the renderers' bounds padded for the wings), `Animation/BatAnims`
+(Idle and Hover, Fly, Screech leading into Dive, Hit, Death) and lineup renders in `Logs/BatSetup` (a preview scene).
+It touches no scene.
+
+```
+$B = "E:\Unity\Projects\GameArtGeneration\Beasts"; $U = "E:\Unity\Projects\MedievalSetting\Assets\Beasts"
+Copy-Item "$B\export\Bat.fbx" "$U\Models\"
+Copy-Item "$B\export\Anims\Bat@*.fbx" "$U\Models\Anims\"
+Copy-Item "$B\export\Anims\bat_clips.json" "$U\Models\Anims\"
+Copy-Item "$B\textures\T_Bat.png" "$U\Textures\"
+Copy-Item "$B\unity\Beasts\Editor\BatSetup.cs" "$U\Scripts\Editor\"
 ```
 
 ## Dragon and hydra
