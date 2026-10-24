@@ -646,7 +646,7 @@ checks.
   cards' plane: crossings in Land/Hit/Death); A at T1 (the stoop swung T6 over the back onto the other side's).
   Checks: bind / perched / spread 0 / 0 / 0, every clip frame 0; card vs flesh perched 300 (as this morning); lowest
   unchanged; 5,884 tris, 88 bones. Folded, the tertials' top edge drops from u 0.353 to 0.293 (under the scapulars).
-  Unity rebuilt (setup report OK), rendered: fin gone. Not checked into Plastic.
+  Unity rebuilt (setup report OK), rendered: fin gone. Checked into Plastic cs:94 with the black-wing fix.
 - **Golden eagle: the folded wing rendered near black in Unity (2026-10-24).** Daniel: "when feathers get close
   together this weird balckness happens, is that an material issue? Can it be fixed?" Not the material, not shadows or
   SSAO (Unity preview renders with each off: still dark, `MedievalSetting/Logs/EagleDark`): Eagle.fbx imported with
@@ -654,8 +654,8 @@ checks.
   underside sits on its top, the two opposite normals averaged to nothing, and where FoldL/FoldR were high (folded:
   94 %) the cards lost their light (dark navy: the sky's ambient only). `BeastSetupUtil.ConfigureModel(blendShapes:
   true)` now sets `importBlendShapeNormals = None` (the shapes move positions only; the creases' turned parts keep
-  their unbent normals, at most 33 deg off). Re-rendered: the folded wing lit like the body. Unity rebuilt; not checked
-  into Plastic yet (cs:93 has the dark version).
+  their unbent normals, at most 33 deg off). Re-rendered: the folded wing lit like the body. Unity rebuilt; checked into
+  Plastic cs:94.
 - **Golden eagle: the arm's feathers (2026-10-24).** Daniel in Unity: "The feathers that should connect on the "forearm"
   are not connecting there" / "I meant "arm", not forearm, the thing after the shoulders" / "The feathers that should
   be there already exists, but they are "glued" in a fan position from the feathers of the "forearm"" / "see, the
