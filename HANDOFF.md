@@ -633,6 +633,27 @@ checks.
     - **The old trouser mask** (all below z 0.30) painted the whole belly and breast tawny.
     - **Euler Y on a mirrored blob:** −Y raised the brow's outer edge. The first pass's "horns" at the brow came from it.
 
+- **Golden eagle: the arm's feathers (2026-10-24).** Daniel in Unity: "The feathers that should connect on the "forearm"
+  are not connecting there" / "I meant "arm", not forearm, the thing after the shoulders" / "The feathers that should
+  be there already exists, but they are "glued" in a fan position from the feathers of the "forearm"" / "see, the
+  feathers are there, but they don't connect to the arm bone". Two causes, two fixes (README "The arm's feathers";
+  before/after `docs/images/eagle_tertials.png`, sections `renders/eagle_arm_sections_rise.png`):
+  - The tertials: four, rooted by the elbow, fanned, on WingTertA/B (children of the forearm): the humerus bare, and a
+    flex took them off it. Now six along the humerus (`T_AT` 0.04-0.74 from the elbow, `T_ANG` 98-102, `T_LEAD` 0.45 ->
+    0.70), rigid on `WingTert` (child of WingArm; WingTertA/B removed, 86 bones), `eagle_pose.FOLD_CARRY` puts its head
+    where the forearm carried it as the wing lays (eagle_pose._wing and eagle_anim._place_wing), `TERT_GAP` 3 mm.
+  - The flesh: the arm's and forearm's slabs' rear half rises (`ARM_RISE`, `FORE_RISE`, `_slab(rise=)`) to take the
+    tertials' and secondaries' roots 2 mm in.
+  - Checks: bind / perched / spread card-body 0, card-card 0, inside 0; every frame of the ten clips 0 / 0 / 0; card vs
+    flesh perched 353 (was 300: the roots now in the flesh); lowest unchanged (Death -9.0 mm). 5,884 tris. Unity:
+    installed, setup report OK (86 bones, 5,884 tris, FoldL/FoldR found). Not checked in (Plastic).
+  - What did not work (all clean in the fold or the spread pose, crossed in the clips): extra tertials on a bone of
+    their own on the humerus over T1-T4 on the forearm (T4/T5 crossed on the downstroke until 6 mm apart; rigid with
+    the humerus they swung in over the back in the stoop, onto the other side's; turned in past the shoulder they came
+    down onto the back and the scapulars as the wing rose); all tertials on bones riding the humerus as a two-bone row
+    (the row's heads turn with the arm, the bones with the flex: T1-T4 crossed one another); sinking the cards' roots
+    into the flesh (each root dove through the cards under it when folded: 441 face pairs); lifting the flesh to a few
+    mm under the cards, or only its trailing edge (a slit of light stayed under the roots).
 - **Golden eagle: the folded wing creased (2026-10-24).** Daniel: "The feathers are all quads, what if each individual
   feather could be folded in 2 places, so we make things fit. Yes, much more polygons, we would go over budget, but that
   is how real feathers work". New `src/eagle_drape.py`; `eagle_body` (HINGE_T, slanted crease rows, `Fe.line`, gauge
@@ -904,6 +925,7 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - Lunge latches onto a point 0.4 m up in front of it, not onto a victim's real position (no IK);
   - maybe: a Swim clip (vertical undulation), a turn in place, a smaller swarm variant.
 - **Golden eagle (2026-10-24):**
+  - The arm's feathers fixed (2026-10-24, entry above); not seen by Daniel yet.
   - Status: the model is accepted with the folded wing as the second pass left it, plus the creases (2026-10-24, Daniel's
     idea; not judged by him yet: if he prefers the plain fold, `CREASES` can be emptied or the shares set to 0 without
     a rebuild of the rig); ten clips, the export and `EagleSetup.cs` are done and pushed. Installed in MedievalSetting
@@ -919,7 +941,7 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     tip in the first jerk); the take-off's spring straightens the legs into stilts for a few frames.
   - Not done: carrying prey on `Socket_Grip`, a perch on a branch or a cliff (Idle stands on flat ground), turning
     clips, a flight Hit/Death (both are perched).
-  - 5,820 tris against the brief's ~5,000 (the beak +140, the tarsi +56, the scapulars +64, the 12 three-row
+  - 5,884 tris against the brief's ~5,000 (the beak +140, the tarsi +56, the scapulars +64, the 12 three-row
     greater coverts +96, less 280 for the coverts' and scapulars' dropped undersides; the creases' rows +464).
   - The creases: Walk keeps only 0.22 of the bend and Death 0.53 (the legs and the ground); between clips the gauge
     differs (Idle 0.94 -> TakeOff 0.75, Walk 0.22), so a cut without a crossfade pops the bend.

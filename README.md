@@ -108,7 +108,7 @@ the UVs. Always export after a rebuild, so the FBX and the textures in `textures
 | `bat_body.py`, `bat_anim.py`, `bat_paint.py`, `bat_build.py` | The giant bat: fused fur body, lofted arms, fingers and legs, the dragon's membranes with a bat `WingSpec`; its own small pose system with the dragon's wing strokes; built headless by `tools/creature_run.py` (see [Giant bat](#giant-bat)) |
 | `turtle_body.py`, `turtle_anim.py`, `turtle_paint.py`, `turtle_build.py` | The giant turtle: fused skin, a parametric carapace (closed shell, keels, scutes), plastron and bridges; beast_anim's quadruped clips with the neck sliding into the shell (`p.retract`) (see [Giant turtle](#giant-turtle)) |
 | `leech_body.py`, `leech_anim.py`, `leech_paint.py`, `leech_build.py` | The leech: a ringed tube built ring by ring with a toothed cup and a rear disc; a chain posed along curves (flat stretches, fitted arches and Beziers), swell bones for the pulses (see [Leech](#leech)) |
-| `eagle_body.py`, `eagle_pose.py`, `eagle_paint.py`, `eagle_build.py` | The golden eagle: fused body, the beak built from its profiles, feet and wing flesh pieces, layered feather cards (`Fe`): a bone per primary and per tail feather, the secondaries with the greater coverts and the tertials each on a two-bone row, scapulars; the perched and spread poses (folded, the wing one stack leaning in over the flank); scallop and feather-card painter with two presets; the overlap check and the before/after views; the clips' checks, renders and export (see [Golden eagle](#golden-eagle)) |
+| `eagle_body.py`, `eagle_pose.py`, `eagle_paint.py`, `eagle_build.py` | The golden eagle: fused body, the beak built from its profiles, feet and wing flesh pieces, layered feather cards (`Fe`): a bone per primary and per tail feather, the secondaries with the greater coverts on a two-bone row, the tertials along the arm on one, scapulars; the perched and spread poses (folded, the wing one stack leaning in over the flank); scallop and feather-card painter with two presets; the overlap check and the before/after views; the clips' checks, renders and export (see [Golden eagle](#golden-eagle)) |
 | `eagle_anim.py` | The eagle's ten clips on eagle_pose's pose system: wing strokes with a fold split into a rigid lay and an in-plane fold (no card crosses another on the way), legs with the thigh held to the trunk (knee and ankle IK) and the toes kept on their spots, the height in the skeleton (see [Golden eagle](#golden-eagle)) |
 | `beast_review.py`, `tools/creature_run.py` | Headless builds in files of their own: scene, game cameras, the wolf appended for scale, render sheets, lowest vertex per clip, a root-motion trace, a UV overlap count; the runner (`-- <creature> <steps>`) |
 | `tools/before_after.py` | Labelled before/after sheets from two folders of renders (system Python with Pillow, not Blender; 2026-10-24, the eagle's revision) |
@@ -1047,6 +1047,12 @@ too". What changed (before/after sheets: `renders/eagle_ba_*.png`):
 
 From behind the lower wing now comes in to the tail and the primaries' tips toward it; the upper half of the folded wing, in front of the first crease, is still the flat stack (the first crease cannot move forward: the tertials' roots lie just in front of it), and the tertials, the coverts and the scapulars over the creased cards stay flat.
 
+**The arm's feathers (2026-10-24).** Daniel, looking at the eagle in Unity: "The feathers that should connect on the "forearm" are not connecting there" ("I meant "arm", not forearm, the thing after the shoulders"), "The feathers that should be there already exists, but they are "glued" in a fan position from the feathers of the "forearm"", "see, the feathers are there, but they don't connect to the arm bone":
+- **The tertials along the arm.** They were four, rooted by the elbow, fanned on from the secondaries and carried by the forearm, so the humerus was a bare rod from the shoulder out, and a bending elbow (the upstroke, take-off, landing) took them further from it. Now six (T1-T6), spread along the humerus from the elbow toward the shoulder and pointing back (`T_AT`, `T_ANG`), rigid on one bone that rides the humerus (`WingTert`; the two-bone row `WingTertA/B` is gone). In flight it turns back with a flex as every wing bone does but keeps its head on the arm; folded, `eagle_pose.FOLD_CARRY` carries it where the forearm did, so the folded stack is the one the fold was tuned with. `TERT_GAP` (3 mm) between them, the secondaries under them and the greater coverts over them, which the forearm moves against them in a flex; toward the shoulder the inner vanes narrow (`T_LEAD`) and the cards turn less, so they stay outboard of the shoulder's pivot (inboard, a rising wing lowered them onto the back).
+- **The flesh meets the roots.** The feather layers float 1-3 cm over the wing's line and the arm's and forearm's flesh was 0.5-1.6 cm tall, so a strip of light showed between the arm and its feathers. The slabs' rear half now rises (`ARM_RISE`, `FORE_RISE`) to take the tertials' and secondaries' roots 2 mm in: the inner wing is a thick wedge by the body, as an eagle's is.
+
+![The tertials before (fanned from the elbow, on the forearm) and after (along the arm, on the arm): debug colours, tertials red, secondaries blue, the wing's flesh green; the Fly upstroke, TakeOff and Land](docs/images/eagle_tertials.png)
+
 My calls (the first pass, unreviewed unless named above):
 - **Species and size:** a golden eagle (Aquila chrysaetos) at natural size: 0.84 m beak to tail tip, 2.03 m across the
   wings, 0.60 m tall perched. Unity can scale it up for a giant eagle; the game renders check x1 and x2.5.
@@ -1071,9 +1077,9 @@ My calls (the first pass, unreviewed unless named above):
 | Upper beak with cere, lower mandible (built from their profiles), eyes | 260, 180, 100 | |
 | Tarsi (sock and slim half) and toes, talons | 624, 176 | |
 | Wing flesh: humerus slab (with the patagium's fill), forearm slab | 280 | |
-| Feather cards, one layer: primaries 424, primary coverts 72, secondaries 288, greater coverts 192, tertials 64, alula 16, scapulars 64, tail 144 (with the crease rows) | 1,264 | |
-| The cards' undersides (each card copied and flipped; none for the greater and primary coverts and the scapulars, never seen from below) | 936 | |
-| **EagleBody** | **5,820** (5,356 before the creases; first pass 5,224) | `M_Eagle` / `M_Eagle_Bald`, back faces culled; shape keys `FoldL`, `FoldR` |
+| Feather cards, one layer: primaries 424, primary coverts 72, secondaries 288, greater coverts 192, tertials 96, alula 16, scapulars 64, tail 144 (with the crease rows) | 1,296 | |
+| The cards' undersides (each card copied and flipped; none for the greater and primary coverts and the scapulars, never seen from below) | 968 | |
+| **EagleBody** | **5,884** (5,820 with four tertials; 5,356 before the creases; first pass 5,224) | `M_Eagle` / `M_Eagle_Bald`, back faces culled; shape keys `FoldL`, `FoldR` |
 
 How it is built:
 
@@ -1091,7 +1097,7 @@ How it is built:
   card is its own UV island; its coordinates (u across, v along, kind and index) go into the `root` attribute and are
   baked for the painter.
 - **Card layers:** one order holds for both poses, from bottom/inside to top/outside: P10, P9, PC9 … P1, PC1, S1…S12,
-  T1…T4, G1…G12, A2, A1. In the open wing the proximal feather lies over the distal one; folded, the same order runs
+  T1…T6, G1…G12, A2, A1. In the open wing the proximal feather lies over the distal one; folded, the same order runs
   inside to outside. A layer is 1.1 mm (1.4 mm in the primaries, each covert half a step over its own primary). Drops,
   curves and camber are matched per stack, so overlapping cards stay parallel. The scapulars (SC1…SC4, the front one on
   top) lie on the back, apart from the wing's stack.
@@ -1100,8 +1106,9 @@ How it is built:
 - **Feather bones:**
   - one bone per primary (its covert rides it), per tail feather (the fan spreads) and per side for the scapulars
     (`Scap`, a child of the chest);
-  - the 12 secondaries and the 12 greater coverts ride two bones, `WingSecA` and `WingSecB`, the 4 tertials
-    `WingTertA` and `WingTertB` (all children of the forearm), each card's weight fixed from where its root sits
+  - the six tertials are rigid on `WingTert`, a child of the humerus (see "The arm's feathers" above);
+  - the 12 secondaries and the 12 greater coverts ride two bones, `WingSecA` and `WingSecB` (children of the
+    forearm), each card's weight fixed from where its root sits
     between the two heads; when both bones turn the same way, linear blend skinning moves every card rigidly about its
     own root, as a folding forearm moves its feathers.
 - **The fold** (`eagle_pose`): one stack in a plane against the flank (`FOLD`: its outer side leaning in 32°, its
@@ -1120,9 +1127,9 @@ How it is built:
   - the head has the brow's shadow, a thin lid, a soft yellow gape and the beak in its own coordinates;
   - the toes have scutes and the talons are black.
 
-Bones (88): Root, Motion, Hips, Spine1, Chest, Neck1-3, Head, Jaw (the lower mandible), Tail1 and TailF1-6 L/R,
+Bones (86): Root, Motion, Hips, Spine1, Chest, Neck1-3, Head, Jaw (the lower mandible), Tail1 and TailF1-6 L/R,
 Thigh/Shin/Tarsus and Toe1-4_1/_2 per leg (1 = the hallux). Per wing: WingArm, WingForearm, WingHand, WingAlula,
-WingP1-10, WingSecA/B and WingTertA/B; ScapL/R; the unweighted gauges WingFoldL/R (the creases' shape keys follow
+WingP1-10, WingSecA/B and WingTert; ScapL/R; the unweighted gauges WingFoldL/R (the creases' shape keys follow
 them). Sockets: `Socket_Head`, `Socket_Mouth` and `Socket_Grip` (the right
 foot, for carried prey). Bone collections: Wings, Feathers (with Scap), TailFan, Toes.
 
@@ -1137,7 +1144,7 @@ Checks (`eagle_build.check`; bind / perched / spread):
   per hit, not per face.
 - Cards crossing other cards: 0 / 0 / 0.
 - Card vertices inside the body (ray parity, three rays voting): 0 / 0 / 0.
-- Cards against the wing's own flesh: 0 / 300 / 0. Folded, the bases of the primaries run along the forearm slab under
+- Cards against the wing's own flesh: 0 / 353 / 0 (the flesh lifted to the roots, 2026-10-24: their quills in it). Folded, the bases of the primaries run along the forearm slab under
   the secondaries, and the scapulars' roots cross the humerus slab under them.
 - Lowest vertex: 0.2 mm (talon tips), −4 mm (talon tips, gripping) and 1.13 m.
 - Weights: 0 unweighted, 0 with more than 4 influences. UV overlap: 0 texels; 83% coverage. Shape keys FoldL / FoldR: the undersides bend with their tops (0 mm apart, perched).
@@ -1223,8 +1230,8 @@ How they work:
 
 Checks (`eagle_build`: `cards`, `lowest`, `trace`, `chains`, `feet`):
 - Every frame of every clip through the model's overlap test: cards through the body 0, cards through cards 0, card
-  vertices inside the body 0, in all 701 frames, with the creases (2026-10-24). Cards against the wing's own flesh peak
-  at 300 face pairs (perched, the model's hidden contact).
+  vertices inside the body 0, in all 701 frames, with the creases and the tertials along the arm (2026-10-24). Cards
+  against the wing's own flesh peak at 356 face pairs (folded, the model's hidden contact).
 - Lowest vertex: Idle, Walk, TakeOff, Screech and Hit −3.2 mm (the talon tips, as perched), Land −5.3 mm, Death −9.0 mm
   (a primary's tip in the fall; −6.8 mm before the creases); Dive's talons stop 7 cm over the ground at the strike; Fly stays above 1.44 m,
   Glide above 1.67 m.

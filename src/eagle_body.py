@@ -26,7 +26,8 @@ What is a mesh and what is a card:
   coverts and 9 primary coverts per wing, 2 alula feathers, 4 scapulars a side, 12 tail feathers. Each card is rigid
   on its own bone (primaries, primary coverts, alula, scapulars, tail) or rides two bones with a weight fixed per card
   (secondaries and greater
-  coverts on WingSecA/B, tertials on WingTertA/B, all four children of the forearm): two bones turned the same way
+  coverts on WingSecA/B, children of the forearm; the tertials rigid on WingTert, a child of the humerus, since
+  2026-10-24): two bones turned the same way
   about their own heads move every card between them rigidly about its own root (linear blend skinning of two equal
   rotations is a rotation), which is what a folding forearm does to its feathers.
 
@@ -121,13 +122,43 @@ P_EMARG = {5: (0.66, 0.50), 6: (0.64, 0.48), 7: (0.62, 0.48), 8: (0.61, 0.48), 9
 S_N = 12
 S_ANG = tuple(np.linspace(72, 97, S_N))       # S1 (at the wrist, angled out to meet P1) .. S12 (at the elbow)
 S_LEN = (0.390, 0.392, 0.394, 0.396, 0.397, 0.397, 0.395, 0.390, 0.380, 0.367, 0.350, 0.330)   # chord ~0.44 m
-T_ANG, T_LEN, T_AT = (100, 106, 112, 118), (0.265, 0.245, 0.215, 0.170), (0.04, 0.17, 0.30, 0.43)
+# The tertials (2026-10-24, Daniel: the arm, "the thing after the shoulders", was a bare rod; "The feathers that should
+# be there already exists, but they are 'glued' in a fan position from the feathers of the 'forearm'"): they were rooted
+# by the elbow, fanned on from the secondaries and carried by the forearm. Now six, spread along the humerus from the
+# elbow toward the shoulder and pointing back, on one bone riding the humerus (WingTert): a bending elbow leaves them on
+# the arm; folded, eagle_pose.FOLD_CARRY lays them in the stack where the forearm carried them. TERT_GAP over S12, which
+# the forearm carries and a flex moves under them; toward the shoulder the inner vanes narrow (T_LEAD: the outer vane's
+# share) and the cards turn less, so they stay outboard of the shoulder's pivot (inboard of it, a rising wing lowers a
+# card onto the back).
+T_ANG = (98, 100, 102, 102, 100, 98)
+T_LEN = (0.265, 0.245, 0.220, 0.190, 0.160, 0.130)
+T_AT = (0.04, 0.18, 0.32, 0.46, 0.60, 0.74)
+T_WID = (0.082, 0.082, 0.080, 0.078, 0.075, 0.072)
+T_LEAD = (0.45, 0.45, 0.50, 0.55, 0.62, 0.70)
+TERT_GAP = 0.003
 PC_LEN = (0.130, 0.130, 0.125, 0.120, 0.115, 0.110, 0.100, 0.090, 0.080)
 TAIL_X = (0.006, 0.017, 0.028, 0.038, 0.047, 0.055)                   # roots across the tail base, centre -> out
 TAIL_LEN = (0.315, 0.313, 0.310, 0.306, 0.300, 0.292)
 TAIL_Y, TAIL_Z = 0.142, 0.343
 
 KIND = dict(primary=1, secondary=2, tertial=3, gcovert=4, pcovert=5, alula=6, tail=7, scapular=8)
+
+# the wing's flesh (build_pieces' slabs): rows (t along, lead, trail, top, bottom), shoulder -> elbow and elbow -> wrist
+ARM_SLAB = ((0.0, 0.040, 0.022, 0.016, 0.016), (0.55, 0.046, 0.022, 0.014, 0.013), (1.0, 0.048, 0.020, 0.012, 0.010))
+FORE_SLAB = ((0.0, 0.040, 0.024, 0.012, 0.007), (0.5, 0.032, 0.020, 0.008, 0.005), (1.0, 0.020, 0.014, 0.005, 0.003))
+# 2026-10-24 (Daniel: "the feathers are there, but they don't connect to the arm bone"): the feathers' layers float
+# 1-3 cm over the wing's line and the flesh's top is 0.5-1.6 cm, so in flight a strip of light showed between the arm
+# and its feathers. The slabs' rear half rises (rows (t, the lift)) so its top takes the feathers' roots, just behind
+# the line, 2 mm in (the quills in the flesh, as ROOT_T has them): from below and behind the skin runs up into the
+# feathers, and the inner wing is a thick wedge by the body. The tertials over the humerus (2.6-3.2 cm; S12 at the
+# elbow passes under T1 into it), the secondaries over the forearm (1.0-2.2); the rear top's own height is ~0.85 of
+# the slab's top. (Stopping a few mm under the cards left a slit of light under the roots; lifting only the trailing
+# edge left the roots, 8 mm behind the line, over a gap; sinking the cards' roots into the flesh crossed 440 face pairs
+# folded: each root dove through the cards under it.)
+ARM_RISE = ((0.0, 0.012), (0.26, 0.0209), (0.54, 0.0196), (0.82, 0.0183), (1.0, 0.0178))
+FORE_RISE = ((0.0, 0.0139), (0.5, 0.0112), (1.0, 0.0077))
+RISE_FRONT, RISE_BACK = 0.25, 0.35   # the lift grows from this share of the lead in front of the line to this share of
+#                                      the trail behind it (all of it behind)
 
 # the hinges (2026-10-24): card name -> the t of its hinge rows, where its shaft crosses the folded wing's creases
 # (eagle_drape.crease_hinges; the build fills it before the body is made); an existing row within HINGE_NEAR serves
@@ -313,14 +344,15 @@ def feathers():
     for i in range(1, G_N + 1):
         v = 0.03 + 0.94 * (i - 1) / (G_N - 1)
         root = W + fore * v - tf * 0.010
+        g_off = float(np.interp(v, sv, s_off)) + 0.0105
         out.append(Fe(f"G{i}", 'gcovert', i, root, float(np.interp(v, (0.0, 1.0), G_ANG)), 0.155, 0.075, 0.36,
-                      GCOV_ROWS, None, off=float(np.interp(v, sv, s_off)) + 0.0105, drop=0.7, curve=0.005,
-                      chev=CHEV))
-    # tertials from the elbow inward along the humerus, over S12
-    for j in range(1, 5):
+                      GCOV_ROWS, None, off=g_off, drop=0.7, curve=0.005, chev=CHEV))
+    # the tertials along the humerus, over S12 (TERT_GAP), on WingTert
+    for j in range(1, len(T_AT) + 1):
         root = E + arm * T_AT[j - 1] + ta * 0.010
-        out.append(Fe(f"T{j}", 'tertial', j, root, T_ANG[j - 1], T_LEN[j - 1], 0.082, 0.45, SEC_ROWS, None,
-                      off=s_off[-1] + DL * j, drop=0.7, curve=0.015, chev=CHEV))
+        t_off = s_off[-1] + DL * j + TERT_GAP
+        out.append(Fe(f"T{j}", 'tertial', j, root, T_ANG[j - 1], T_LEN[j - 1], T_WID[j - 1], T_LEAD[j - 1], SEC_ROWS,
+                      {"WingTert": 1.0}, off=t_off, drop=0.7, curve=0.015, chev=CHEV))
     # the alula on the wrist's leading edge, on top
     for j, (ang, L) in enumerate(((7, 0.095), (11, 0.075)), 1):     # (2026-10-24) along the hand's leading edge, flat
         root = W + _n(hand) * 0.008 + np.cross(_n(hand), WN) * 0.012
@@ -348,8 +380,6 @@ def feathers():
     for f in out:
         if f.kind in ('secondary', 'gcovert'):
             f.bones = _between(f.root, A.root, B.root, "WingSecA", "WingSecB")
-        elif f.kind == 'tertial':
-            f.bones = _between(f.root, by["T1"].root, by["T4"].root, "WingTertA", "WingTertB")
     return out
 
 
@@ -417,9 +447,8 @@ def rest_bones():
         for nm, fe in (("WingSecA", f"S{S_N}"), ("WingSecB", "S1")):
             h, t, z = FE[fe].frame(s)
             b(nm + sfx, h, t, z, f"WingForearm{sfx}")
-        for nm, fe in (("WingTertA", "T1"), ("WingTertB", "T4")):
-            h, t, z = FE[fe].frame(s)
-            b(nm + sfx, h, t, z, f"WingForearm{sfx}")
+        h, t, z = FE["T3"].frame(s)
+        b(f"WingTert{sfx}", h, t, z, f"WingArm{sfx}")
         for k in range(1, 7):
             h, t, z = side_of(FE[f"F{k}"], s).frame(s)
             b(f"TailF{k}{sfx}", h, t, z, "Tail1")
@@ -587,9 +616,10 @@ def _chain(P, names, B, falloff=0.02):
     return DB.chain_weights(np.asarray(P), DB._bones_of(B, names), falloff)
 
 
-def _slab(bm, a, b, rows, n, seg=5):
+def _slab(bm, a, b, rows, n, seg=5, rise=None):
     """An airfoil slab along a -> b (left wing): rows (t, lead, trail, top, bottom) -> loft with the centre pushed to
-    the leading side by (lead - trail) / 2."""
+    the leading side by (lead - trail) / 2. rise: rows (t, lift): the rear lifted along n, nothing at RISE_FRONT of
+    the lead in front of the line, all of it from RISE_BACK of the trail behind it (smoothly between)."""
     a, b = np.asarray(a, float), np.asarray(b, float)
     d = _n(b - a)
     lat = np.cross(d, n)
@@ -597,7 +627,19 @@ def _slab(bm, a, b, rows, n, seg=5):
     for t, le, tr, top, bot in rows:
         c = a + (b - a) * t + lat * (le - tr) / 2
         R.append(tuple(c) + ((le + tr) / 2, top, bot))
-    return loft(bm, R, up=tuple(n), seg=seg, per_seg=1, cap0=0.7, cap1=0.7, shape=0.8)
+    vs = loft(bm, R, up=tuple(n), seg=seg, per_seg=1, cap0=0.7, cap1=0.7, shape=0.8)
+    if rise:
+        L = np.linalg.norm(b - a)
+        rt, rh = [r[0] for r in rise], [r[1] for r in rise]
+        tt, tl, tw = [r[0] for r in rows], [r[1] for r in rows], [r[2] for r in rows]
+        for v in vs:
+            p = np.array(v.co) - a
+            t = float(np.clip((p @ d) / L, 0.0, 1.0))
+            s = p @ lat                                 # + the leading side
+            s0, s1 = RISE_FRONT * float(np.interp(t, tt, tl)), -RISE_BACK * float(np.interp(t, tt, tw))
+            w = smoothstep(s0, s1, s)
+            v.co = Vector(np.array(v.co) + np.asarray(n, float) * float(np.interp(t, rt, rh)) * w)
+    return vs
 
 
 def _mirror_build(build, s):
@@ -746,13 +788,12 @@ def build_pieces(fur, B):
         slabs = [
             # the humerus carries the patagium's fill in front of the elbow (folded, its leading side faces down,
             # under the feathers); the forearm's leading side faces up when folded, so it stays narrow
-            (S_ - _n(E_ - S_) * 0.030, E_ + _n(E_ - S_) * 0.015, f"WingArm{sfx}",
-             ((0.0, 0.040, 0.022, 0.016, 0.016), (0.55, 0.046, 0.022, 0.014, 0.013), (1.0, 0.048, 0.020, 0.012, 0.010))),
-            (E_ - _n(W_ - E_) * 0.012, W_ + _n(W_ - E_) * 0.004, f"WingForearm{sfx}",
-             ((0.0, 0.040, 0.024, 0.012, 0.007), (0.5, 0.032, 0.020, 0.008, 0.005), (1.0, 0.020, 0.014, 0.005, 0.003))),
+            (S_ - _n(E_ - S_) * 0.030, E_ + _n(E_ - S_) * 0.015, f"WingArm{sfx}", ARM_SLAB, ARM_RISE),
+            (E_ - _n(W_ - E_) * 0.012, W_ + _n(W_ - E_) * 0.004, f"WingForearm{sfx}", FORE_SLAB, FORE_RISE),
         ]
-        for a, b, bone, srows in slabs:
-            acc.add(_mirror_build(lambda bm, a=a, b=b, srows=srows: _slab(bm, a, b, srows, nz), s), bone, 'wing')
+        for a, b, bone, srows, rise in slabs:
+            acc.add(_mirror_build(lambda bm, a=a, b=b, srows=srows, rise=rise: _slab(bm, a, b, srows, nz, rise=rise), s),
+                    bone, 'wing')
         # the feather cards
         for f in FE.values():
             g = side_of(f, s)

@@ -124,7 +124,7 @@ namespace Beasts.EditorTools
                                                $" FoldL={body.sharedMesh.GetBlendShapeIndex("FoldL")}" +
                                                $" FoldR={body.sharedMesh.GetBlendShapeIndex("FoldR")}" : ""));
                 log.AppendLine($"  Eagle.prefab: body={body != null} rootBone={(body != null && body.rootBone != null ? body.rootBone.name : "-")}" +
-                               (body != null ? $" tris={body.sharedMesh.triangles.Length / 3} (5820)" : "") +
+                               (body != null ? $" tris={body.sharedMesh.triangles.Length / 3} (5884)" : "") +
                                $" sockets={string.Join(",", go.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith("Socket_")).Select(t => t.name))}");
                 var prefab = PrefabUtility.SaveAsPrefabAsset(go, PrefabPath);
                 Object.DestroyImmediate(go);

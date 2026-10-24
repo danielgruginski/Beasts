@@ -224,20 +224,24 @@ def _place_wing(p, W, rel, s, sfx, w, turn):
         bn = n + sfx
         par = B[bn][3]
         here = W[par] @ rel(bn, par)
+        if n in EP.FOLD_CARRY and lay > 0:            # folded, carried as the tertials are (eagle_pose.FOLD_CARRY)
+            c = EP.FOLD_CARRY[n] + sfx
+            here = Matrix.Translation(here.translation.lerp((W[c] @ rel(bn, c)).translation, lay))
         q0 = R[bn].to_3x3()
         if n.startswith("WingP") and w["finger"]:
             k = int(n[5:])
             ax = R[f"WingHand{sfx}"].col[2].xyz
             q0 = Matrix.Rotation(rad(-s * w["finger"] * (k - 5.5) / 4.5), 3, ax) @ q0
         Sb = M @ q0
-        if inp > 0:
+        k = inp
+        if k > 0:
             Rb = G.inverted() @ EP.fold_frame(n, s) @ Sb.transposed()
             swing, twist = _swing_twist(_q(Rb), axis)
             if twist.w < 0:
                 twist = -twist
             if swing.w < 0:
                 swing = -swing
-            q = qg @ Quaternion().slerp(swing, inp) @ Quaternion().slerp(twist, inp) @ _q(Sb)
+            q = qg @ Quaternion().slerp(swing, k) @ Quaternion().slerp(twist, k) @ _q(Sb)
         else:
             q = _q(Sb)
         W[bn] = Matrix.Translation(here.translation) @ (turn @ q.to_matrix()).to_4x4()
