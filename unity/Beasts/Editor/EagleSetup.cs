@@ -21,8 +21,9 @@ namespace Beasts.EditorTools
     ///                       alpha; back faces culled (_Cull 2): every card that can be seen from below has a flipped copy
     ///                       of its own, so each side is lit with its own normal (URP Lit drawn from both sides lights the
     ///                       underside with the top's normal: the bat's lesson)
-    ///   Prefabs/Eagle       Animator + BeastAppearance (golden or bald, size) + BeastEvents; the mesh's bounds ride on
-    ///                       Hips (the clips fly the body 1.5-2.3 m over the GameObject)
+    ///   Prefabs/Eagle       Animator + BeastAppearance (golden or bald, size) + BeastEvents + EagleFeatherFold (the folded
+    ///                       wing's creases: blend shapes FoldL / FoldR follow the gauge bones WingFoldL / WingFoldR); the
+    ///                       mesh's bounds ride on Hips (the clips fly the body 1.5-2.3 m over the GameObject)
     ///   Animation/EagleAnims clip pools for BeastRandomAnimator: on the ground Idle, Walk, Screech, Hit, Death and TakeOff;
     ///                       TakeOff leads to Flight (Fly, Glide, Fly, Dive, Fly, Glide in a row), Flight to Land, Land to Idle
     /// The skeleton carries the height, as the bat's does: the GameObject stays on the ground while the eagle flies 1.5 m
@@ -91,7 +92,7 @@ namespace Beasts.EditorTools
                 var golden = Skin("M_Eagle", "T_Eagle");
                 var bald = Skin("M_Eagle_Bald", "T_Eagle_Bald");
 
-                var (avatar, motionPath, model) = ConfigureModel(ModelPath, new[] { ("M_Eagle", golden) }, log);
+                var (avatar, motionPath, model) = ConfigureModel(ModelPath, new[] { ("M_Eagle", golden) }, log, blendShapes: true);
                 var clips = ConfigureClips("Eagle", Anims + "/eagle_clips.json", avatar, motionPath, EventFunction, log);
                 MakeSet("EagleAnims", Pools(), clips, log);
 
@@ -110,8 +111,20 @@ namespace Beasts.EditorTools
                 look.skins = new[] { golden, bald };
                 look.scale = new Vector2(0.92f, 1.08f);
                 if (go.GetComponent<BeastEvents>() == null) go.AddComponent<BeastEvents>();
+                var fold = go.GetComponent<EagleFeatherFold>() ?? go.AddComponent<EagleFeatherFold>();
+                var bones = go.GetComponentsInChildren<Transform>(true);
+                fold.body = body;
+                fold.gaugeL = bones.FirstOrDefault(t => t.name == "WingFoldL");
+                fold.gaugeR = bones.FirstOrDefault(t => t.name == "WingFoldR");
+                if (fold.gaugeL != null) fold.restL = fold.gaugeL.localPosition;
+                if (fold.gaugeR != null) fold.restR = fold.gaugeR.localPosition;
+                fold.Bind();
+                log.AppendLine($"  EagleFeatherFold: gauges={fold.gaugeL != null && fold.gaugeR != null}" +
+                               (body != null ? $" blendShapes={body.sharedMesh.blendShapeCount}" +
+                                               $" FoldL={body.sharedMesh.GetBlendShapeIndex("FoldL")}" +
+                                               $" FoldR={body.sharedMesh.GetBlendShapeIndex("FoldR")}" : ""));
                 log.AppendLine($"  Eagle.prefab: body={body != null} rootBone={(body != null && body.rootBone != null ? body.rootBone.name : "-")}" +
-                               (body != null ? $" tris={body.sharedMesh.triangles.Length / 3} (5356)" : "") +
+                               (body != null ? $" tris={body.sharedMesh.triangles.Length / 3} (5820)" : "") +
                                $" sockets={string.Join(",", go.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith("Socket_")).Select(t => t.name))}");
                 var prefab = PrefabUtility.SaveAsPrefabAsset(go, PrefabPath);
                 Object.DestroyImmediate(go);

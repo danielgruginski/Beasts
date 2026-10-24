@@ -209,6 +209,14 @@ def _wing(p, W, rel, s, sfx):
     sc = "Scap" + sfx
     W[sc] = (W["Chest"] @ rel(sc, "Chest") @ Matrix.Rotation(rad(-s * FOLD_SCAP[1] * t), 4, 'Z') @
              Matrix.Rotation(rad(s * FOLD_SCAP[0] * t), 4, 'Y'))
+    gauge(W, rel, sfx, t)
+
+
+def gauge(W, rel, sfx, lay):
+    """The fold's gauge bone (2026-10-24): slid EB.FOLD_GAUGE * lay along its own Y; the hinged cards' shape key
+    Fold<side> follows it (eagle_drape)."""
+    g = "WingFold" + sfx
+    W[g] = W["Chest"] @ rel(g, "Chest") @ Matrix.Translation((0.0, EB.FOLD_GAUGE * lay, 0.0))
 
 
 def _tail(p, W, rel, s, sfx):

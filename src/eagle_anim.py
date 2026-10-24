@@ -52,6 +52,13 @@ RIG = EB.RIG
 SIDES = EB.SIDES
 C = EP.C
 FLY_H = 1.5                     # the body's height in flight over its perched place (m)
+# the folded wing's creases (eagle_drape) per clip: the gauge slides this much of the lay (1 = the creases' full turns).
+# Fitted by eagle_build.fold_fit (2026-10-24): where the legs swing under the folded wing (Walk) or the wingtips come to
+# the ground (the crouch, the touchdown, the fall) the curled feathers relax, as pressed feathers flex
+# (Idle 0.94, Walk 0.22, TakeOff 0.75, Death 0.53; Screech, Hit and Land were clean at 1 and take Idle's share, so the
+# clips that hand over through the perched pose match)
+GAUGE = dict(Idle=0.94, Screech=0.94, Hit=0.94, Land=0.94, Walk=0.22, TakeOff=0.75, Death=0.53)
+_gauge = [1.0]                  # the clip being keyed's
 EVENTS = {}
 MOVING = {"Walk", "TakeOff", "Fly", "Glide", "Dive", "Land"}
 
@@ -262,6 +269,7 @@ def _wings(p, W, rel):
         sc = "Scap" + sfx
         W[sc] = (W["Chest"] @ rel(sc, "Chest") @ Matrix.Rotation(rad(-s * EP.FOLD_SCAP[1] * t), 4, 'Z') @
                  Matrix.Rotation(rad(s * (EP.FOLD_SCAP[0] * t + p.scap)), 4, 'Y'))
+        EP.gauge(W, rel, sfx, t * _gauge[0])          # the creases follow the wing's lay (not a flex)
 
 
 _THIGH = {}
@@ -958,6 +966,7 @@ def action_name(clip):
 def build_clip(name, rig_ob=None):
     rig_ob = rig_ob or bpy.data.objects[RIG]
     N, fn, loop = CLIPS[name]()
+    _gauge[0] = GAUGE.get(name, 1.0)
     an = action_name(name)
     act = bpy.data.actions.get(an)
     if act is not None:

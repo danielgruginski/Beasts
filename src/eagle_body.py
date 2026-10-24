@@ -48,6 +48,13 @@ a pass too"):
 - the scapulars: four cards a side on a Scap bone (rolled out over the folded wing's top edge);
 - the legs: a 9.2 cm tarsus with a feathered sock over a slimmer lower half, fuller trousers past the ankle;
 - the feather sculpt mirrored (_fur), so both sides clear the cards alike.
+
+Hinged cards (2026-10-24, Daniel: "The feathers are all quads, what if each individual feather could be folded in 2
+places, so we make things fit. Yes, much more polygons, we would go over budget, but that is how real feathers work"):
+the folded wing creases along two lines across it (eagle_drape.CREASES) and every card that crosses a crease gets a
+hinge row where its shaft crosses it (HINGE_T, filled by the build from the folded pose); folded, the wing beyond each
+crease turns in toward the body as one piece (eagle_drape: the shape keys FoldL / FoldR, driven by the unweighted gauge
+bones WingFoldL / WingFoldR that slide with the wing's lay).
 """
 import bpy, bmesh, math
 import numpy as np
@@ -122,6 +129,48 @@ TAIL_Y, TAIL_Z = 0.142, 0.343
 
 KIND = dict(primary=1, secondary=2, tertial=3, gcovert=4, pcovert=5, alula=6, tail=7, scapular=8)
 
+# the hinges (2026-10-24): card name -> the t of its hinge rows, where its shaft crosses the folded wing's creases
+# (eagle_drape.crease_hinges; the build fills it before the body is made); an existing row within HINGE_NEAR serves
+# instead. Cards that cross no crease stay flat.
+HINGE_T = {}
+HINGE_NEAR = 0.004
+FOLD_GAUGE = 0.1                    # the gauge bone's slide (m) at a full lay; the shape key = slide / FOLD_GAUGE
+
+
+def with_hinges(rows, hinges):
+    """-> (rows with a row at each hinge, the widths interpolated; the hinges' shaft t). A hinge is t, or (t, t_lead,
+    t_trail): a row slanted across the card, each edge at its own t (where it crosses a crease); such a row is
+    (t, k, (t_lead, k_lead), (t_trail, k_trail)). An existing row within HINGE_NEAR gives way to it (the tip stays)."""
+    ts, ks = [r[0] for r in rows], [r[1] for r in rows]
+    k_at = lambda t: float(np.interp(t, ts, ks))
+    out, used = list(rows), []
+    for h in hinges:
+        t, tl, tt = (h, h, h) if np.isscalar(h) else h
+        row = (t, k_at(t)) if tl == t == tt else (t, k_at(t), (tl, k_at(tl)), (tt, k_at(tt)))
+        near = [i for i in range(1, len(out)) if abs(out[i][0] - t) < HINGE_NEAR]
+        if near and near[0] == len(out) - 1:
+            used.append(out[-1][0])
+            continue
+        if near:
+            out[near[0]] = row
+        else:
+            i = next(i for i in range(len(out) - 1) if out[i][0] < t < out[i + 1][0])
+            out.insert(i + 1, row)
+        if len(row) > 2:                               # a plain row the slanted one runs through gives way
+            lo, hi = min(t, tl, tt) - HINGE_NEAR, max(t, tl, tt) + HINGE_NEAR
+            out = [r for j, r in enumerate(out) if r is row or j in (0, len(out) - 1) or len(r) > 2
+                   or not lo <= r[0] <= hi]
+        used.append(t)
+    edge = lambda r, e: r[e][0] if len(r) > 2 else r[0]
+    for i in range(1, len(out) - 1):                   # a slanted row's edges stay between their neighbours'
+        r = out[i]
+        if len(r) > 2:
+            lo = [edge(out[i - 1], e) + 0.003 for e in (2, 3)]
+            hi = [edge(out[i + 1], e) - (0.003 if i + 1 < len(out) - 1 else 0.03) for e in (2, 3)]
+            tl, tt = (min(max(r[e][0], lo[j]), hi[j]) for j, e in enumerate((2, 3)))
+            out[i] = (r[0], r[1], (tl, k_at(tl)), (tt, k_at(tt)))
+    return tuple(out), tuple(used)
+
 # the scapulars (2026-10-24: the folded wing stood off the back): mantle feathers rooted along each side of the back,
 # lying back over the wing's root. One bone per side (Scap) holds them: in the rest (spread) they lie on the back under
 # the tertials; folded (eagle_pose.FOLD_SCAP) it rolls them out and down over the folded wing's top edge
@@ -158,6 +207,7 @@ class Fe:
         self.root = np.asarray(root, float) + n * off
         self.d, self.n = _n(d2), _n(n2)
         self.L, self.wl, self.wt = L, width * lead, width * (1 - lead)
+        rows, self.hinges = with_hinges(rows, HINGE_T.get(name, ()))
         self.rows, self.bones, self.curve, self.camber = rows, bones, curve, camber
         self.off = off
         self.chev = chev                                # how far the tip's edges sit behind the shaft (x half width)
@@ -168,8 +218,11 @@ class Fe:
         lat = np.cross(d, n)                            # the leading side (left wing)
         V, fc = [], []
         last = len(self.rows) - 1
-        for i, (t, k) in enumerate(self.rows):
+        for i, row in enumerate(self.rows):
             for u in (-1.0, 0.0, 1.0):
+                t, k = row[:2]
+                if u != 0.0 and len(row) > 2:           # a crease row: each edge where it crosses the crease
+                    t, k = row[2] if u < 0 else row[3]
                 w = (self.wl if u < 0 else self.wt) * k * abs(u)
                 tt = t
                 if i == last and u != 0.0:              # a blunt chevron tip: the edges a little behind the shaft
@@ -188,6 +241,15 @@ class Fe:
             V[:, 0] *= -1
             F = [tuple(reversed(f)) for f in F]
         return V, F, np.array(fc)
+
+    def line(self, t, u):
+        """Points (len(t), 3) along the shaft (u 0) or an edge (u -1 lead, +1 trail) at t (no tip chevron)."""
+        t = np.asarray(t, float)
+        k = np.interp(t, [r[0] for r in self.rows], [r[1] for r in self.rows])
+        lat = np.cross(self.d, self.n)
+        w = ((self.wl if u < 0 else self.wt) * k * abs(u))[:, None]
+        c = self.root + self.d * self.L * t[:, None] - self.n * self.curve * self.L * (t * t)[:, None]
+        return c - lat * (w if u > 0 else -w) - self.n * self.camber * w
 
     def frame(self, s=1):
         """The bone frame of the card (head, tail, z hint) for side s."""
@@ -364,6 +426,10 @@ def rest_bones():
         ex, ey, nz = scap_plane()
         r0 = np.array(SCAP_ROOT[0], float)
         b(f"Scap{sfx}", m(r0), m(r0 + ey * 0.15), m(nz), "Chest")
+        # the fold's gauge (2026-10-24): unweighted, it slides FOLD_GAUGE along its own Y as the wing lays on the
+        # flank; the shape key Fold<side> (the hinged cards bent) follows it
+        g = m(Wd['S'])
+        b(f"WingFold{sfx}", g, g + np.array((0.0, 0.0, 0.04)), FWD, "Chest")
     top = (0, -0.298, 0.430)
     b("Socket_Head", top, (top[0], top[1], top[2] + 0.08), FWD, "Head")
     mouth = (0, -0.372, 0.381)

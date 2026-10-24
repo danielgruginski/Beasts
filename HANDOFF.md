@@ -633,6 +633,43 @@ checks.
     - **The old trouser mask** (all below z 0.30) painted the whole belly and breast tawny.
     - **Euler Y on a mirrored blob:** −Y raised the brow's outer edge. The first pass's "horns" at the brow came from it.
 
+- **Golden eagle: the folded wing creased (2026-10-24).** Daniel: "The feathers are all quads, what if each individual
+  feather could be folded in 2 places, so we make things fit. Yes, much more polygons, we would go over budget, but that
+  is how real feathers work". New `src/eagle_drape.py`; `eagle_body` (HINGE_T, slanted crease rows, `Fe.line`, gauge
+  bones WingFoldL/R: 88 bones), `eagle_pose.gauge` (and `eagle_anim._wings` slides it with the lay), `eagle_build`
+  (`_drape` in `build_model`, steps `bend` and `fold_fit`), `unity/Beasts/Runtime/EagleFeatherFold.cs`, `EagleSetup.cs`
+  (adds it), `BeastsTestScene.RenderLineup` (applies it after sampling). Before/after: `docs/images/eagle_crease.png`.
+  - How: the folded wing creases along two planes across its long axis (`CREASES` 0.07 / 0.19 m in eagle_pose's fold
+    frame, axes on the stack's inner face); a card that crosses one gets a row slanted onto the plane (shaft and both
+    edges on it), and everything beyond turns about the crease's axis as one piece, so the 1.1 mm layers keep their
+    order. The turns live in shape keys FoldL / FoldR (offsets taken back to the bind through the skinning), driven by
+    the gauge bones (10 cm slide at a full lay; a Blender driver, `EagleFeatherFold` in Unity).
+  - As built: perched the creases turn 18 and 15 deg (the axes lean 15 deg from the stack's up toward its outer side,
+    `AXIS_TILT`, so the tips come in, not down); 22 cards a side creased (P1-P10, S1-S12; P4-P10 on both creases);
+    5,820 tris (+464), 88 bones. The clips take a share of the bend (`eagle_anim.GAUGE`, fitted by `fold_fit`, the
+    largest share each clip keeps clean): Idle, Screech, Hit, Land 0.94 (Idle's: Screech, Hit and Land were clean at 1;
+    the clips handing over through the perched pose match), TakeOff 0.75, Death 0.53, Walk 0.22. The gauge is
+    `lay x share`, so a flex (Fly's upstroke, the stoop) never bends the cards.
+  - Checks: bind / perched / spread card-body 0, card-card 0, inside 0 (card-flesh perched 300, the hidden contact);
+    every frame of the ten clips 0 / 0 / 0; lowest: the ground clips -3.2 mm (talons), Land -5.3 mm, Death -9.0 mm (a
+    primary's tip in the fall; -6.8 before); traces and hand-overs as before; undersides 0 mm from their tops perched;
+    UV overlap 0, coverage 83%. In Unity (MedievalSetting, installed, not checked in): Eagle.fbx imports the blend
+    shapes (`ConfigureModel(..., blendShapes: true)`; the beasts' default stays off), setup report OK (88 bones, 5,820
+    tris, FoldL 0 / FoldR 1, gauges found); sampled: Idle 94, Walk 22, TakeOff 75 -> 0, Fly 0, Land's end 94, Death's
+    fall 20-27. `CreaturesTestScene` (MedievalSetting) applies it after posing for its renders.
+  - Looked at: `renders/eagle_ba_bend.png` (before = `renders/eagle_before_bend/`, the second pass as accepted). From
+    behind the lower wing comes in to the tail and the primaries' tips toward it; from above the back ends tuck in; a
+    crease line shows on the secondaries from behind. The upper half (in front of the first crease) is the flat stack
+    still, and the tertials, coverts and scapulars over the creased cards stay flat. Not seen by Daniel yet.
+  - What did not work (kept in the module's docstring): a hinge per card turned until it touched what was under it
+    (the stack is too tight: P9/P10 bent, everything above stopped at 0; outward bends to clear the hidden flesh
+    crossings splayed the wing); a preferred curve per card (same); a smooth bend of space (the cards are straight
+    between rows: 1.8 mm chord sag against 1.1 mm layers); rows across the shaft at the crease (oblique cards, the
+    tertials at ~30 deg, crossed: the rows must lie on the plane, so they are slanted); a whole tip turned where the
+    crease falls in a card's rounded tip (crossed its neighbours); the tertials on the first crease (their tips came
+    down onto the tail when the clips lift and fan it); the creases' axes along the stack's up (the tips came in and
+    down: 2-3 cm into the ground in the perched clips); one share of the turns for the whole model (the legs in Walk and
+    the ground in the crouch/touchdown/fall left 0.6 and 1.4 deg: nothing to see), hence the per-clip shares.
 - **Golden eagle: the third fold pass reverted (2026-10-24).** Daniel, comparing `renders/eagle_ba_fold3.png`: "Lets accept the issue and animate it... wait. The before actually looks better than the after, can we go back?" The second pass's eagle sources (`src/eagle_body.py`, `eagle_pose.py`, `eagle_build.py`, `eagle_paint.py`, saved by the third pass before it started) are back and the model rebuilt from them (`build check review closeups game presets`): 5,356 tris, 86 bones, all card checks 0 in bind / perched / spread, the hidden card-vs-flesh 296 when perched, lowest vertex 0.2 mm. The README describes the second pass again; the entry below is the reverted attempt's record (its approach, numbers and open points), kept for the next try. Daniel accepts the folded wing as it is ("accept the issue and animate it"): next are the clips and the Unity setup.
 - **Golden eagle, the folded wing's third pass (2026-10-24):** Daniel looked at `renders/eagle_ba_fold.png` and asked:
   "Do another pass on the folded wing first: curve it around the body so it doesn't read as flat boards from behind
@@ -867,9 +904,11 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - Lunge latches onto a point 0.4 m up in front of it, not onto a victim's real position (no IK);
   - maybe: a Swim clip (vertical undulation), a turn in place, a smaller swarm variant.
 - **Golden eagle (2026-10-24):**
-  - Status: the model is accepted with the folded wing as the second pass left it (86 bones); ten clips, the export and
-    `EagleSetup.cs` are done (offline-compiled) and pushed. Not installed in Unity, not seen by Daniel; no game side (a
-    creature definition, `Strike`/`Screech` hooks, sounds), as for the card-game units.
+  - Status: the model is accepted with the folded wing as the second pass left it, plus the creases (2026-10-24, Daniel's
+    idea; not judged by him yet: if he prefers the plain fold, `CREASES` can be emptied or the shares set to 0 without
+    a rebuild of the rig); ten clips, the export and `EagleSetup.cs` are done and pushed. Installed in MedievalSetting
+    (Creatures_Test has two), not checked in; no game side (a creature definition, `Strike`/`Screech` hooks, sounds), as
+    for the card-game units.
   - The fold's own limits remain (README, "The fold"): from a 3/4 back the near wing reads as a board; the wingtips lie
     beside the closed tail; the remiges' bases and the scapulars' roots run through the wing's flesh slabs when folded
     (296 face pairs, under the cards). Mid-fold (TakeOff, Land, Death) the in-plane-folded wing shows for a few frames
@@ -880,8 +919,10 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     tip in the first jerk); the take-off's spring straightens the legs into stilts for a few frames.
   - Not done: carrying prey on `Socket_Grip`, a perch on a branch or a cliff (Idle stands on flat ground), turning
     clips, a flight Hit/Death (both are perched).
-  - 5,356 tris against the brief's ~5,000 (the beak +140, the tarsi +56, the scapulars +64, the 12 three-row
-    greater coverts +96, less 280 for the coverts' and scapulars' dropped undersides).
+  - 5,820 tris against the brief's ~5,000 (the beak +140, the tarsi +56, the scapulars +64, the 12 three-row
+    greater coverts +96, less 280 for the coverts' and scapulars' dropped undersides; the creases' rows +464).
+  - The creases: Walk keeps only 0.22 of the bend and Death 0.53 (the legs and the ground); between clips the gauge
+    differs (Idle 0.94 -> TakeOff 0.75, Walk 0.22), so a cut without a crossfade pops the bend.
 - **More beasts:** a howdah on the mammoth's `Socket_Back` (the driver on the neck is done, "Riders"), giant elk, boar and dire variants can reuse the
   pipeline: parts, tufts, fuse, heat weights, and the painter's flow strokes.
 - **Ooze, Unity side:**

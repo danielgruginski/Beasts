@@ -1037,6 +1037,16 @@ too". What changed (before/after sheets: `renders/eagle_ba_*.png`):
 
 **A third pass on the folded wing (2026-10-24) was reverted.** Daniel asked for it ("Do another pass on the folded wing first: curve it around the body so it doesn't read as flat boards from behind and above"): the stack wrapped round a convex profile, one bone per secondary and tertial (114 bones). It closed the wings round the back from behind and above, but Daniel judged the second pass better ("The before actually looks better than the after, can we go back?"), and the second pass's fold, rig and code are back (HANDOFF has the attempt's numbers).
 
+**The folded wing creased (2026-10-24).** Daniel: "The feathers are all quads, what if each individual feather could be folded in 2 places, so we make things fit. Yes, much more polygons, we would go over budget, but that is how real feathers work". The second pass's fold stays; on top of it the folded wing creases along two lines across it (`eagle_drape`), and every card that crosses a crease is folded there:
+- **The creases** (`CREASES`, 7 and 19 cm back along the fold's long axis; each turns about an axis on the stack's inner face, along the stack's up tilted 15° toward its outer side so the tips come in, not down): everything beyond a crease turns in toward the body as one piece, so the layers, 1.1 mm apart, keep their order. The first crease takes the primaries and the secondaries, the second only the primaries (the innermost layers, running on toward the tail). Perched they turn 18° and 15° (the first is TURN's limit; the second stops on P7).
+- **The cards' crease rows:** a card gets a row where it crosses a crease (`eagle_body.HINGE_T`, measured in the perched pose before the body is made), slanted so its shaft and both edges lie on the crease's plane; 22 cards a side (P1-P10, S1-S12), P4-P10 on both creases. A card whose rounded tip would cross a crease gets no row there and stays flat.
+- **In the rig:** the turns are two shape keys, `FoldL` and `FoldR` (each card's offset taken back to the bind through its skinning), driven by two unweighted gauge bones, `WingFoldL` and `WingFoldR`, that slide 10 cm at a full fold (`eagle_pose.gauge`); the clips slide them with the wing's lay (not on a flex in flight), times a share per clip (`eagle_anim.GAUGE`): Idle, Screech, Hit and Land 0.94, TakeOff 0.75, Death 0.53, Walk 0.22. The shares are the largest that keep every frame clean (`eagle_build.fold_fit`): in Walk the legs swing under the folded wing, and in the crouch, the touchdown and the fall the wingtips come to the ground, so there the creased feathers relax. In Unity `EagleFeatherFold` sets the blend shapes from the gauges.
+- **Cost:** 464 triangles (5,820 in all).
+
+![The folded wing before and after the creases](docs/images/eagle_crease.png)
+
+From behind the lower wing now comes in to the tail and the primaries' tips toward it; the upper half of the folded wing, in front of the first crease, is still the flat stack (the first crease cannot move forward: the tertials' roots lie just in front of it), and the tertials, the coverts and the scapulars over the creased cards stay flat.
+
 My calls (the first pass, unreviewed unless named above):
 - **Species and size:** a golden eagle (Aquila chrysaetos) at natural size: 0.84 m beak to tail tip, 2.03 m across the
   wings, 0.60 m tall perched. Unity can scale it up for a giant eagle; the game renders check x1 and x2.5.
@@ -1061,9 +1071,9 @@ My calls (the first pass, unreviewed unless named above):
 | Upper beak with cere, lower mandible (built from their profiles), eyes | 260, 180, 100 | |
 | Tarsi (sock and slim half) and toes, talons | 624, 176 | |
 | Wing flesh: humerus slab (with the patagium's fill), forearm slab | 280 | |
-| Feather cards, one layer: primaries 288, primary coverts 72, secondaries 192, greater coverts 192, tertials 64, alula 16, scapulars 64, tail 144 | 1,032 | |
-| The cards' undersides (each card copied and flipped; none for the greater and primary coverts and the scapulars, never seen from below) | 704 | |
-| **EagleBody** | **5,356** (first pass 5,224) | `M_Eagle` / `M_Eagle_Bald`, back faces culled |
+| Feather cards, one layer: primaries 424, primary coverts 72, secondaries 288, greater coverts 192, tertials 64, alula 16, scapulars 64, tail 144 (with the crease rows) | 1,264 | |
+| The cards' undersides (each card copied and flipped; none for the greater and primary coverts and the scapulars, never seen from below) | 936 | |
+| **EagleBody** | **5,820** (5,356 before the creases; first pass 5,224) | `M_Eagle` / `M_Eagle_Bald`, back faces culled; shape keys `FoldL`, `FoldR` |
 
 How it is built:
 
@@ -1110,9 +1120,10 @@ How it is built:
   - the head has the brow's shadow, a thin lid, a soft yellow gape and the beak in its own coordinates;
   - the toes have scutes and the talons are black.
 
-Bones (86): Root, Motion, Hips, Spine1, Chest, Neck1-3, Head, Jaw (the lower mandible), Tail1 and TailF1-6 L/R,
+Bones (88): Root, Motion, Hips, Spine1, Chest, Neck1-3, Head, Jaw (the lower mandible), Tail1 and TailF1-6 L/R,
 Thigh/Shin/Tarsus and Toe1-4_1/_2 per leg (1 = the hallux). Per wing: WingArm, WingForearm, WingHand, WingAlula,
-WingP1-10, WingSecA/B and WingTertA/B; ScapL/R. Sockets: `Socket_Head`, `Socket_Mouth` and `Socket_Grip` (the right
+WingP1-10, WingSecA/B and WingTertA/B; ScapL/R; the unweighted gauges WingFoldL/R (the creases' shape keys follow
+them). Sockets: `Socket_Head`, `Socket_Mouth` and `Socket_Grip` (the right
 foot, for carried prey). Bone collections: Wings, Feathers (with Scap), TailFan, Toes.
 
 | Pose | What |
@@ -1126,16 +1137,17 @@ Checks (`eagle_build.check`; bind / perched / spread):
   per hit, not per face.
 - Cards crossing other cards: 0 / 0 / 0.
 - Card vertices inside the body (ray parity, three rays voting): 0 / 0 / 0.
-- Cards against the wing's own flesh: 0 / 296 / 0. Folded, the bases of the primaries run along the forearm slab under
+- Cards against the wing's own flesh: 0 / 300 / 0. Folded, the bases of the primaries run along the forearm slab under
   the secondaries, and the scapulars' roots cross the humerus slab under them.
 - Lowest vertex: 0.2 mm (talon tips), −4 mm (talon tips, gripping) and 1.13 m.
-- Weights: 0 unweighted, 0 with more than 4 influences. UV overlap: 0 texels; 83% coverage.
+- Weights: 0 unweighted, 0 with more than 4 influences. UV overlap: 0 texels; 83% coverage. Shape keys FoldL / FoldR: the undersides bend with their tops (0 mm apart, perched).
 - `folded()` (the bind pose with the wings folded, body level) is for tuning the fold in the body's own axes.
 
 Rebuild (headless, about 50 s for everything):
 
 ```
 blender.exe -b --factory-startup --python tools/creature_run.py -- eagle build check review closeups game presets compare
+blender.exe -b --factory-startup blender/eagle.blend --python tools/creature_run.py -- eagle fold_fit nosave   # refit the clips' crease shares (needs the clips keyed)
 blender.exe -b --factory-startup blender/eagle.blend --python tools/creature_run.py -- eagle paint review
 blender.exe -b --factory-startup --python tools/creature_run.py -- eagle model check quick qhead qfold nosave   # no paint: debug colours, fast
 py tools/before_after.py renders/eagle_before renders renders/eagle_ba_head.png "Head" eagle_cmp_head_profile:profile ...
@@ -1211,10 +1223,10 @@ How they work:
 
 Checks (`eagle_build`: `cards`, `lowest`, `trace`, `chains`, `feet`):
 - Every frame of every clip through the model's overlap test: cards through the body 0, cards through cards 0, card
-  vertices inside the body 0, in all 701 frames. Cards against the wing's own flesh peak at 296 face pairs (perched,
-  the model's hidden contact).
-- Lowest vertex: Idle, Walk, TakeOff, Screech and Hit −3.2 mm (the talon tips, as perched), Land −5.3 mm, Death −6.8 mm
-  (a primary's tip in the first jerk); Dive's talons stop 7 cm over the ground at the strike; Fly stays above 1.44 m,
+  vertices inside the body 0, in all 701 frames, with the creases (2026-10-24). Cards against the wing's own flesh peak
+  at 300 face pairs (perched, the model's hidden contact).
+- Lowest vertex: Idle, Walk, TakeOff, Screech and Hit −3.2 mm (the talon tips, as perched), Land −5.3 mm, Death −9.0 mm
+  (a primary's tip in the fall; −6.8 mm before the creases); Dive's talons stop 7 cm over the ground at the strike; Fly stays above 1.44 m,
   Glide above 1.67 m.
 - Root motion as Unity plays it (`beast_review.motion_trace`, three loops): Walk 0.26 m a loop, Fly 4.8 m, Glide
   27.0 m, Motion's turn 0; the head's step at the seam no bigger than inside the loop (Fly 1.6 / 1.9 mm, Glide 0.2 /
@@ -1223,7 +1235,7 @@ Checks (`eagle_build`: `cards`, `lowest`, `trace`, `chains`, `feet`):
   Dive → Fly, Fly → Land, Land → Idle 0 mm at matching speeds; the loops' seams 0 mm. Fly ↔ Glide and Idle ↔ Walk
   differ and are crossfaded.
 - Walk's planted feet drift at most 1.9 mm a frame.
-- The export read back in an empty Blender (`reimport`): 86 bones, Motion and Root the two roots, one mesh (5,356 tris,
+- The export read back in an empty Blender (`reimport`, before the creases): 86 bones, Motion and Root the two roots, one mesh (5,356 tris,
   one UV layer, 79 groups, `M_Eagle`); Fly's Motion travels 4.8 m with the head steady at 1.9 m; the JSON's loops,
   root motion and events as above.
 

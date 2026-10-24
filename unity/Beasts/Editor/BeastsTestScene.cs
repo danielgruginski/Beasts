@@ -167,6 +167,7 @@ namespace Beasts.EditorTools
                     var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
                     go.transform.SetPositionAndRotation(new Vector3(x0 + i * spacing, 0, 0), Quaternion.Euler(0, 200f, 0));
                     if (clips.TryGetValue(poses[i].clip, out var c)) c.SampleAnimation(go, Mathf.Min(poses[i].t, c.length));
+                    foreach (var fold in go.GetComponentsInChildren<Beasts.EagleFeatherFold>()) fold.Apply();
                     foreach (var smr in go.GetComponentsInChildren<SkinnedMeshRenderer>()) smr.forceMatrixRecalculationPerRender = true;
                 }
                 var gob = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Goblins/Prefabs/Goblin_Spearman.prefab");

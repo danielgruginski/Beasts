@@ -19,7 +19,9 @@ the folded wing, debug colours, for tuning). The clips' steps: clips (key every 
 frame of every clip), lowest (the lowest vertex per clip), trace (root motion as Unity plays it), chains (the jumps
 where the clips hand over and at the loops' seams), feet (Walk's planted feet in the world), sheets (frame strips from
 the side and above), gameclips (the game camera on the flight clips beside the wolf), gifs (frames for
-tools/frames_to_gif.py), export, reimport (the FBX read back in an empty file).
+tools/frames_to_gif.py), export, reimport (the FBX read back in an empty file). bend (2026-10-24, the hinged cards):
+the cards bent onto what lies under them in the folded wing again (eagle_drape: the shape keys FoldL / FoldR) on the
+built model, its UVs and paint kept; build and model do it too.
 """
 import bpy, math, os
 import numpy as np
@@ -101,14 +103,19 @@ def build_model():
     ob = bpy.data.objects.get(BODY)
     if ob is not None:
         bpy.data.objects.remove(ob, do_unlink=True)
+    import eagle_drape
+    EB.HINGE_T.clear()
+    EB.HINGE_T.update(eagle_drape.crease_hinges())     # the hinge rows where the cards cross the fold's creases
+    EB._FE.clear()
     body, acc, hi = EB.build_body()
-    rep = {"tris": EB.tri_report(body)}
+    rep = {"tris": EB.tri_report(body), "hinged_cards": len(EB.HINGE_T)}
     import zwolf_body
     rep["tidy"] = dict(zwolf_body.TIDY)
     rig = beast_rig.build_armature(EB.rest_bones(), name=RIG, coll_name=P + "Rig")
     _bone_collections(rig)
     rep["bones"] = len(rig.data.bones)
     rep["weights"] = EB.skin(body, rig, acc)
+    rep["drape"] = _drape(body, rig)
     debug_colours(body)
     work_layer(False)
     rig.hide_render = True
@@ -141,6 +148,38 @@ def _bone_collections(rig):
 
 def model():
     body, rig, rep = build_model()
+    return rep
+
+
+def _drape(body, rig):
+    """The folded wing creased (eagle_drape) -> the summary; it and every card's hinges -> renders/eagle_drape.json"""
+    import json
+    import eagle_drape
+    rep = eagle_drape.drape(body, rig)
+    rep["hinge_t"] = {k: list(v) for k, v in EB.HINGE_T.items()}
+    with open(os.path.join(ROOT, "renders", "eagle_drape.json"), "w", encoding="utf-8") as f:
+        json.dump(rep, f, indent=1)
+    return {k: v for k, v in rep.items() if k != "hinge_t"}
+
+
+def _fill_hinges():
+    import eagle_drape
+    EB.HINGE_T.clear()
+    EB.HINGE_T.update(eagle_drape.crease_hinges())     # as the model was built (the rows must be there already)
+    EB._FE.clear()
+
+
+def bend():
+    """The drape again on the built model (UVs, paint and the undersides kept: they are dropped, the keys made on the
+    top layer, and copied again)."""
+    body, rig = bpy.data.objects[BODY], bpy.data.objects[RIG]
+    _fill_hinges()
+    work_layer(True)
+    _one_layer(body)
+    rep = _drape(body, rig)
+    rep["layers"] = _two_layers(body)
+    rep["tris"] = EB.tri_report(body)
+    work_layer(False)
     return rep
 
 
@@ -764,6 +803,79 @@ def clips():
 
 
 GROUND_CLIPS = ("Idle", "Walk", "Screech", "Hit", "Death", "TakeOff", "Land")
+FEATHER_SINK = 0.003            # a clip's lowest card may go this far under the ground with the creases
+
+
+def _feather_low(names):
+    """The lowest card vertex (world z) over every frame of each clip named -> {clip: (z, frame)}."""
+    from beast_body import read_info, PART
+    A = anim()
+    scn = bpy.context.scene
+    ob = bpy.data.objects[BODY]
+    card = read_info(ob)[0] == PART['feather']
+    out = {}
+    for n in names:
+        A.use(n)
+        lo = (9.0, 0)
+        for f in range(int(bpy.data.actions[A.action_name(n)]["frames"]) + 1):
+            scn.frame_set(f)
+            z = float(_posed(ob)[0][card, 2].min())
+            if z < lo[0]:
+                lo = (round(z, 4), f)
+        out[n] = lo
+    A.clear()
+    return out
+
+
+def fold_fit(steps=5):
+    """The creases at the largest turns the perched pose allows (eagle_drape), then, per clip that folds the wing, the
+    largest share of them (eagle_anim.GAUGE: the gauge slides that much of the lay) for which every frame is clean: no
+    card through the body or another card, none inside the body, no clip's lowest card more than FEATHER_SINK under
+    the ground (or under where it was without the creases, if lower). 2026-10-24: one share for the whole model came to
+    nothing (the legs meet the curled wing in Walk at an eighth of the first crease, and the wingtips skim the ground in
+    the crouch, the touchdown and the fall). Re-keys the clips. -> the turns, the shares, what was tried."""
+    import eagle_drape
+    A = anim()
+    body, rig = bpy.data.objects[BODY], bpy.data.objects[RIG]
+    _fill_hinges()
+    work_layer(True)
+    _one_layer(body)
+    rep = eagle_drape.drape(body, rig)
+    A.GAUGE.clear()
+    tried, share = {}, {}
+    for n in GROUND_CLIPS:
+        A.GAUGE[n] = 0.0
+        A.build_clip(n)
+        z0 = _feather_low([n])[n][0]
+        floor = min(z0, 0.0) - FEATHER_SINK
+        tried[n] = []
+
+        def clean(k):
+            A.GAUGE[n] = round(k, 4)
+            A.build_clip(n)
+            bad = cards([n])[n]["bad"]
+            low = _feather_low([n])[n]
+            tried[n].append((round(k, 4), bad, low))
+            return not bad and low[0] >= floor
+        if clean(1.0):
+            k = 1.0
+        else:
+            lo, hi = 0.0, 1.0
+            for _ in range(steps):
+                mid = 0.5 * (lo + hi)
+                lo, hi = (mid, hi) if clean(mid) else (lo, mid)
+            k = lo
+        A.GAUGE[n] = round(k, 4)
+        A.build_clip(n)
+        share[n] = A.GAUGE[n]
+    A.clear()
+    rep.update(share=share, tried=tried)
+    import json
+    with open(os.path.join(ROOT, "renders", "eagle_fold_fit.json"), "w", encoding="utf-8") as fh:
+        json.dump(rep, fh, indent=1)
+    rep["layers"] = _two_layers(body)
+    work_layer(False)
+    return rep
 
 
 def cards(names=None):

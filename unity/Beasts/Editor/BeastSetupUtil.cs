@@ -195,16 +195,17 @@ namespace Beasts.EditorTools
         /// <summary>
         /// The creature's model: Generic, avatar from this model, Motion bone = root-motion node (a sibling of the
         /// skeleton: Unity leaves the motion node's own travel in the pose, so it must not be an ancestor of anything
-        /// visible), sockets kept. Returns the avatar and the motion node's path.
+        /// visible), sockets kept. blendShapes: keep the mesh's blend shapes (the eagle's FoldL / FoldR). Returns the
+        /// avatar and the motion node's path.
         /// </summary>
         public static (Avatar avatar, string motionPath, GameObject model) ConfigureModel(string path,
-            (string source, Material mat)[] remaps, StringBuilder log)
+            (string source, Material mat)[] remaps, StringBuilder log, bool blendShapes = false)
         {
             var imp = (ModelImporter)AssetImporter.GetAtPath(path);
             imp.importCameras = false;
             imp.importLights = false;
             imp.importAnimation = false;
-            imp.importBlendShapes = false;
+            imp.importBlendShapes = blendShapes;
             imp.isReadable = false;
             imp.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
             foreach (var (source, mat) in remaps)
