@@ -67,7 +67,7 @@ def rest():
 
 
 WING_BONES = (["WingArm", "WingForearm", "WingHand", "WingAlula"] + [f"WingP{k}" for k in range(1, 11)] +
-              ["WingSecA", "WingSecB", "WingTert"])
+              ["WingSecA", "WingSecB", "WingTertA", "WingTertB"])
 
 # ----------------------------------------------------------------------------------------- the folded wing
 # Written for the left wing in the body's rest axes. The folded wing is a stack in one plane against the flank: NRM is
@@ -81,21 +81,38 @@ WING_BONES = (["WingArm", "WingForearm", "WingHand", "WingAlula"] + [f"WingP{k}"
 # primaries 3 deg down (their wide inner vanes clear the shoulder), the tertials 4 deg down; the scapulars roll out
 # over the wing's top edge (FOLD_SCAP).
 FOLD = dict(nrm=(0.85, 0.0, 0.53), back=(0.0, 1.0, -0.06), elbow=(0.106, 0.030, 0.334), wrist=(0.118, -0.205, 0.322))
-FOLD_ANG = {"WingHand": (-1.0, 2.0), "WingAlula": (-12.0, 0.0), "WingSecB": (-16.0, 0.0), "WingTert": (-4.0, 0.0)}
+FOLD_ANG = {"WingHand": (-1.0, 2.0), "WingAlula": (-12.0, 0.0), "WingSecB": (-16.0, 0.0), "WingTertA": (-4.0, 0.0)}
 for _k in range(1, 11):
     FOLD_ANG[f"WingP{_k}"] = (-3.0, 2.0)        # (angle up, then turned in about the body's vertical, with the hand)
 CROSS = 0.0                          # the left primaries a little higher: they cross over the right ones
-RIGID_PAIR = {"WingSecA": "WingSecB"}     # turned as their partner, then
+RIGID_PAIR = {"WingSecA": "WingSecB", "WingTertB": "WingTertA"}     # turned as their partner, then
 # closed by FOLD_CLOSE (deg) toward it: the secondaries' 25 deg spread fan (S1 72 .. S12 97) closes folded
 # (2026-10-24), so they lie parallel along the flank. The cards between the two bones blend two rotations about the
 # fold's normal 25 deg apart: a rotation, scaled in the fold's plane by cos 12.5 deg (0.976) at most (S6, S7)
 FOLD_CLOSE = {"WingSecA": 25.0}
 FOLD_LIFT = {"WingAlula": 0.016}    # folded, the alula lies on the coverts: lifted this far (m) along the fold's normal
-# folded, a bone's head is carried by this bone instead of its parent (blended by the lay): WingTert, the tertials, rides
-# the humerus in flight, so a bending elbow leaves them on the arm (it turns back with a flex as every wing bone does:
-# rigid with the humerus, the stoop swung them in over the back onto the other side's); folded they lie in the stack
-# where the forearm carried them (carried by the humerus they crossed S11/S12 or the coverts, 2026-10-24)
-FOLD_CARRY = {"WingTert": "WingForearm"}
+# folded, a bone's head is carried by this bone instead of its parent (blended by the lay): the tertials' row
+# (WingTertA/B) rides the humerus in flight, so a bending elbow leaves them on the arm (it turns back with a flex as
+# every wing bone does: rigid with the humerus, the stoop swung them in over the back onto the other side's); folded
+# they lie in the stack where the forearm carried them (carried by the humerus they crossed S11/S12 or the coverts,
+# 2026-10-24)
+FOLD_CARRY = {"WingTertA": "WingForearm"}         # (WingTertB rides WingTertA)
+# folded, a bone's head slides this far (m) in the fold's frame (back, up, out; the left side's), by the lay, in its
+# parent's frame (so mid-fold the slide stays in the cards' plane): the tertials' row's T6 end goes down and back, so
+# T4-T6 shingle back along the stack instead of standing up out of it in a fin (their roots are spread along the
+# humerus, which folded lies across the stack: T6 11 cm above T1, 2026-10-24)
+FOLD_SLIDE = {"WingTertB": (0.06, -0.08, 0.0)}
+
+
+def slide_local(name, s):
+    """FOLD_SLIDE[name] in its parent's own axes (its parent's folded frame: eagle_pose's and the clips' alike)."""
+    n, a, u = _fold_basis()
+    da, du, dn = FOLD_SLIDE[name]
+    v = a * da + u * du + n * dn
+    if s < 0:
+        v = Vector((-v.x, v.y, v.z))
+    par = rest()['B'][name + ("L" if s > 0 else "R")][3]
+    return fold_frame(par[:-1], s).transposed() @ v
 FOLD_SCAP = (20.5, 3.0)              # folded, the scapulars roll out and down about their bone, and turn out (deg)
 
 
@@ -197,6 +214,8 @@ def _wing(p, W, rel, s, sfx):
         bn = n + sfx
         par = B[bn][3]
         here = W[par] @ rel(bn, par)
+        if n in FOLD_SLIDE and t > 0:
+            here = W[par] @ Matrix.Translation(slide_local(n, s) * t) @ rel(bn, par)
         if n in FOLD_CARRY and t > 0:
             c = FOLD_CARRY[n] + sfx
             here = Matrix.Translation(here.translation.lerp((W[c] @ rel(bn, c)).translation, t))

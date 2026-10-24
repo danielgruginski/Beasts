@@ -206,6 +206,26 @@ def cards(ob):
     return out, solid
 
 
+def _flesh_unlift(ob, rest):
+    """{vertex: the offset that takes the wing's flesh back down to its unlifted shape} (eagle_body.slab_lift; the
+    lift stands out of the folded wing's top corners, so the fold's keys drop it)."""
+    from beast_body import read_info, PART
+    part = read_info(ob)[0]
+    vg = {g.index: g.name for g in ob.vertex_groups}
+    slabs = {bone: (a, b, rows, rise) for a, b, bone, rows, rise in EB.wing_slabs()}
+    out = {}
+    for i in np.nonzero(part == PART['wing'])[0]:
+        gs = sorted(((g.weight, vg[g.group]) for g in ob.data.vertices[i].groups), reverse=True)
+        bone = gs[0][1][:-1] if gs else ""
+        if bone not in slabs:
+            continue
+        s = 1.0 if rest[i, 0] > 0 else -1.0
+        mx = np.array((s, 1.0, 1.0))
+        a, b, rows, rise = slabs[bone]
+        out[int(i)] = -EB.slab_lift(rest[i] * mx, a, b, rows, rise) * mx
+    return out
+
+
 def _rot(axis, ang, P, pivot):
     R = np.array(Matrix.Rotation(math.radians(ang), 3, Vector(axis)))
     return (P - pivot) @ R.T + pivot
@@ -351,6 +371,7 @@ def drape(ob=None, rig=None, fixed=None):
     # the offsets back to the bind
     D = P - P0
     rest = np.array([v.co[:] for v in ob.data.vertices])
+    lifted = _flesh_unlift(ob, rest)                   # folded, the flesh's lift comes back off (bind space)
     vg = {g.index: g.name for g in ob.vertex_groups}
     turn = {pb.name: np.array((pb.matrix @ pb.bone.matrix_local.inverted()).to_3x3()) for pb in rig.pose.bones}
     delta = np.zeros_like(rest)
@@ -361,6 +382,8 @@ def drape(ob=None, rig=None, fixed=None):
             if g.weight > 0 and vg[g.group] in turn:
                 A3 += g.weight * turn[vg[g.group]]
         delta[i] = np.linalg.solve(A3, D[i])
+    for i, v in lifted.items():
+        delta[i] = v
     EP.clear(rig)
     if ob.data.shape_keys is None:
         ob.shape_key_add(name="Basis", from_mix=False)

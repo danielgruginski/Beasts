@@ -633,6 +633,20 @@ checks.
     - **The old trouser mask** (all below z 0.30) painted the whole belly and breast tawny.
     - **Euler Y on a mirrored blob:** −Y raised the brow's outer edge. The first pass's "horns" at the brow came from it.
 
+- **Golden eagle: the "boxy" look, two of today's regressions undone (2026-10-24).** Daniel, after "submit as it is":
+  "I know I said not to fix this, but is it easy to fix? Do you know why this is happening?" (the perched eagle from
+  front-above). Three causes (`renders/eagle_boxy_parts_ba.png`, parts coloured): the six tertials, spread up the folded
+  wing as they are along the arm, stood out of it as a fin over the scapulars; the lifted arm flesh stood out of its
+  top corners; and the fold itself (a tall straight-sided body, flat upright wing slabs: left as it is, his call: "Leave
+  the base fold shape"). Fixed: the tertials on a two-bone row again (WingTertA at T3 on the humerus, WingTertB at T6
+  its child, turned alike: rigid in flight), FOLD_CARRY on A, FOLD_SLIDE slides B (8 cm down, 6 cm back) in A's own
+  frame by the lay, so mid-fold it stays in the cards' plane; the fold's shape keys take the flesh lift back off
+  (`eagle_drape._flesh_unlift`). Tries: B a sibling of A on the humerus (the row's heads turned with the arm and the
+  bones with the flex: the tertials crossed in Fly/Dive/Land); the slide in the fold's frame (mid-fold it left the
+  cards' plane: crossings in Land/Hit/Death); A at T1 (the stoop swung T6 over the back onto the other side's).
+  Checks: bind / perched / spread 0 / 0 / 0, every clip frame 0; card vs flesh perched 300 (as this morning); lowest
+  unchanged; 5,884 tris, 88 bones. Folded, the tertials' top edge drops from u 0.353 to 0.293 (under the scapulars).
+  Unity rebuilt (setup report OK), rendered: fin gone. Not checked into Plastic.
 - **Golden eagle: the folded wing rendered near black in Unity (2026-10-24).** Daniel: "when feathers get close
   together this weird balckness happens, is that an material issue? Can it be fixed?" Not the material, not shadows or
   SSAO (Unity preview renders with each off: still dark, `MedievalSetting/Logs/EagleDark`): Eagle.fbx imported with

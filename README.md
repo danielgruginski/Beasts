@@ -1048,8 +1048,10 @@ too". What changed (before/after sheets: `renders/eagle_ba_*.png`):
 From behind the lower wing now comes in to the tail and the primaries' tips toward it; the upper half of the folded wing, in front of the first crease, is still the flat stack (the first crease cannot move forward: the tertials' roots lie just in front of it), and the tertials, the coverts and the scapulars over the creased cards stay flat.
 
 **The arm's feathers (2026-10-24).** Daniel, looking at the eagle in Unity: "The feathers that should connect on the "forearm" are not connecting there" ("I meant "arm", not forearm, the thing after the shoulders"), "The feathers that should be there already exists, but they are "glued" in a fan position from the feathers of the "forearm"", "see, the feathers are there, but they don't connect to the arm bone":
-- **The tertials along the arm.** They were four, rooted by the elbow, fanned on from the secondaries and carried by the forearm, so the humerus was a bare rod from the shoulder out, and a bending elbow (the upstroke, take-off, landing) took them further from it. Now six (T1-T6), spread along the humerus from the elbow toward the shoulder and pointing back (`T_AT`, `T_ANG`), rigid on one bone that rides the humerus (`WingTert`; the two-bone row `WingTertA/B` is gone). In flight it turns back with a flex as every wing bone does but keeps its head on the arm; folded, `eagle_pose.FOLD_CARRY` carries it where the forearm did, so the folded stack is the one the fold was tuned with. `TERT_GAP` (3 mm) between them, the secondaries under them and the greater coverts over them, which the forearm moves against them in a flex; toward the shoulder the inner vanes narrow (`T_LEAD`) and the cards turn less, so they stay outboard of the shoulder's pivot (inboard, a rising wing lowered them onto the back).
-- **The flesh meets the roots.** The feather layers float 1-3 cm over the wing's line and the arm's and forearm's flesh was 0.5-1.6 cm tall, so a strip of light showed between the arm and its feathers. The slabs' rear half now rises (`ARM_RISE`, `FORE_RISE`) to take the tertials' and secondaries' roots 2 mm in: the inner wing is a thick wedge by the body, as an eagle's is.
+- **The tertials along the arm.** They were four, rooted by the elbow, fanned on from the secondaries and carried by the forearm, so the humerus was a bare rod from the shoulder out, and a bending elbow (the upstroke, take-off, landing) took them further from it. Now six (T1-T6), spread along the humerus from the elbow toward the shoulder and pointing back (`T_AT`, `T_ANG`), on a two-bone row that rides the humerus (`WingTertA` at T3, holding T1-T3; `WingTertB` at T6, its child, turned alike), so in flight the six are one rigid piece: it turns back with a flex as every wing bone does but keeps its head on the arm. Folded, `eagle_pose.FOLD_CARRY` carries the row where the forearm carried the tertials, so the folded stack is the one the fold was tuned with, and `FOLD_SLIDE` slides the T6 end 8 cm down and 6 cm back in the cards' plane: spread up as they are along the arm, T4-T6 otherwise stood up out of the folded wing as a fin over the scapulars (part of the "boxy" look Daniel saw). `TERT_GAP` (3 mm) between them, the secondaries under them and the greater coverts over them, which the forearm moves against them in a flex; toward the shoulder the inner vanes narrow (`T_LEAD`) and the cards turn less, so they stay outboard of the shoulder's pivot (inboard, a rising wing lowered them onto the back).
+- **The flesh meets the roots.** The feather layers float 1-3 cm over the wing's line and the arm's and forearm's flesh was 0.5-1.6 cm tall, so a strip of light showed between the arm and its feathers. The slabs' rear half now rises (`ARM_RISE`, `FORE_RISE`) to take the tertials' and secondaries' roots 2 mm in: the inner wing is a thick wedge by the body, as an eagle's is. Only in flight: the fold's shape keys (`FoldL`/`FoldR`) take the lift back off (`eagle_drape._flesh_unlift`, `eagle_body.slab_lift`), since lifted it stood out of the folded wing's top corners.
+
+![Perched, parts coloured (green the wing's flesh, red the tertials, yellow the greater coverts, cyan the primary coverts, magenta the alula): this morning, before the creases and the arm work, and now](docs/images/eagle_tuck.png)
 
 ![The tertials before (fanned from the elbow, on the forearm) and after (along the arm, on the arm): debug colours, tertials red, secondaries blue, the wing's flesh green; the Fly upstroke, TakeOff and Land](docs/images/eagle_tertials.png)
 
@@ -1106,7 +1108,7 @@ How it is built:
 - **Feather bones:**
   - one bone per primary (its covert rides it), per tail feather (the fan spreads) and per side for the scapulars
     (`Scap`, a child of the chest);
-  - the six tertials are rigid on `WingTert`, a child of the humerus (see "The arm's feathers" above);
+  - the six tertials ride `WingTertA` (a child of the humerus) and `WingTertB` (its child), turned alike (see "The arm's feathers" above);
   - the 12 secondaries and the 12 greater coverts ride two bones, `WingSecA` and `WingSecB` (children of the
     forearm), each card's weight fixed from where its root sits
     between the two heads; when both bones turn the same way, linear blend skinning moves every card rigidly about its
@@ -1127,9 +1129,9 @@ How it is built:
   - the head has the brow's shadow, a thin lid, a soft yellow gape and the beak in its own coordinates;
   - the toes have scutes and the talons are black.
 
-Bones (86): Root, Motion, Hips, Spine1, Chest, Neck1-3, Head, Jaw (the lower mandible), Tail1 and TailF1-6 L/R,
+Bones (88): Root, Motion, Hips, Spine1, Chest, Neck1-3, Head, Jaw (the lower mandible), Tail1 and TailF1-6 L/R,
 Thigh/Shin/Tarsus and Toe1-4_1/_2 per leg (1 = the hallux). Per wing: WingArm, WingForearm, WingHand, WingAlula,
-WingP1-10, WingSecA/B and WingTert; ScapL/R; the unweighted gauges WingFoldL/R (the creases' shape keys follow
+WingP1-10, WingSecA/B and WingTertA/B; ScapL/R; the unweighted gauges WingFoldL/R (the creases' shape keys follow
 them). Sockets: `Socket_Head`, `Socket_Mouth` and `Socket_Grip` (the right
 foot, for carried prey). Bone collections: Wings, Feathers (with Scap), TailFan, Toes.
 

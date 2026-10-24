@@ -26,8 +26,8 @@ What is a mesh and what is a card:
   coverts and 9 primary coverts per wing, 2 alula feathers, 4 scapulars a side, 12 tail feathers. Each card is rigid
   on its own bone (primaries, primary coverts, alula, scapulars, tail) or rides two bones with a weight fixed per card
   (secondaries and greater
-  coverts on WingSecA/B, children of the forearm; the tertials rigid on WingTert, a child of the humerus, since
-  2026-10-24): two bones turned the same way
+  coverts on WingSecA/B, children of the forearm; the tertials on WingTertA/B, children of the humerus, turned
+  alike, since 2026-10-24): two bones turned the same way
   about their own heads move every card between them rigidly about its own root (linear blend skinning of two equal
   rotations is a rotation), which is what a folding forearm does to its feathers.
 
@@ -125,8 +125,12 @@ S_LEN = (0.390, 0.392, 0.394, 0.396, 0.397, 0.397, 0.395, 0.390, 0.380, 0.367, 0
 # The tertials (2026-10-24, Daniel: the arm, "the thing after the shoulders", was a bare rod; "The feathers that should
 # be there already exists, but they are 'glued' in a fan position from the feathers of the 'forearm'"): they were rooted
 # by the elbow, fanned on from the secondaries and carried by the forearm. Now six, spread along the humerus from the
-# elbow toward the shoulder and pointing back, on one bone riding the humerus (WingTert): a bending elbow leaves them on
-# the arm; folded, eagle_pose.FOLD_CARRY lays them in the stack where the forearm carried them. TERT_GAP over S12, which
+# elbow toward the shoulder and pointing back, on a two-bone row riding the humerus (WingTertA at T3: T1-T3 rigid on
+# it; WingTertB at T6, its child, turned alike: in flight the six are one rigid piece): a bending elbow leaves them on
+# the arm; folded, eagle_pose.FOLD_CARRY lays them in the stack where the forearm carried them, and FOLD_SLIDE slides
+# the row's T6 end down and back in the cards' plane, so T4-T6 shingle back along the stack (spread up as they are
+# along the arm, they stood up out of the folded wing as a fin over the scapulars, Daniel's "boxy", 2026-10-24). The
+# row's A end at T3 as the single bone before it (at T1, the stoop swung T6 in over the back). TERT_GAP over S12, which
 # the forearm carries and a flex moves under them; toward the shoulder the inner vanes narrow (T_LEAD: the outer vane's
 # share) and the cards turn less, so they stay outboard of the shoulder's pivot (inboard of it, a rising wing lowers a
 # card onto the back).
@@ -154,7 +158,8 @@ FORE_SLAB = ((0.0, 0.040, 0.024, 0.012, 0.007), (0.5, 0.032, 0.020, 0.008, 0.005
 # elbow passes under T1 into it), the secondaries over the forearm (1.0-2.2); the rear top's own height is ~0.85 of
 # the slab's top. (Stopping a few mm under the cards left a slit of light under the roots; lifting only the trailing
 # edge left the roots, 8 mm behind the line, over a gap; sinking the cards' roots into the flesh crossed 440 face pairs
-# folded: each root dove through the cards under it.)
+# folded: each root dove through the cards under it.) Only in flight: the fold's shape keys take the lift back off
+# (eagle_drape; lifted, the flesh stood out of the folded wing's top corners, Daniel's "boxy", 2026-10-24).
 ARM_RISE = ((0.0, 0.012), (0.26, 0.0209), (0.54, 0.0196), (0.82, 0.0183), (1.0, 0.0178))
 FORE_RISE = ((0.0, 0.0139), (0.5, 0.0112), (1.0, 0.0077))
 RISE_FRONT, RISE_BACK = 0.25, 0.35   # the lift grows from this share of the lead in front of the line to this share of
@@ -347,12 +352,12 @@ def feathers():
         g_off = float(np.interp(v, sv, s_off)) + 0.0105
         out.append(Fe(f"G{i}", 'gcovert', i, root, float(np.interp(v, (0.0, 1.0), G_ANG)), 0.155, 0.075, 0.36,
                       GCOV_ROWS, None, off=g_off, drop=0.7, curve=0.005, chev=CHEV))
-    # the tertials along the humerus, over S12 (TERT_GAP), on WingTert
+    # the tertials along the humerus, over S12 (TERT_GAP), on WingTertA/B
     for j in range(1, len(T_AT) + 1):
         root = E + arm * T_AT[j - 1] + ta * 0.010
         t_off = s_off[-1] + DL * j + TERT_GAP
         out.append(Fe(f"T{j}", 'tertial', j, root, T_ANG[j - 1], T_LEN[j - 1], T_WID[j - 1], T_LEAD[j - 1], SEC_ROWS,
-                      {"WingTert": 1.0}, off=t_off, drop=0.7, curve=0.015, chev=CHEV))
+                      None, off=t_off, drop=0.7, curve=0.015, chev=CHEV))
     # the alula on the wrist's leading edge, on top
     for j, (ang, L) in enumerate(((7, 0.095), (11, 0.075)), 1):     # (2026-10-24) along the hand's leading edge, flat
         root = W + _n(hand) * 0.008 + np.cross(_n(hand), WN) * 0.012
@@ -380,6 +385,8 @@ def feathers():
     for f in out:
         if f.kind in ('secondary', 'gcovert'):
             f.bones = _between(f.root, A.root, B.root, "WingSecA", "WingSecB")
+        elif f.kind == 'tertial':
+            f.bones = _between(f.root, by["T3"].root, by[f"T{len(T_AT)}"].root, "WingTertA", "WingTertB")
     return out
 
 
@@ -447,8 +454,11 @@ def rest_bones():
         for nm, fe in (("WingSecA", f"S{S_N}"), ("WingSecB", "S1")):
             h, t, z = FE[fe].frame(s)
             b(nm + sfx, h, t, z, f"WingForearm{sfx}")
-        h, t, z = FE["T3"].frame(s)
-        b(f"WingTert{sfx}", h, t, z, f"WingArm{sfx}")
+        h3, t3, z3 = FE["T3"].frame(s)                # the row's two bones turned alike (T3's frame); B rides A, so
+        for nm, fe, par in (("WingTertA", "T3", f"WingArm{sfx}"),             # in flight the row is one rigid piece
+                            ("WingTertB", f"T{len(T_AT)}", f"WingTertA{sfx}")):
+            h = FE[fe].frame(s)[0]
+            b(nm + sfx, h, h + (t3 - h3), z3, par)
         for k in range(1, 7):
             h, t, z = side_of(FE[f"F{k}"], s).frame(s)
             b(f"TailF{k}{sfx}", h, t, z, "Tail1")
@@ -629,17 +639,33 @@ def _slab(bm, a, b, rows, n, seg=5, rise=None):
         R.append(tuple(c) + ((le + tr) / 2, top, bot))
     vs = loft(bm, R, up=tuple(n), seg=seg, per_seg=1, cap0=0.7, cap1=0.7, shape=0.8)
     if rise:
-        L = np.linalg.norm(b - a)
-        rt, rh = [r[0] for r in rise], [r[1] for r in rise]
-        tt, tl, tw = [r[0] for r in rows], [r[1] for r in rows], [r[2] for r in rows]
         for v in vs:
-            p = np.array(v.co) - a
-            t = float(np.clip((p @ d) / L, 0.0, 1.0))
-            s = p @ lat                                 # + the leading side
-            s0, s1 = RISE_FRONT * float(np.interp(t, tt, tl)), -RISE_BACK * float(np.interp(t, tt, tw))
-            w = smoothstep(s0, s1, s)
-            v.co = Vector(np.array(v.co) + np.asarray(n, float) * float(np.interp(t, rt, rh)) * w)
+            v.co = Vector(np.array(v.co) + slab_lift(np.array(v.co), a, b, rows, rise, n))
     return vs
+
+
+def slab_lift(p, a, b, rows, rise, n=WN):
+    """The lift _slab gives a point p of the slab along a -> b (left wing): along n, by rise at its place along the
+    slab, nothing at RISE_FRONT of the lead in front of the line, all of it from RISE_BACK of the trail behind it.
+    The lift is along n, so the lifted point gives the same answer (eagle_drape takes it back off when folded)."""
+    a, b, n = np.asarray(a, float), np.asarray(b, float), np.asarray(n, float)
+    d = _n(b - a)
+    lat = np.cross(d, n)
+    q = np.asarray(p, float) - a
+    t = float(np.clip((q @ d) / np.linalg.norm(b - a), 0.0, 1.0))
+    s = q @ lat                                         # + the leading side
+    tt, tl, tw = [r[0] for r in rows], [r[1] for r in rows], [r[2] for r in rows]
+    s0, s1 = RISE_FRONT * float(np.interp(t, tt, tl)), -RISE_BACK * float(np.interp(t, tt, tw))
+    return n * float(np.interp(t, [r[0] for r in rise], [r[1] for r in rise])) * float(smoothstep(s0, s1, s))
+
+
+def wing_slabs():
+    """The wing's flesh slabs (left): (a, b, bone without its side, rows, rise)."""
+    S_, E_, W_ = (np.array(WING[k], float) for k in "SEW")
+    # the humerus carries the patagium's fill in front of the elbow (folded, its leading side faces down, under the
+    # feathers); the forearm's leading side faces up when folded, so it stays narrow
+    return [(S_ - _n(E_ - S_) * 0.030, E_ + _n(E_ - S_) * 0.015, "WingArm", ARM_SLAB, ARM_RISE),
+            (E_ - _n(W_ - E_) * 0.012, W_ + _n(W_ - E_) * 0.004, "WingForearm", FORE_SLAB, FORE_RISE)]
 
 
 def _mirror_build(build, s):
@@ -782,18 +808,11 @@ def build_pieces(fur, B):
             bend = (0.0, 0.0, -0.0060 - 0.08 * L)
             acc.add(lambda bm: cone(bm, tb, tt, 0.0060 if i != 1 else 0.0068, seg=4, bend=bend),
                     f"Toe{i}_2{sfx}", 'claw')
-        # the wing's flesh: humerus, forearm (with the patagium in front), hand -- airfoil slabs, rigid per bone
-        S_, E_, W_, K_ = (np.array(WING[k], float) for k in "SEWK")
+        # the wing's flesh: humerus, forearm (with the patagium in front) -- airfoil slabs, rigid per bone
         nz = WN
-        slabs = [
-            # the humerus carries the patagium's fill in front of the elbow (folded, its leading side faces down,
-            # under the feathers); the forearm's leading side faces up when folded, so it stays narrow
-            (S_ - _n(E_ - S_) * 0.030, E_ + _n(E_ - S_) * 0.015, f"WingArm{sfx}", ARM_SLAB, ARM_RISE),
-            (E_ - _n(W_ - E_) * 0.012, W_ + _n(W_ - E_) * 0.004, f"WingForearm{sfx}", FORE_SLAB, FORE_RISE),
-        ]
-        for a, b, bone, srows, rise in slabs:
+        for a, b, bone, srows, rise in wing_slabs():
             acc.add(_mirror_build(lambda bm, a=a, b=b, srows=srows, rise=rise: _slab(bm, a, b, srows, nz, rise=rise), s),
-                    bone, 'wing')
+                    bone + sfx, 'wing')
         # the feather cards
         for f in FE.values():
             g = side_of(f, s)

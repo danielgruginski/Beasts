@@ -224,6 +224,8 @@ def _place_wing(p, W, rel, s, sfx, w, turn):
         bn = n + sfx
         par = B[bn][3]
         here = W[par] @ rel(bn, par)
+        if n in EP.FOLD_SLIDE and lay > 0:            # folded, slid in its parent's frame (eagle_pose.FOLD_SLIDE)
+            here = W[par] @ Matrix.Translation(EP.slide_local(n, s) * lay) @ rel(bn, par)
         if n in EP.FOLD_CARRY and lay > 0:            # folded, carried as the tertials are (eagle_pose.FOLD_CARRY)
             c = EP.FOLD_CARRY[n] + sfx
             here = Matrix.Translation(here.translation.lerp((W[c] @ rel(bn, c)).translation, lay))
