@@ -27,13 +27,13 @@ in Unity (MedievalSetting, `Assets/Beasts`), with shared code in the `beast_*` m
   not installed yet (see [Giant turtle](#giant-turtle));
 - the **leech** (2026-10-23, Daniel's card game): a 1.8 m swamp leech, a chain that loops like an inchworm, a toothed
   oral sucker, swelling pulses; five clips; exported with a Unity setup, not installed yet (see [Leech](#leech));
-- the **golden eagle** (2026-10-24, "one of the models we need is an eagle or a falcon"): the model only, at natural
-  size (2.03 m span), layered feather cards with their own undersides on 114 bones, golden and bald presets, two
-  judging poses (perched with the wings folded, spread in flight); revised the same day ("Yes, fix them", "the head
-  looks like a vulture structure"): an eagle's head and beak, a broad wing, a tucked fold with scapulars, shorter
-  legs; then the folded wing a third time ("curve it around the body so it doesn't read as flat boards from behind
-  and above"): wrapped round the body, the tertials roofing the back; no clips, export or Unity setup yet (see
-  [Golden eagle](#golden-eagle)).
+- the **golden eagle** (2026-10-24, "one of the models we need is an eagle or a falcon"): at natural size (2.03 m
+  span), layered feather cards with their own undersides on 86 bones, golden and bald presets; revised the same day
+  ("Yes, fix them", "the head looks like a vulture structure"): an eagle's head and beak, a broad wing, a tucked fold
+  with scapulars, shorter legs (a third pass on the folded wing was reverted at Daniel's call); then animated ("Lets
+  accept the issue and animate it"): ten clips on the ground and in the air (perched idle, walk, take-off, flap and
+  glide loops, a stoop with a talon strike, landing, screech, hit, death), exported with a Unity setup, not installed
+  yet (see [Golden eagle](#golden-eagle)).
 
 ![The wolf in the bind pose](docs/images/wolf_34.png)
 
@@ -108,7 +108,8 @@ the UVs. Always export after a rebuild, so the FBX and the textures in `textures
 | `bat_body.py`, `bat_anim.py`, `bat_paint.py`, `bat_build.py` | The giant bat: fused fur body, lofted arms, fingers and legs, the dragon's membranes with a bat `WingSpec`; its own small pose system with the dragon's wing strokes; built headless by `tools/creature_run.py` (see [Giant bat](#giant-bat)) |
 | `turtle_body.py`, `turtle_anim.py`, `turtle_paint.py`, `turtle_build.py` | The giant turtle: fused skin, a parametric carapace (closed shell, keels, scutes), plastron and bridges; beast_anim's quadruped clips with the neck sliding into the shell (`p.retract`) (see [Giant turtle](#giant-turtle)) |
 | `leech_body.py`, `leech_anim.py`, `leech_paint.py`, `leech_build.py` | The leech: a ringed tube built ring by ring with a toothed cup and a rear disc; a chain posed along curves (flat stretches, fitted arches and Beziers), swell bones for the pulses (see [Leech](#leech)) |
-| `eagle_body.py`, `eagle_pose.py`, `eagle_paint.py`, `eagle_build.py` | The golden eagle: fused body, the beak built from its profiles, feet and wing flesh pieces, layered feather cards (`Fe`): a bone per primary and per tail feather, the secondaries with the greater coverts and the tertials each on a two-bone row, scapulars; the perched and spread poses (folded, the wing one stack leaning in over the flank); scallop and feather-card painter with two presets; the overlap check and the before/after views (see [Golden eagle](#golden-eagle)) |
+| `eagle_body.py`, `eagle_pose.py`, `eagle_paint.py`, `eagle_build.py` | The golden eagle: fused body, the beak built from its profiles, feet and wing flesh pieces, layered feather cards (`Fe`): a bone per primary and per tail feather, the secondaries with the greater coverts and the tertials each on a two-bone row, scapulars; the perched and spread poses (folded, the wing one stack leaning in over the flank); scallop and feather-card painter with two presets; the overlap check and the before/after views; the clips' checks, renders and export (see [Golden eagle](#golden-eagle)) |
+| `eagle_anim.py` | The eagle's ten clips on eagle_pose's pose system: wing strokes with a fold split into a rigid lay and an in-plane fold (no card crosses another on the way), legs with the thigh held to the trunk (knee and ankle IK) and the toes kept on their spots, the height in the skeleton (see [Golden eagle](#golden-eagle)) |
 | `beast_review.py`, `tools/creature_run.py` | Headless builds in files of their own: scene, game cameras, the wolf appended for scale, render sheets, lowest vertex per clip, a root-motion trace, a UV overlap count; the runner (`-- <creature> <steps>`) |
 | `tools/before_after.py` | Labelled before/after sheets from two folders of renders (system Python with Pillow, not Blender; 2026-10-24, the eagle's revision) |
 | `ooze_body.py`, `ooze_contents.py`, `ooze_paint.py`, `ooze_rig.py`, `ooze_anim.py`, `ooze_scene.py`, `ooze_build.py` | The dungeon ooze: a distance-field shell meshed with openvdb, the contents, charted UVs and per-texel paint without Cycles bakes, the rig, the clips and their checks, EEVEE review renders (see [Dungeon ooze](#dungeon-ooze)) |
@@ -980,9 +981,9 @@ Copy-Item "$B\unity\Beasts\Editor\LeechSetup.cs" "$U\Scripts\Editor\"
 
 Daniel (2026-10-24): "You know, one of the models we need is an eagle or a falcon, can you model us one of those?
 Dont use the chicken as base, that model is bad". His rule here is model first, then animate, so this is the model:
-shape, feathers, paint and a rig that poses it perched (wings folded) and flying (wings spread). There are no clips, no
-export and no Unity setup yet, and nothing comes from the hen. Its own file is `blender/eagle.blend` (scene **Eagle**,
-cameras `EGL_*`), built headless.
+shape, feathers, paint and a rig that poses it perched (wings folded) and flying (wings spread); nothing comes from
+the hen. The clips, the export and the Unity setup came after Daniel accepted the model (see [Clips](#eagle-clips)
+below). Its own file is `blender/eagle.blend` (scene **Eagle**, cameras `EGL_*`), built headless.
 
 **Revision (2026-10-24, the second pass).** Daniel saw `eagle_presets.png` and `eagle_game_spread_x2.5.png` and
 answered my review of the first pass: "Yes, fix them", and "the head looks like a vulture structure, needs a pass
@@ -1158,6 +1159,105 @@ Renders (`renders/`):
   `eagle_ba_<head|spread|fold|legs|game|presets>.png`;
 - the quick Workbench looks (debug colours): `eagle_q_<bind|folded|perched|spread>.png`, `eagle_q_head.png`,
   `eagle_q_fold.png`.
+
+### Eagle clips
+
+Daniel (2026-10-24), after the third fold pass: "Lets accept the issue and animate it", and the folded wing went back to
+the second pass's ("The before actually looks better than the after, can we go back?"). The clips leave the model as
+it is: `eagle_anim.py` poses the accepted rig and keys it.
+
+![TakeOff from the side (top) and from above: crouch, spring, the wings unfold over the back, three hard beats, rising 1.5 m](docs/images/eagle_takeoff.png)
+
+![Dive: a beat up, the stoop with the wings tucked, the talons thrown forward and struck onto the ground, heavy beats back up](docs/images/eagle_dive.png)
+
+![Glide at the game camera (22 m, 50°, fov 30), x2.5, blown up x3, the grey wolf for scale](docs/images/eagle_game_glide.png)
+
+| Clip | Length | Root motion | Events | What |
+|---|---|---|---|---|
+| Idle | 6.0 s loop | in place | | perched: breathing, quick head turns and tilts, one feather rouse (a body shake, the wings and tail shaken loose) |
+| Walk | 1.33 s loop | 0.195 m/s | | a slow strut: the body rolls over the planted foot, a head bob, the toes curl in the swing |
+| TakeOff | 2.0 s | 5.0 m, 0 → 6 m/s | | from perched: crouch, spring, the wings unfold over the back, three hard downstrokes, rising 1.5 m; ends in Fly's first frame |
+| Fly | 0.8 s loop | 6 m/s | | one wingbeat: down and forward with the wing out, up with the wrist drawn in |
+| Glide | 3.0 s loop | 9 m/s | | soaring: wings fixed, banking ±11°, the tail twisting, the head looking round |
+| Dive | 2.6 s | 16.3 m, 6 → 11 → 4 → 6 m/s | `Strike` 1.27 s | a beat up to 2.0 m, the wings tucked, the stoop, the talons thrown forward and struck onto a spot on the ground, heavy beats back up; ends in Fly's first frame |
+| Land | 2.2 s | 4.6 m, 6 → 0 m/s | | a descending glide, braking flaps with the body upright, the legs swung forward, touchdown at 1.47 s, the wings folded; ends perched (Idle's first frame) |
+| Screech | 2.0 s | in place | `Screech` 0.53 s | the body leans in, the neck stretches the head out and up, the beak wide |
+| Hit | 0.6 s | in place | | a flinch back, the wings jerk open, recovers |
+| Death | 2.5 s | in place | `Dead` 1.0 s | the wings jerk, the legs give and fold back, it pitches onto its breast, the wings drooping open on the ground, the head on its side; holds |
+
+How they work:
+- **The height is in the skeleton**, as the bat's is: the eagle flies with its body 1.5 m over its perched place
+  (`FLY_H`), so the GameObject stays on the ground and Motion travels only forward. TakeOff climbs, Land comes down and
+  Dive stoops to the ground in the skeleton. The hand-overs match exactly: TakeOff, Dive and Land start or end in Fly's
+  first frame, Land ends in Idle's.
+- **The fold without crossings.** eagle_pose's fold turns each wing bone from its spread aim to its folded one by the
+  shortest rotation; the two ends are clean, but between them 500-1,500 card pairs crossed (the cards of a fan twist
+  against each other at 1.1-1.4 mm layer steps). `_place_wing` splits each bone's turn from spread (S) to folded (F)
+  into F = G R S: G lays the wing's plane onto the fold plane rigidly (one turn for the whole wing), and R, nearly a
+  turn about the wing's normal, is split into its twist about the normal (an in-plane fold, in which every card keeps
+  its height over the plane) and the small swing left over. `fold` runs all three together; `flex` runs the in-plane
+  part alone: the wrist drawn in on an upstroke, the wings tucked in the stoop. The ends are eagle_pose's own.
+- **Wing strokes** are the bat's: the spread wing turned about the shoulder (`Y` down/up, `Z` sweep, `X` pitch). The
+  beat runs from Y −30° (raised, wrist a little flexed) to +36° (down and forward). Raised further, or swept back at the
+  top, the innermost tertial slides over the back into the scapulars.
+- **The thigh is held to the trunk.** The skin of the back and the flanks under the scapulars and the folded primaries
+  carries up to 0.67 of the thigh's heat weight, so a thigh swinging with the leg pushed that skin through the cards.
+  The thigh turns with the trunk at its perched frame or its tucked one (`Pose.thigh`, 0..1), and the knee and ankle do
+  the work (IK knee → ankle → ball), as a bird walks with its femur held still.
+- **Feet on the ground** keep the toes' rest orientation and their bases on their rest spots (their middle stays put,
+  none goes below its rest height), so the talons stay as the perched model has them.
+- **Envelopes are eased segments** (`eagle_anim.E`), not Catmull-Rom keys, wherever an overshoot would hurt: a
+  Catmull-Rom key next to a plateau went negative and threw the feet up onto the back.
+
+Checks (`eagle_build`: `cards`, `lowest`, `trace`, `chains`, `feet`):
+- Every frame of every clip through the model's overlap test: cards through the body 0, cards through cards 0, card
+  vertices inside the body 0, in all 701 frames. Cards against the wing's own flesh peak at 296 face pairs (perched,
+  the model's hidden contact).
+- Lowest vertex: Idle, Walk, TakeOff, Screech and Hit −3.2 mm (the talon tips, as perched), Land −5.3 mm, Death −6.8 mm
+  (a primary's tip in the first jerk); Dive's talons stop 7 cm over the ground at the strike; Fly stays above 1.44 m,
+  Glide above 1.67 m.
+- Root motion as Unity plays it (`beast_review.motion_trace`, three loops): Walk 0.26 m a loop, Fly 4.8 m, Glide
+  27.0 m, Motion's turn 0; the head's step at the seam no bigger than inside the loop (Fly 1.6 / 1.9 mm, Glide 0.2 /
+  0.4 mm, Walk 1.1 / 1.1 mm).
+- Hand-overs (largest bone jump between one clip's last frame and the next one's first): TakeOff → Fly, Fly → Dive,
+  Dive → Fly, Fly → Land, Land → Idle 0 mm at matching speeds; the loops' seams 0 mm. Fly ↔ Glide and Idle ↔ Walk
+  differ and are crossfaded.
+- Walk's planted feet drift at most 1.9 mm a frame.
+- The export read back in an empty Blender (`reimport`): 86 bones, Motion and Root the two roots, one mesh (5,356 tris,
+  one UV layer, 79 groups, `M_Eagle`); Fly's Motion travels 4.8 m with the head steady at 1.9 m; the JSON's loops,
+  root motion and events as above.
+
+Rebuild (the model is built already; about two and a half minutes with the renders):
+
+```
+blender.exe -b --factory-startup blender/eagle.blend --python tools/creature_run.py -- eagle clips cards lowest trace chains feet sheets gameclips gifs export
+blender.exe -b --factory-startup --python tools/creature_run.py -- eagle reimport nosave
+py tools/frames_to_gif.py renders/eagle_gif_Fly renders/eagle_Fly.gif --step 2      # one per clip
+```
+
+Renders (`renders/`): `eagle_clip_<Clip>.png` (frame strips: side on top, above below; the flight clips' cameras follow
+the trunk), `eagle_game_<Fly|Glide|Dive|TakeOff>_x<1|2.5>.png` (the game camera beside the wolf: top row azimuth 30,
+bottom row 210, blown up x3) and `eagle_game_frame_x<s>.png` (a whole 22 m frame), `eagle_<Clip>.gif` (3/4 view, in
+place), `eagle_unfold.png` and `eagle_fold_land.png` (the wings opening in TakeOff and folding after touchdown, close),
+`eagle_screech_head.png`.
+
+**In Unity:** copy the files (assets first, then the script) and run Tools > Beasts > Rebuild Eagle (`EagleSetup.cs`;
+it also runs by itself on the first import). It makes `M_Eagle` and `M_Eagle_Bald` (URP Lit, back faces culled: the
+cards have undersides of their own), `Prefabs/Eagle` (Animator, `BeastAppearance` rolling golden or bald and the size,
+`BeastEvents`; the mesh's bounds ride on Hips, a 2.6 m cube, since the body flies up to 2.3 m over the GameObject),
+`Animation/EagleAnims` and lineup renders in `Logs/EagleSetup` (a preview scene). It touches no scene. Pools: Idle,
+Walk, Screech, Hit, Death and TakeOff on the ground; TakeOff leads to Flight (Fly, Glide, Fly, Dive, Fly, Glide in a
+row), Flight to Land, Land to Idle (Flight and Land have weight 0: only the chain reaches them). No pool is `vertical`:
+Motion never climbs.
+
+```
+$B = "E:\Unity\Projects\GameArtGeneration\Beasts"; $U = "E:\Unity\Projects\MedievalSetting\Assets\Beasts"
+Copy-Item "$B\export\Eagle.fbx" "$U\Models\"
+Copy-Item "$B\export\Anims\Eagle@*.fbx" "$U\Models\Anims\"
+Copy-Item "$B\export\Anims\eagle_clips.json" "$U\Models\Anims\"
+Copy-Item "$B\textures\T_Eagle.png", "$B\textures\T_Eagle_Bald.png" "$U\Textures\"
+Copy-Item "$B\unity\Beasts\Editor\EagleSetup.cs" "$U\Scripts\Editor\"
+```
 
 ## Dragon and hydra
 

@@ -693,6 +693,56 @@ checks.
     - **The UV pack follows the dominant bone per vertex** (`beast_paint.mark_seams`): new bones re-pack the islands;
       the textures on disk then belong to the new layout. To re-render the old model, run its own `paint` first.
 
+- **Golden eagle clips + Unity setup (2026-10-24):** Daniel: "Lets accept the issue and animate it" (the folded wing
+  stays as the second pass left it; nothing in `eagle_body`, `eagle_pose` or `eagle_paint` changed). New
+  `src/eagle_anim.py` (pose system + ten clips), clip steps in `eagle_build` (`clips cards lowest trace chains feet sheets
+  gameclips gifs export reimport`), `unity/Beasts/Editor/EagleSetup.cs`. Run on the saved `blender/eagle.blend`:
+  `creature_run.py -- eagle clips cards lowest trace chains feet sheets gameclips gifs export` (~2.5 min), then
+  `creature_run.py -- eagle reimport nosave` without a file.
+  - Clips (30 fps): Idle 6.0 s loop (perched, breathing, head turns and tilts, a rouse at 4.6 s), Walk 1.33 s loop
+    (0.195 m/s), TakeOff 2.0 s (5.0 m, rising 1.5 m), Fly 0.8 s loop (6 m/s), Glide 3.0 s loop (9 m/s), Dive 2.6 s
+    (16.3 m, `Strike` 1.27 s), Land 2.2 s (4.6 m, touchdown 1.47 s), Screech 2.0 s (`Screech` 0.53 s), Hit 0.6 s, Death
+    2.5 s (`Dead` 1.0 s). Root motion on Motion, horizontal only.
+  - My calls (the brief left them open): the height lives in the skeleton like the bat's (`FLY_H` 1.5 m: the
+    GameObject stays on the ground, no pool is `vertical`); flight speeds 6 / 9 m/s at natural size; a 24-frame
+    wingbeat; the stoop climbs to 2.0 m first and strikes a spot on the ground 16 cm ahead of the root (the talons stop
+    7 cm up); Land brakes upright with two flaps; Death lies on the breast, legs folded back; the Unity pools chain
+    TakeOff -> Flight (Fly, Glide, Fly, Dive, Fly, Glide) -> Land -> Idle, Flight and Land at weight 0; skins golden and
+    bald equally likely.
+  - Checks: every frame (701) through `overlap_report`: card-body 0, card-card 0, card vertices inside 0 in all ten
+    clips (card-vs-wing-flesh peaks at the perched 296). Lowest vertex: the ground clips -3.2 mm (perched talons), Land
+    -5.3 mm, Death -6.8 mm, Dive 7 cm. Traces: Fly 4.8 m a loop, Glide 27 m, Walk 0.26 m, Motion's turn 0, seam steps
+    no bigger than inside. Hand-overs TakeOff/Dive/Land <-> Fly and Land -> Idle: 0 mm at matching speeds. Walk's feet
+    drift <= 1.9 mm a frame. Export re-imported: 86 bones (Motion and Root roots), EagleBody 5,356 tris, one UV layer,
+    79 groups, `M_Eagle`; Fly's Motion -4.8 m with the head steady at 1.9 m. `EagleSetup.cs` compiled offline against
+    MedievalSetting's editor assembly (the `.rsp` with absolute paths, out in a temp folder): 0 errors, 0 warnings.
+  - Looked at: every clip's strip from the side and above, the unfold and fold close-ups, the screech head, GIF frames,
+    the game camera on Fly/Glide/Dive/TakeOff at x1 and x2.5 beside the wolf (it reads: dark broad wings, the golden
+    nape, the barred tail, yellow feet at the strike).
+  - Gotchas:
+    - **eagle_pose's fold crosses cards on the way.** Its per-bone slerp is clean at fold 0 and 1 but crossed 500-1,500
+      card pairs between (a fan's cards twist against each other at 1.1-1.4 mm layer steps; the right side was worse).
+      `_place_wing` splits each bone's turn into a rigid lay of the wing's plane (G, one for the wing) and an in-plane
+      twist plus the small swing left (R = G^-1 F S^-1): 0 crossings. Laying first and folding in-plane after, or the
+      other way round, crossed the primaries with the scapulars; all three together is clean (the alula's lift is done
+      by half the lay, or A1 touched G1 at fold 0.4).
+    - **Mirror the left's basis, don't build the right's from mirrored vectors:** `a x n` of two mirrored vectors is
+      minus the mirror of the cross product, so the right wing's plane turn came out improper (garbage quaternions).
+    - **The back's skin rides the thighs** (up to 0.67 heat weight under the scapulars): any leg IK that turned the thigh
+      (the walk, the crouch, the dive's throw, the death's fall) pushed it through the scapulars or the folded
+      primaries. The thigh is held to the trunk at its perched or tucked frame (`Pose.thigh`), the knee and ankle do
+      the work. Folding the legs while the scapulars are still rolled (Death) still touched: they unroll with it and lift
+      3 deg (`DEATH_SCAP`).
+    - **Stroke limits:** raised past ~-30 deg, or swept back (Z+) or supinated (X-) at the top, the innermost tertial
+      slides over the back into the scapulars; downstrokes forward (Z-) are clean to +42 deg. The top of the beat keeps
+      the wrist 0.2 flexed.
+    - **Catmull-Rom keys overshoot next to a plateau:** the dive's leg throw went negative and lifted the feet onto the
+      back. Envelopes use eased segments (`eagle_anim.E`).
+    - **Flat feet on a turning tarsus sink:** the toes' bases sit round the ball, so the hallux's talon went 1.5 cm in
+      as the ankle bent. `_leg` re-aims the ball (three passes) so the bases' middle stays put and none goes below its rest
+      height.
+    - Git Bash rewrites `/noconfig` into a path for `dotnet csc`: run it with `MSYS_NO_PATHCONV=1`.
+
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
 
@@ -817,29 +867,21 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - Lunge latches onto a point 0.4 m up in front of it, not onto a victim's real position (no IK);
   - maybe: a Swim clip (vertical undulation), a turn in place, a smaller swarm variant.
 - **Golden eagle (2026-10-24):**
-  - Status (2026-10-24): the model is accepted with the folded wing as the second pass left it (the third pass
-    reverted at Daniel's call). Next: the clips and the Unity setup. Not committed before the revert; committed
-    with it.
-  - The fold is wrapped in facets, one per feather group (tertials, coverts, secondaries, primaries): from behind and
-    above the wings close round the back, but the wing's side (the secondaries) is still one flat facet, so from a 3/4
-    back the near wing still reads as a board, and seen edge-on from the far side the facets' edges separate into 2-3
-    thin plates. A smoother side would need the secondaries spread round the flank, and their band sits on the
-    primaries', which sit on the trousers.
-  - The wingtips lie beside the closed tail (14.4 cm apart, 2 cm outside its edges); they don't meet or cross over it.
-  - The coverts and the tertials stand off the secondaries a little at their lower edges (flat cards hung on a curve);
-    the tertials' tops still show as a short stair from the side, the coverts' as a fine stair of edges.
-  - `folded()` (body level) has the open tail: the primaries meet it there. Clips with folded wings need
-    `PERCHED_TAIL`'s closed tail.
-  - The scapulars over a round back: their outer edges stand off it a little in the spread pose.
-  - Folded, the remiges' bases run through the forearm slab and the scapulars' roots cross the humerus slab (278 face
-    pairs, under the cards).
-  - The trousers end in a smooth hem (a flared cuff), not ragged feathers.
-  - 114 bones (72 of them feather bones: 60 in the wings and scapulars, 12 in the tail). Daniel may want fewer;
-    the secondaries could go back to fewer row bones only if their fold stays one facet (it does now).
+  - Status: the model is accepted with the folded wing as the second pass left it (86 bones); ten clips, the export and
+    `EagleSetup.cs` are done (offline-compiled) and pushed. Not installed in Unity, not seen by Daniel; no game side (a
+    creature definition, `Strike`/`Screech` hooks, sounds), as for the card-game units.
+  - The fold's own limits remain (README, "The fold"): from a 3/4 back the near wing reads as a board; the wingtips lie
+    beside the closed tail; the remiges' bases and the scapulars' roots run through the wing's flesh slabs when folded
+    (296 face pairs, under the cards). Mid-fold (TakeOff, Land, Death) the in-plane-folded wing shows for a few frames
+    as a narrow blade with the humerus as a stick.
+  - The open wing from above still shows the greater coverts as blocks (the model's look).
+  - Clips, rough: the beak opens on a plain gap (no mouth inside); Fly <-> Glide and Idle <-> Walk rely on the
+    crossfade; the strike's spot is 16 cm ahead of the root, not a target (no IK to prey); Death -6.8 mm (a primary's
+    tip in the first jerk); the take-off's spring straightens the legs into stilts for a few frames.
+  - Not done: carrying prey on `Socket_Grip`, a perch on a branch or a cliff (Idle stands on flat ground), turning
+    clips, a flight Hit/Death (both are perched).
   - 5,356 tris against the brief's ~5,000 (the beak +140, the tarsi +56, the scapulars +64, the 12 three-row
     greater coverts +96, less 280 for the coverts' and scapulars' dropped undersides).
-  - Next, when he says so: clips (perch idle, take-off, flap and glide loops, land, dive and grab with
-    `Socket_Grip`, a scream on `Jaw`, hit, death), then the export and an `EagleSetup.cs` like the bat's.
 - **More beasts:** a howdah on the mammoth's `Socket_Back` (the driver on the neck is done, "Riders"), giant elk, boar and dire variants can reuse the
   pipeline: parts, tufts, fuse, heat weights, and the painter's flow strokes.
 - **Ooze, Unity side:**

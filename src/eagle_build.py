@@ -1,10 +1,12 @@
 """Build the golden eagle (2026-10-24): body -> rig -> weights -> UVs -> two painted presets, the two judging poses
-(eagle_pose: perched, spread), checks and review renders. No clips, no export yet (model first, then animation:
-Daniel looks at the renders before the next step). Its own file, blender/eagle.blend (scene Eagle, cameras EGL_*),
-built headless:
+(eagle_pose: perched, spread), checks and review renders; then (the same day, Daniel: "Lets accept the issue and
+animate it") the clips (eagle_anim), their checks and renders, the export. Its own file, blender/eagle.blend (scene
+Eagle, cameras EGL_*), built headless:
 
     blender.exe -b --factory-startup --python tools/creature_run.py -- eagle build check review closeups game presets
     blender.exe -b --factory-startup blender/eagle.blend --python tools/creature_run.py -- eagle paint review
+    blender.exe -b --factory-startup blender/eagle.blend --python tools/creature_run.py -- eagle clips cards lowest trace chains feet sheets gameclips gifs export
+    blender.exe -b --factory-startup --python tools/creature_run.py -- eagle reimport nosave
 
 Steps (tools/creature_run.py calls them by name): model (body, rig, weights; debug colours, no paint), build (model +
 UVs + paint), paint (the presets again on the built model), check (the overlap test and weights in the bind, perched
@@ -13,7 +15,11 @@ and the spread one from below), closeups (head, foot, the folded wing, wing tip)
 x1 and x2.5, beside the wolf), uv (the layout over both textures), presets (golden and bald side by side),
 compare (2026-10-24: fixed views for the before/after sheets, renders/eagle_cmp_*.png; the first pass's are in
 renders/eagle_before/, the sheets come from tools/before_after.py), qhead and qfold (Workbench looks at the head and
-the folded wing, debug colours, for tuning).
+the folded wing, debug colours, for tuning). The clips' steps: clips (key every clip), cards (the overlap test on every
+frame of every clip), lowest (the lowest vertex per clip), trace (root motion as Unity plays it), chains (the jumps
+where the clips hand over and at the loops' seams), feet (Walk's planted feet in the world), sheets (frame strips from
+the side and above), gameclips (the game camera on the flight clips beside the wolf), gifs (frames for
+tools/frames_to_gif.py), export, reimport (the FBX read back in an empty file).
 """
 import bpy, math, os
 import numpy as np
@@ -742,3 +748,304 @@ def presets(res=700):
     EPt.use_preset('golden')
     EP.clear()
     return RV.save(np.concatenate(rows[::-1], axis=0), "eagle_presets")
+
+
+# ----------------------------------------------------------------------------------------- clips (2026-10-24)
+def anim():
+    import eagle_anim
+    return eagle_anim
+
+
+def clips():
+    A = anim()
+    out = {n: int(a["frames"]) for n, a in A.build_clips().items()}
+    A.clear()
+    return out
+
+
+GROUND_CLIPS = ("Idle", "Walk", "Screech", "Hit", "Death", "TakeOff", "Land")
+
+
+def cards(names=None):
+    """Every frame of every clip through overlap_report: frames with a card through the body, through another card,
+    or with card vertices inside the body (all must be 0), and the largest count of cards against the wing's own
+    flesh (hidden under the cards when folded: 296 perched)."""
+    A = anim()
+    scn = bpy.context.scene
+    out = {}
+    for n in names or A.CLIPS:
+        A.use(n)
+        N = int(bpy.data.actions[A.action_name(n)]["frames"])
+        bad, flesh = [], (0, 0)
+        for f in range(N + 1):
+            scn.frame_set(f)
+            r = overlap_report(limit=3)
+            b, c, i = r["card_body"][0], r["card_card"][0], r["card_verts_inside"][0]
+            if r["card_flesh"][0] > flesh[0]:
+                flesh = (r["card_flesh"][0], f)
+            if b or c or i:
+                bad.append((f, b, c, i, r["card_body"][1][:2], r["card_card"][1][:2], r["card_body"][2][:2]))
+        out[n] = dict(frames=N + 1, bad=len(bad), flesh_max=flesh, first=bad[:5])
+    A.clear()
+    return out
+
+
+def lowest():
+    """The lowest vertex (world z) per clip, every frame, and the part it belongs to; the ground clips' feet must not
+    sink in."""
+    from beast_body import read_info, PART
+    A = anim()
+    scn = bpy.context.scene
+    ob = bpy.data.objects[BODY]
+    part = read_info(ob)[0]
+    names = {v: k for k, v in PART.items()}
+    out = {}
+    for n in A.CLIPS:
+        A.use(n)
+        N = int(bpy.data.actions[A.action_name(n)]["frames"])
+        lo = (9.0, 0, "")
+        for f in range(N + 1):
+            scn.frame_set(f)
+            co = _posed(ob)[0]
+            i = int(np.argmin(co[:, 2]))
+            if co[i, 2] < lo[0]:
+                lo = (round(float(co[i, 2]), 4), f, names.get(int(part[i]), "?"))
+        out[n] = lo
+    A.clear()
+    return out
+
+
+def trace():
+    """The moving clips as Unity plays them (beast_review.motion_trace): the loops over three loops (the seam's step
+    against the steps inside), the one-shots' travel."""
+    A = anim()
+    out = {}
+    for c in ("Walk", "Fly", "Glide", "TakeOff", "Dive", "Land"):
+        loop = bpy.data.actions[A.action_name(c)]["loop"]
+        r = RV.motion_trace(A, RIG, c, bones=("Head", "WingP9L", "TarsusR"), loops=3 if loop else 2)
+        out[c] = r if loop else {k: r[k] for k in ("frames", "travel", "speed", "motion_turn_deg")}
+    return out
+
+
+def chains():
+    """The clips that hand over to each other (eagle_anim.CHAINS) and the loops' seams: the largest jump of a bone's
+    head (mm) and turn (deg) between the last frame of one and the first of the next (root space), and the root's
+    speed on both sides (m/s)."""
+    A = anim()
+    out = {}
+    cache = {}
+
+    def frames(n):
+        if n not in cache:
+            N, fn, loop = A.CLIPS[n]()
+            cache[n] = (N, fn)
+        return cache[n]
+    pairs = list(A.CHAINS) + [(n, n) for n in ("Idle", "Walk", "Fly", "Glide")]
+    for a, b in pairs:
+        Na, fa = frames(a)
+        Nb, fb = frames(b)
+        pa, pb = fa(Na), fb(0)
+        ma, mb = A.pose_matrices(pa), A.pose_matrices(pb)
+        dpos = max((ma[k].to_translation() - mb[k].to_translation()).length for k in ma if k != "Motion")
+        ang = lambda q: min(math.degrees(q.angle), 360 - math.degrees(q.angle))
+        drot = max(ang(ma[k].to_quaternion().rotation_difference(mb[k].to_quaternion())) for k in ma if k != "Motion")
+        va = (fa(Na).root - fa(Na - 1).root).length * A.FPS
+        vb = (fb(1).root - fb(0).root).length * A.FPS
+        worst = max(((ma[k].to_translation() - mb[k].to_translation()).length, k) for k in ma if k != "Motion")[1]
+        out[f"{a}->{b}"] = dict(mm=round(dpos * 1000, 2), deg=round(drot, 2), bone=worst, speed=(round(va, 2),
+                                                                                              round(vb, 2)))
+    return out
+
+
+def feet():
+    """Walk: the planted feet's drift in the world between two frames of a stance (mm; the root's travel plus the
+    root-space toe)."""
+    A = anim()
+    N, fn, loop = A.CLIPS["Walk"]()
+    out = {}
+    for s, sfx in EB.SIDES:
+        drift, prev = 0.0, None
+        for f in range(N + 1):
+            p = fn(f)
+            m = A.pose_matrices(p)
+            w = Vector(p.root) + m[f"Toe3_2{sfx}"].to_translation()
+            on = p.stance[s]
+            if on and prev is not None and prev[1]:
+                drift = max(drift, (w - prev[0]).length)
+            prev = (w, on)
+        out[sfx] = round(drift * 1000, 2)
+    return out
+
+
+# ----------------------------------------------------------------------------------------- clip renders
+FLIGHT = ("TakeOff", "Fly", "Glide", "Dive", "Land")
+
+
+def _clip_cams(n):
+    """(side, above) cameras for a clip's frame sheet; the flight clips' follow the trunk (Spine1)."""
+    if n in FLIGHT:
+        z = 0.36 + (0.0 if n == "TakeOff" else anim().FLY_H)       # where the trunk is in the clip's first frame
+        cam("CAM_ClipSide", (9, -0.05, z), (0, -0.05, z), ortho=1.7)
+        cam("CAM_ClipTop", (0, -0.02, z + 9), (0, -0.0199, z), ortho=2.3)
+    elif n == "Death":
+        cam("CAM_ClipSide", (9, -0.02, 0.32), (0, -0.02, 0.32), ortho=1.25)
+        cam("CAM_ClipTop", (0, -0.05, 9), (0, -0.0499, 0.2), ortho=2.2)
+    else:
+        cam("CAM_ClipSide", (9, -0.02, 0.33), (0, -0.02, 0.33), ortho=0.9)
+        cam("CAM_ClipTop", (0, -0.02, 9), (0, -0.0199, 0.3), ortho=0.9)
+    return P + "CAM_ClipSide", P + "CAM_ClipTop"
+
+
+def sheets(res=420):
+    """EEVEE frame strips per clip, from the side (top row) and from above (bottom row):
+    renders/eagle_clip_<Clip>.png. The skeleton plays in place (Motion carries the travel); the flight clips' cameras
+    follow the trunk up and down (Spine1), so the bird stays in the middle of the frame."""
+    setup_scene()
+    RV.show_wolf(False)
+    A = anim()
+    out = []
+    for n in A.CLIPS:
+        side, top = _clip_cams(n)
+        out.append(RV.frames_sheet(A, RIG, n, A.SHEET_FRAMES[n], (side, top), f"eagle_clip_{n}", res=res,
+                                   follow="Spine1" if n in FLIGHT else True))
+    return out
+
+
+GAME_FRAMES = {"Fly": (0, 6, 12, 18), "Glide": (0, 22, 45, 67), "Dive": (14, 26, 38, 52), "TakeOff": (10, 18, 30, 50)}
+
+
+def gameclips(res=620, crop=220, k=3):
+    """The game camera (22 m, 50 deg, fov 30) on Fly, Glide, Dive and TakeOff at x1 and x2.5 beside the grey wolf:
+    per clip and scale a sheet (columns: GAME_FRAMES, top row azimuth 30, bottom row 210), each tile the middle of the
+    game frame blown up x3 -> renders/eagle_game_<Clip>_x<s>.png; and one whole 22 m frame per scale."""
+    setup_scene()
+    RV.add_wolf(P)
+    RV.show_wolf(True)
+    A = anim()
+    scn = bpy.context.scene
+    ground = bpy.data.objects.get("Ground")
+    if ground is not None:
+        ground.scale = (5, 5, 1)
+    rig = bpy.data.objects[RIG]
+    wolf = bpy.data.objects.get("WolfRig")
+    out = []
+    for sc in (1.0, 2.5):
+        rig.scale = (sc, sc, sc)
+        wx = 1.6 * (1.0 if sc == 1.0 else 2.0)
+        if wolf is not None:
+            wolf.location = (wx, 0.35, 0.0)
+        cr = int(crop * (1.0 if sc == 1.0 else 1.9)) // 2 * 2
+        kk = k * crop / cr
+        for n, frs in GAME_FRAMES.items():
+            A.use(n)
+            rows = []
+            for az in (30, 210):
+                row = []
+                for f in frs:
+                    scn.frame_set(f)
+                    bz = _posed_point("Spine1").z
+                    tgt = (wx * 0.5, 0.1, 0.5 * (bz + 0.45))
+                    _game_cam("CAM_G", az, tgt, 22.0)
+                    p = RV.shot(P + "CAM_G", f"_egc_{n}_{sc:g}_{az}_{f}", res=res)
+                    a = RV.load(p)
+                    if n == "Fly" and az == 30 and f == frs[0]:
+                        out.append(RV.save(a, f"eagle_game_frame_x{sc:g}"))
+                    c0 = (res - cr) // 2
+                    a = a[c0:c0 + cr, c0:c0 + cr]
+                    ii = np.minimum((np.arange(crop * k) / kk).astype(int), cr - 1)
+                    row.append(a[ii][:, ii])
+                rows.append(np.concatenate(row, axis=1))
+            out.append(RV.save(np.concatenate(rows[::-1], axis=0), f"eagle_game_{n}_x{sc:g}"))
+    A.clear()
+    rig.scale = (1, 1, 1)
+    if ground is not None:
+        ground.scale = (1, 1, 1)
+    RV.show_wolf(False)
+    return out
+
+
+def gifs(res=420, step=2):
+    """Every clip's frames from a 3/4 camera (in place) into renders/eagle_gif_<Clip>/; tools/frames_to_gif.py makes
+    renders/eagle_<Clip>.gif from them (system Python)."""
+    setup_scene()
+    RV.show_wolf(False)
+    A = anim()
+    scn = bpy.context.scene
+    ground = bpy.data.objects.get("Ground")
+    if ground is not None:
+        ground.scale = (5, 5, 1)                       # no disc edge on the horizon
+    out = {}
+    for n in A.CLIPS:
+        if n in FLIGHT:
+            cam("CAM_Gif", (2.5, -2.9, 2.0), (0, -0.05, 1.05), lens=40)
+        elif n == "Death":
+            cam("CAM_Gif", (1.45, -1.7, 1.15), (0, -0.05, 0.18), lens=40)
+        else:
+            cam("CAM_Gif", (1.25, -1.5, 0.85), (0, -0.02, 0.30), lens=45)
+        folder = os.path.join(RV.RENDERS, f"eagle_gif_{n}")
+        os.makedirs(folder, exist_ok=True)
+        for fn in os.listdir(folder):
+            os.remove(os.path.join(folder, fn))
+        A.use(n)
+        act = bpy.data.actions[A.action_name(n)]
+        N = int(act["frames"])
+        k = 0
+        for f in range(0, N + (0 if act["loop"] else 1), step):
+            scn.frame_set(f)
+            RV.shot(P + "CAM_Gif", f"eagle_gif_{n}/{k:04d}", res=res)
+            k += 1
+        out[n] = k
+    A.clear()
+    if ground is not None:
+        ground.scale = (1, 1, 1)
+    return out
+
+
+def export():
+    """export/Eagle.fbx (EagleRig + EagleBody in the bind pose, M_Eagle), export/Textures/T_Eagle*.png (both presets),
+    export/Anims/Eagle@<Clip>.fbx and eagle_clips.json (loop, root motion, events)."""
+    import beast_export
+    A = anim()
+    A.build_clips()
+    A.clear()
+    return (beast_export.export_model(RIG, (BODY,), NAME, "T_Eagle") +
+            beast_export.export_clips(A, RIG, NAME))
+
+
+def reimport():
+    """The export read back into an empty file (run it without eagle.blend, with 'nosave'): bones, meshes, UV layers,
+    vertex groups, materials; Fly's and Walk's Motion travel and the head's height over a loop; the clips JSON."""
+    import json
+    from beast_export import EXPORT
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    out = {}
+    bpy.ops.import_scene.fbx(filepath=os.path.join(EXPORT, NAME + ".fbx"))
+    arm = [o for o in bpy.data.objects if o.type == 'ARMATURE']
+    meshes = [o for o in bpy.data.objects if o.type == 'MESH']
+    a = arm[0]
+    out["model"] = dict(armatures=len(arm), bones=len(a.data.bones),
+                        roots=sorted(b.name for b in a.data.bones if b.parent is None),
+                        motion_parent=a.data.bones["Motion"].parent.name if a.data.bones["Motion"].parent else None,
+                        meshes=[(m.name, len(m.data.vertices), sum(len(p.vertices) - 2 for p in m.data.polygons),
+                                 len(m.data.uv_layers), len(m.vertex_groups),
+                                 [s.material.name if s.material else None for s in m.material_slots]) for m in meshes])
+    with open(os.path.join(EXPORT, "Anims", NAME.lower() + "_clips.json"), encoding="utf-8") as f:
+        out["json"] = json.load(f)["clips"]
+    for clip in ("Fly", "Walk"):
+        for o in list(bpy.data.objects):
+            bpy.data.objects.remove(o, do_unlink=True)
+        bpy.ops.import_scene.fbx(filepath=os.path.join(EXPORT, "Anims", f"{NAME}@{clip}.fbx"))
+        a = [o for o in bpy.data.objects if o.type == 'ARMATURE'][0]
+        act = a.animation_data.action if a.animation_data else None
+        scn = bpy.context.scene
+        f0, f1 = (int(act.frame_range[0]), int(act.frame_range[1])) if act else (0, 0)
+        pos = {}
+        for f in (f0, f1):
+            scn.frame_set(f)
+            pos[f] = ((a.matrix_world @ a.pose.bones["Motion"].head).copy(),
+                      (a.matrix_world @ a.pose.bones["Head"].head).copy())
+        out[clip] = dict(frames=(f0, f1), bones=len(a.data.bones),
+                         motion=[round(c, 3) for c in (pos[f1][0] - pos[f0][0])],
+                         head_z=(round(pos[f0][1].z, 3), round(pos[f1][1].z, 3)),
+                         head_step=[round(c, 3) for c in (pos[f1][1] - pos[f0][1])])
+    return out
