@@ -26,7 +26,14 @@ in Unity (MedievalSetting, `Assets/Beasts`), with shared code in the `beast_*` m
   legs, a snapping turtle's hooked beak; seven clips including Withdraw into the shell; exported with a Unity setup,
   not installed yet (see [Giant turtle](#giant-turtle));
 - the **leech** (2026-10-23, Daniel's card game): a 1.8 m swamp leech, a chain that loops like an inchworm, a toothed
-  oral sucker, swelling pulses; five clips; exported with a Unity setup, not installed yet (see [Leech](#leech)).
+  oral sucker, swelling pulses; five clips; exported with a Unity setup, not installed yet (see [Leech](#leech));
+- the **golden eagle** (2026-10-24, "one of the models we need is an eagle or a falcon"): the model only, at natural
+  size (2.03 m span), layered feather cards with their own undersides on 114 bones, golden and bald presets, two
+  judging poses (perched with the wings folded, spread in flight); revised the same day ("Yes, fix them", "the head
+  looks like a vulture structure"): an eagle's head and beak, a broad wing, a tucked fold with scapulars, shorter
+  legs; then the folded wing a third time ("curve it around the body so it doesn't read as flat boards from behind
+  and above"): wrapped round the body, the tertials roofing the back; no clips, export or Unity setup yet (see
+  [Golden eagle](#golden-eagle)).
 
 ![The wolf in the bind pose](docs/images/wolf_34.png)
 
@@ -101,7 +108,9 @@ the UVs. Always export after a rebuild, so the FBX and the textures in `textures
 | `bat_body.py`, `bat_anim.py`, `bat_paint.py`, `bat_build.py` | The giant bat: fused fur body, lofted arms, fingers and legs, the dragon's membranes with a bat `WingSpec`; its own small pose system with the dragon's wing strokes; built headless by `tools/creature_run.py` (see [Giant bat](#giant-bat)) |
 | `turtle_body.py`, `turtle_anim.py`, `turtle_paint.py`, `turtle_build.py` | The giant turtle: fused skin, a parametric carapace (closed shell, keels, scutes), plastron and bridges; beast_anim's quadruped clips with the neck sliding into the shell (`p.retract`) (see [Giant turtle](#giant-turtle)) |
 | `leech_body.py`, `leech_anim.py`, `leech_paint.py`, `leech_build.py` | The leech: a ringed tube built ring by ring with a toothed cup and a rear disc; a chain posed along curves (flat stretches, fitted arches and Beziers), swell bones for the pulses (see [Leech](#leech)) |
+| `eagle_body.py`, `eagle_pose.py`, `eagle_paint.py`, `eagle_build.py` | The golden eagle: fused body, the beak built from its profiles, feet and wing flesh pieces, layered feather cards (`Fe`): a bone per primary and per tail feather, the secondaries with the greater coverts and the tertials each on a two-bone row, scapulars; the perched and spread poses (folded, the wing one stack leaning in over the flank); scallop and feather-card painter with two presets; the overlap check and the before/after views (see [Golden eagle](#golden-eagle)) |
 | `beast_review.py`, `tools/creature_run.py` | Headless builds in files of their own: scene, game cameras, the wolf appended for scale, render sheets, lowest vertex per clip, a root-motion trace, a UV overlap count; the runner (`-- <creature> <steps>`) |
+| `tools/before_after.py` | Labelled before/after sheets from two folders of renders (system Python with Pillow, not Blender; 2026-10-24, the eagle's revision) |
 | `ooze_body.py`, `ooze_contents.py`, `ooze_paint.py`, `ooze_rig.py`, `ooze_anim.py`, `ooze_scene.py`, `ooze_build.py` | The dungeon ooze: a distance-field shell meshed with openvdb, the contents, charted UVs and per-texel paint without Cycles bakes, the rig, the clips and their checks, EEVEE review renders (see [Dungeon ooze](#dungeon-ooze)) |
 | `beast_coat.py` | Long coats: coat volumes (lofts), hem fringes snapped to their volume or dropped onto the body, clumps, the hair's root-to-tip `t` |
 | `beast_body.py` | Mesh helpers and the body pipeline: `fuse_body` (voxel fuse, fillet, sculpts, decimate, edge flips, fold relaxing), `build_tufts`, `sculpt_fur`, `join_pieces` |
@@ -966,6 +975,189 @@ Copy-Item "$B\export\Anims\leech_clips.json" "$U\Models\Anims\"
 Copy-Item "$B\textures\T_Leech.png" "$U\Textures\"
 Copy-Item "$B\unity\Beasts\Editor\LeechSetup.cs" "$U\Scripts\Editor\"
 ```
+
+## Golden eagle
+
+Daniel (2026-10-24): "You know, one of the models we need is an eagle or a falcon, can you model us one of those?
+Dont use the chicken as base, that model is bad". His rule here is model first, then animate, so this is the model:
+shape, feathers, paint and a rig that poses it perched (wings folded) and flying (wings spread). There are no clips, no
+export and no Unity setup yet, and nothing comes from the hen. Its own file is `blender/eagle.blend` (scene **Eagle**,
+cameras `EGL_*`), built headless.
+
+**Revision (2026-10-24, the second pass).** Daniel saw `eagle_presets.png` and `eagle_game_spread_x2.5.png` and
+answered my review of the first pass: "Yes, fix them", and "the head looks like a vulture structure, needs a pass
+too". What changed (before/after sheets: `renders/eagle_ba_*.png`):
+- **The head** read as a vulture's: a long head on a thin neck with a long beak. Now:
+  - a broad, flat-topped, short skull (6.8 cm across, 7.9 cm across the brow shelves; poll to beak tip 12.5 cm, was
+    14.2), its section boxy;
+  - a brow shelf over each eye, its outer edge and front end down and the front turned in (the frown);
+  - the eye an eyeball in a sculpted socket under the brow (a 9.4 mm cap standing about 3 mm out of it), looking
+    45° forward;
+  - a short, deep beak built from its side profile: 4.7 cm from the cere to the hook (a ~5 cm chord), 2.9 cm deep
+    at the cere with the lower mandible (it was 7.8 cm long). The culmen runs in one arc from the cere to the hook,
+    and the cutting edge runs back to below the eye's front;
+  - a short, thick neck (4.2-5.6 cm radius) with a hackle ruff behind the crown.
+- **The spread wing** read as a hand or a comb from above. Now:
+  - the primaries' tips are laid on a broad, near-rectangular outline: P1 at 62° down to P10 at 4° (was 80° to −9°);
+  - the six fingers (P5-P10) step 5-7° apart (was 8-12°) and separate only over their outer 34-42%, with narrow gaps;
+  - the secondaries are 0.33-0.40 m long (were 0.27-0.33), fanned 72-97° so the trailing edge runs on into the
+    hand's: a ~0.44 m chord, gently S-curved;
+  - the span is 2.03 m (2.01 before);
+  - the arm's flesh is painted as small dark coverts, so no flesh-coloured strip shows above or below;
+  - the alula lies flat along the hand's leading edge (it stuck out like a spike).
+- **The folded wing** looked like planks standing off the body, with saw-toothed edges. Now:
+  - the fold plane leans in 32° (was 17.5°) and the forearm lies lower on the flank;
+  - the secondaries hang 16° down-back (were 32°) with their fan closed (`FOLD_CLOSE`);
+  - new **scapulars** (four cards a side on a `Scap` bone) roll out over the wing's top edge and the humerus, so the
+    back runs on into the wing from above and behind;
+  - the cards' tips are blunt and rounded (three edges), not blunt chevrons;
+  - 12 narrower greater coverts with a third row, in low-contrast paint;
+  - the feather sculpt is mirrored, so both sides clear the cards alike;
+  - the wingtips reach the tail's middle, beside it (see the gotchas in HANDOFF).
+- **The legs** were thin stilts. Now:
+  - the tarsus is 9.2 cm (was 10.4) and the shin longer (16.3 cm, was 15.4), so the reach and the perched height
+    (0.60 m, was 0.62) stay;
+  - a feathered sock covers the top 44% of the tarsus, over a slimmer lower half: bare and yellow in the bald preset;
+  - the trousers are fuller (5 cm radius at the knee, was 4.5) and run down past the ankle to a slightly flared hem.
+- **The golden paint:**
+  - the hackles are tawny gold (`#9a7a3c` streaked `#563c20`) on the hind crown, nape and hindneck only (they were
+    lemon yellow over the whole head), fading into a dark forehead, brow and face;
+  - the beak is horn darkening to the hook, with the yellow cere saddle (the nostril in it), a thin dark cutting edge
+    and a soft yellow gape;
+  - the lower mandible is in the beak's own colours (no dark bar);
+  - the iris is dark amber-brown, with a dark rim, the pupil and the brow's shadow;
+  - the bars on the remiges and the tail are subtler, and the trousers are painted round the legs only.
+
+![The head before and after (golden, then bald)](docs/images/eagle_revision_head.png)
+
+![The spread wing before and after](docs/images/eagle_revision_spread.png)
+
+![The folded wing before and after](docs/images/eagle_revision_fold.png)
+
+**A third pass on the folded wing (2026-10-24) was reverted.** Daniel asked for it ("Do another pass on the folded wing first: curve it around the body so it doesn't read as flat boards from behind and above"): the stack wrapped round a convex profile, one bone per secondary and tertial (114 bones). It closed the wings round the back from behind and above, but Daniel judged the second pass better ("The before actually looks better than the after, can we go back?"), and the second pass's fold, rig and code are back (HANDOFF has the attempt's numbers).
+
+My calls (the first pass, unreviewed unless named above):
+- **Species and size:** a golden eagle (Aquila chrysaetos) at natural size: 0.84 m beak to tail tip, 2.03 m across the
+  wings, 0.60 m tall perched. Unity can scale it up for a giant eagle; the game renders check x1 and x2.5.
+- **Head:** see the revision above. The bald preset keeps its read: a white head, a yellow beak and a pale eye.
+- **Legs and feet:** feathered trousers and tarsus; bare yellow toes (three forward, the hallux back) with curved black
+  talons.
+- **Wings and tail:** a long, broad wing whose outer six primaries (P5-P10) end in slotted fingers, and a fan tail of
+  twelve feathers.
+- **Two paint presets:** golden and bald (white head and tail, yellow beak and feet, pale eye, a bare lower tarsus).
+
+![Perched, wings folded](docs/images/eagle_perched.png)
+
+![Spread, from above](docs/images/eagle_spread.png)
+
+![The two presets: golden (top) and bald](docs/images/eagle_presets.png)
+
+![Spread at the game camera (22 m top, 13 m bottom; 50°, fov 30), blown up x3, the grey wolf for scale](docs/images/eagle_game.png)
+
+| Part | Triangles | Texture |
+|---|---|---|
+| Fused body (trunk with a boxy section, neck, a boxy head with brow shelves, eye sockets and cheeks, the nape's ruff, shoulders, flanks, trousers) | 2,000 | `T_Eagle` (golden) / `T_Eagle_Bald` 1024², A = smoothness |
+| Upper beak with cere, lower mandible (built from their profiles), eyes | 260, 180, 100 | |
+| Tarsi (sock and slim half) and toes, talons | 624, 176 | |
+| Wing flesh: humerus slab (with the patagium's fill), forearm slab | 280 | |
+| Feather cards, one layer: primaries 288, primary coverts 72, secondaries 192, greater coverts 192, tertials 64, alula 16, scapulars 64, tail 144 | 1,032 | |
+| The cards' undersides (each card copied and flipped; none for the greater and primary coverts and the scapulars, never seen from below) | 704 | |
+| **EagleBody** | **5,356** (first pass 5,224) | `M_Eagle` / `M_Eagle_Bald`, back faces culled |
+
+How it is built:
+
+- **Bind pose:** the flight posture standing on its feet: the body level, the wings spread with the fingers open, the
+  tail closed. The feathers are laid out where their outline matters, nothing overlaps (clean UVs, bakes and AO) and
+  the feet are modelled open. Perched and spread are pose functions (`eagle_pose`).
+- **The body:** fused like the beasts' (`beast_body.fuse_body`, then `zwolf_body.tidy`) with heat weights. The sculpts
+  are the eye sockets (`_socket`) and the feather clumps, mirrored (`_fur`).
+- **The pieces:** the eyes, feet and wing flesh are clean lofts and domes in a `dragon_body.Acc`, each vertex with its
+  own weights: rigid, or chain weights along the toes. The two mandibles are built by `_mandible` from their side
+  profiles (`BEAK_UP`, `BEAK_LOW`: culmen and cutting edge, or cutting edge and gonys, and a half width per row) with a
+  ring across (`UP_RING`, `LOW_RING`); their (h, t) go into `root` for the painter.
+- **The feather cards** (`eagle_body.Fe`): open strips three vertices across (leading edge, shaft, trailing edge), with
+  a slight V, a slight ventral curve and a rounded tip (the last row narrowed, its edges drawn back by `chev`). Each
+  card is its own UV island; its coordinates (u across, v along, kind and index) go into the `root` attribute and are
+  baked for the painter.
+- **Card layers:** one order holds for both poses, from bottom/inside to top/outside: P10, P9, PC9 … P1, PC1, S1…S12,
+  T1…T4, G1…G12, A2, A1. In the open wing the proximal feather lies over the distal one; folded, the same order runs
+  inside to outside. A layer is 1.1 mm (1.4 mm in the primaries, each covert half a step over its own primary). Drops,
+  curves and camber are matched per stack, so overlapping cards stay parallel. The scapulars (SC1…SC4, the front one on
+  top) lie on the back, apart from the wing's stack.
+- **Undersides:** every card that can be seen from below has its faces copied onto new vertices and flipped (the bat's
+  fix), and the material culls back faces. Each side of a card is lit with its own normal.
+- **Feather bones:**
+  - one bone per primary (its covert rides it), per tail feather (the fan spreads) and per side for the scapulars
+    (`Scap`, a child of the chest);
+  - the 12 secondaries and the 12 greater coverts ride two bones, `WingSecA` and `WingSecB`, the 4 tertials
+    `WingTertA` and `WingTertB` (all children of the forearm), each card's weight fixed from where its root sits
+    between the two heads; when both bones turn the same way, linear blend skinning moves every card rigidly about its
+    own root, as a folding forearm moves its feathers.
+- **The fold** (`eagle_pose`): one stack in a plane against the flank (`FOLD`: its outer side leaning in 32°, its
+  long axis back and a little down); the humerus aims back at `elbow`, the forearm forward at `wrist` (the bend of the
+  wing at the breast's side), every other wing bone at an angle in that plane (`FOLD_ANG`: the hand and the primaries
+  3° down, the secondaries hanging 16° down-back, the tertials 4° down); the secondaries' fan closes (`FOLD_CLOSE`, 25°)
+  so they lie parallel; the alula is lifted onto the coverts (`FOLD_LIFT`); the scapulars roll out and down over the
+  wing's top edge (`FOLD_SCAP`). Each wing bone turns from its spread aim to its folded aim by the shortest rotation,
+  so a clip can blend `fold` from 0 to 1.
+- **Paint** (`eagle_paint`):
+  - the body's feathers are scallops: a jittered 3D lattice squeezed along the feather flow, with a pale fringe on
+    each tip; the hackles are streaked, and the wing's flesh gets the small scallops of the coverts;
+  - the cards have barred bases, a dark trailing band, the shaft, darker vane edges and pale fringes on the coverts;
+    the scapulars are the back's brown;
+  - the tail is barred with a broad dark tip (golden) or white (bald);
+  - the head has the brow's shadow, a thin lid, a soft yellow gape and the beak in its own coordinates;
+  - the toes have scutes and the talons are black.
+
+Bones (86): Root, Motion, Hips, Spine1, Chest, Neck1-3, Head, Jaw (the lower mandible), Tail1 and TailF1-6 L/R,
+Thigh/Shin/Tarsus and Toe1-4_1/_2 per leg (1 = the hallux). Per wing: WingArm, WingForearm, WingHand, WingAlula,
+WingP1-10, WingSecA/B and WingTertA/B; ScapL/R. Sockets: `Socket_Head`, `Socket_Mouth` and `Socket_Grip` (the right
+foot, for carried prey). Bone collections: Wings, Feathers (with Scap), TailFan, Toes.
+
+| Pose | What |
+|---|---|
+| `perched()` | the body raised 50°, the neck bent back so the head is level, the wings folded along the flank (one stack leaning in 32°, the scapulars rolled out over its top edge), the tail closed and lifted 6°, the feet planted (two-bone IK to the bind pose's ankles), the toes gripping 4° |
+| `spread()` | 0.9 m up, the body level, the wings as bound with the fingers 3° wider, the tail fanned 34°, the feet tucked under the tail (IK to body-space targets), the toes closed |
+| `folded()` | the bind pose with the wings folded (body level): for tuning the fold in the body's own axes |
+
+Checks (`eagle_build.check`; bind / perched / spread):
+- Card faces beyond their quills (`ROOT_T`) crossing the body: 0 / 0 / 0. The hit's place along the card is estimated
+  per hit, not per face.
+- Cards crossing other cards: 0 / 0 / 0.
+- Card vertices inside the body (ray parity, three rays voting): 0 / 0 / 0.
+- Cards against the wing's own flesh: 0 / 296 / 0. Folded, the bases of the primaries run along the forearm slab under
+  the secondaries, and the scapulars' roots cross the humerus slab under them.
+- Lowest vertex: 0.2 mm (talon tips), −4 mm (talon tips, gripping) and 1.13 m.
+- Weights: 0 unweighted, 0 with more than 4 influences. UV overlap: 0 texels; 83% coverage.
+- `folded()` (the bind pose with the wings folded, body level) is for tuning the fold in the body's own axes.
+
+Rebuild (headless, about 50 s for everything):
+
+```
+blender.exe -b --factory-startup --python tools/creature_run.py -- eagle build check review closeups game presets compare
+blender.exe -b --factory-startup blender/eagle.blend --python tools/creature_run.py -- eagle paint review
+blender.exe -b --factory-startup --python tools/creature_run.py -- eagle model check quick qhead qfold nosave   # no paint: debug colours, fast
+py tools/before_after.py renders/eagle_before renders renders/eagle_ba_head.png "Head" eagle_cmp_head_profile:profile ...
+```
+
+Renders (`renders/`):
+- the poses:
+  - `eagle_perched_<front|side|back|34|34back|above>.png` and the sheet `eagle_perched.png`;
+  - `eagle_spread_<front|side|back|34|above|below>.png` and the sheet `eagle_spread.png`;
+- close-ups:
+  - `eagle_head_profile.png`, `eagle_head_34.png`;
+  - `eagle_foot.png`, `eagle_foot_side.png`;
+  - `eagle_fold_side.png`, `eagle_fold_back34.png`;
+  - `eagle_wingtip_above.png`, `eagle_wingtip_below.png`;
+- the game camera: `eagle_game_<perched|spread>_x<1|2.5>.png` (top row 22 m, bottom row 13 m; azimuth 30 and 210; the
+  wolf from `blender/beasts.blend`) and `eagle_game_frames.png` (the whole 22 m frames);
+- paint and UVs: `eagle_presets.png`, `eagle_uv_golden.png`, `eagle_uv_bald.png`, `eagle_textures.png`;
+- the revision's fixed views (`compare`): `eagle_cmp_<view>.png` (head profile/3/4/front/above, golden and bald; fold
+  side/back/above/3/4 back; legs side/3/4; spread above/below and the wing tip). The first pass's renders and fixed
+  views are in `renders/eagle_before/`. The before/after sheets (`tools/before_after.py`) are
+  `eagle_ba_<head|spread|fold|legs|game|presets>.png`;
+- the quick Workbench looks (debug colours): `eagle_q_<bind|folded|perched|spread>.png`, `eagle_q_head.png`,
+  `eagle_q_fold.png`.
 
 ## Dragon and hydra
 

@@ -4,7 +4,7 @@ leech; src/<name>_build.py, blender/<name>.blend):
     blender.exe -b --factory-startup --python tools/creature_run.py -- bat build review game clips lowest trace sheets closeups export
     blender.exe -b --factory-startup blender/bat.blend --python tools/creature_run.py -- bat paint review
 
-The first argument names the creature (bat, turtle, leech); every other one is a step, run in the order given:
+The first argument names the creature (bat, turtle, leech, eagle); every other one is a step, run in the order given:
 build (model, rig, weights, UVs, paint), paint (the paint again on the built model, same UVs), review (EEVEE renders
 of the bind pose), game (the game camera, alone and beside the wolf), clips, lowest (the lowest vertex per clip),
 trace (the moving clips looped as Unity plays root motion), sheets (contact sheets per clip), closeups (EEVEE clip

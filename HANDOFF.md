@@ -506,6 +506,193 @@ checks.
     - **Rolling onto its side needs the centre line lifted** by the section's half-width (`_clip_death`).
     - `beast_rig.apply_pose(scale_bones=())`: new, default off (every other creature keys as before).
 
+- **Golden eagle (2026-10-24):** Daniel: "You know, one of the models we need is an eagle or a falcon, can you model
+  us one of those? Dont use the chicken as base, that model is bad". His rule: model first, then animate. This step is
+  the model: shape, feathers, paint and a rig that poses it perched and spread. No clips, export, Unity setup or game
+  wiring; Daniel sees the renders before the next step. Built headless into `blender/eagle.blend`:
+  `tools/creature_run.py -- eagle build check review closeups game presets` (about 30 s). Nothing comes from the hen;
+  the code reused is `dragon_body.Acc`, `_bone`/`_frame`, chain weights, `beast_body`, `beast_rig.skin_with_pieces`,
+  `beast_paint` and `beast_review`, plus the bat's two-layer underside.
+  - My calls (unreviewed; listed in the README):
+    - a golden eagle at natural size: 0.85 m beak to tail tip, 2.05 m span, ~0.6 m perched;
+    - the hooked beak with its cere, a brow shelf, amber-brown eyes, the golden crown and nape;
+    - feathered trousers and tarsus, yellow toes, black talons;
+    - six slotted fingers (P5-P10) and a 12-feather fan tail;
+    - two presets, golden and bald;
+    - the bind pose is the flight posture on its feet (the body level, the wings spread, the tail closed). Perched and
+      spread are pose functions (`eagle_pose.perched()`, `spread()`; `folded()` is the bind pose with the wings folded).
+  - Built: 5,224 tris. The fused body 2,000, the upper beak 192, the lower mandible 108, the eyes 100, the tarsi and
+    toes 568, the talons 176, the wing's flesh 336, the cards 872 plus their undersides 872. 84 bones; `T_Eagle` and
+    `T_Eagle_Bald` at 1024² (84% coverage, UV overlap 0); `M_Eagle` and `M_Eagle_Bald` cull back faces. Weights: 0
+    unweighted, 0 over 4.
+  - Feather bones:
+    - one bone per primary (its covert rides it) and per tail feather;
+    - the secondaries and greater coverts ride `WingSecA/B`, the tertials `WingTertA/B` (all children of the forearm),
+      each card's weight fixed from its root's place between the two heads;
+    - two bones turned the same way move every card between them rigidly about its own root (an LBS blend of equal
+      rotations is a rotation); `eagle_pose.RIGID_PAIR` derives A's turn from B's;
+    - 28 cards a wing fold on 4 bones; one rigid bone could not fold them (they would point out sideways).
+  - Layers: one order for both poses, P10, P9, PC9 … P1, PC1, S1..S12, T1..T4, G1..G12, A2, A1. In the open wing the
+    proximal feather lies over the distal one; folded, the order runs inside to outside.
+  - The fold (`eagle_pose.FOLD` / `FOLD_ANG`, in the body's rest axes) is one stack in a plane against the flank,
+    leaning in at the top:
+    - the humerus aims at `elbow`; the forearm runs forward to `wrist`, projected into the plane;
+    - the secondaries angle 32° down-back;
+    - the hand and the primaries turn 2° in about the vertical together.
+  - Checks (`eagle_build.check`; bind / perched / spread):
+    - card through the body: 0 / 0 / 0;
+    - card through card: 0 / 0 / 0;
+    - card vertices inside the body: 0 / 0 / 0;
+    - cards against the wing's own flesh: 0 / 292 / 0 (folded, the remiges' bases run along the forearm slab under the
+      secondaries; not visible in the renders);
+    - lowest vertex: 0.2 mm, -4 mm (gripping talon tips) and 1.13 m.
+  - Gotchas:
+    - **A stack crosses itself at 1 mm layer steps** if its cards' curve, drop or camber differ. The curve is a
+      fraction of the card's own length, so a short covert's tip dips more than its long primary (PC5 crossed P5).
+      Match them per stack and keep the camber at 1.5%.
+    - **Root offsets must run along the fold plane's normal.** A forearm tilted out of the plane reversed the
+      secondaries' order along its length (S1 ended up outside S12). Turning the primaries in without the hand put
+      P10's root above P1's.
+    - **The tertials on the humerus dived into the body** when it folded. They ride the forearm now and land behind
+      the elbow.
+    - **Two mirrored stacks leaning in can't overlap without cutting each other:** their planes cross at the midline.
+      The wingtips meet over the tail instead of crossing (the brief asked for crossing).
+    - **A per-face filter for the quills lies.** A long card face whose root end sits under the tail coverts counted
+      along its whole length; `overlap_report` estimates the card's own t at each hit (`_t_on_card`). The nearest-face
+      normal sign was no inside test either (it flagged the tail tip 20 cm from the body); ray parity is.
+    - **No hand slab:** folded, the primaries lie along the hand and went through it. The primary coverts and the alula
+      cover the hand.
+    - **A gap between the folded wing and the body:** a flat stack meets a round body on one line. Leaning out at the
+      top tucked the bottom in but opened the top, which the game camera sees. It leans in now, the trunk section is
+      boxier (`loft(shape=0.82)`), and scapular, shoulder and flank volumes fill the sides.
+    - Workbench colours from a colour attribute: `color_type='VERTEX'` in 4.4 (`'ATTRIBUTE'` errors). `quick` shows the
+      debug colours of a `model` build (no paint).
+    - A material on no object is dropped at save: `M_Eagle_Bald` has a fake user.
+
+- **Golden eagle, revision (2026-10-24):** Daniel saw `eagle_presets.png` and `eagle_game_spread_x2.5.png` and answered
+  my review of the first pass: "Yes, fix them", and "the head looks like a vulture structure, needs a pass too". Still
+  the model only (no clips, no Unity, not committed). The first pass's renders are in `renders/eagle_before/`. The new
+  `compare` step renders the same fixed views (`eagle_cmp_*.png`), and `tools/before_after.py` (system Python,
+  Pillow) makes the sheets `renders/eagle_ba_<head|spread|fold|legs|game|presets>.png`.
+  - The head:
+    - a short, broad, flat-topped skull: a boxy `HEAD` loft, 6.8 cm across, 7.9 cm across the brows; poll to beak
+      tip 12.5 cm, was 14.2;
+    - brow shelves over the eyes, the outer edge and front end down and the front turned in;
+    - an eyeball (`dome`, r 9.4 mm, 5 mm high) in a socket sculpted round its axis (`_socket`), looking 45° forward;
+    - a short, thick neck and a nape ruff;
+    - the beak built by `_mandible` from side profiles (`BEAK_UP`, `BEAK_LOW`): 4.7 cm from the cere, 2.9 cm deep at
+      it. Its (h, t) are in `root`, and the painter colours the cere, nostril, cutting edge and hook by them. The lower
+      mandible is in the beak's colours; a soft gape;
+    - the landmarks moved: `POLL`, `BEAK`, `HINGE`, `CHIN`, the sockets.
+  - The spread wing:
+    - P1 62° to P10 4°, lengths 0.40-0.46 m, laid on a near-rectangular outline;
+    - fingers 5-7° apart, separated over their outer 34-42% (`P_EMARG`);
+    - secondaries 0.33-0.40 m, fanned 72-97°: chord ~0.44 m; span 2.03 m;
+    - the flesh slabs painted as coverts; the alula flat along the hand.
+  - The fold:
+    - `FOLD` leans 32°, the forearm lower; S1 at −16°;
+    - `FOLD_CLOSE` closes the secondaries' 25° fan: A is turned toward B about the fold's normal. The cards between
+      blend two rotations about one axis, a rotation scaled by cos 12.5° at most;
+    - P −3°, tertials −4°, the alula −12° and lifted 1.6 cm (`FOLD_LIFT`: a translation of the bone along the fold's
+      normal);
+    - scapulars: `SC1-4` per side on `ScapL/R` (children of the chest). Rest: on the back, 10° outward slope. Folded:
+      rolled 20.5° and turned 3° out (`FOLD_SCAP`);
+    - rounded tips (`CHEV` 0.45, last row 0.70; fingers 1.0);
+    - 12 greater coverts, 7.5 cm wide, with three rows, angled 74-86°;
+    - no undersides on the greater and primary coverts and the scapulars (`NO_UNDERSIDE`, never seen): 280 tris saved.
+  - The legs: tarsus 9.2 cm (`ANKLE` at z 0.110), a feathered sock over the top 44% (`TARSUS_SOCK`) with a slimmer
+    lower half; the shin 16.3 cm; the trousers fuller, past the ankle, flaring; the trouser paint mask now round the
+    thigh-shin line only (`_trousers`).
+  - Golden paint: the hackles `#9a7a3c`/`#563c20` on the hind crown, nape and hindneck; subtler bars (`bar_k`,
+    `tail_bar_k`); darker coverts; the iris `#5a3210`/`#76481b`.
+  - Built: 5,356 tris (was 5,224):
+    - the fused body 2,000; beak 260, lower mandible 180, eyes 100; tarsi and toes 624, talons 176; wing flesh 280;
+    - cards 1,032 plus undersides 704: primaries 288, primary coverts 72, secondaries 192, greater coverts 192,
+      tertials 64, alula 16, scapulars 64, tail 144;
+    - 86 bones; 83% texture coverage, UV overlap 0; weights 0 unweighted, 0 over 4;
+    - perched 0.60 m tall (0.62), 0.84 m long (0.87).
+  - Checks (bind / perched / spread): card through the body 0 / 0 / 0, card through card 0 / 0 / 0, card vertices
+    inside 0 / 0 / 0, cards against the wing's flesh 0 / 296 / 0 (the remiges' bases along the forearm slab and the
+    scapulars' roots over the humerus slab, under the cards), lowest vertex 0.2 mm, −4 mm, 1.13 m.
+  - Gotchas:
+    - **The secondaries at 32° down made the planks:** each card's lower edge steps 1 cm from the next. At 16° with
+      the fan closed, the steps are millimetres.
+    - **The folded wing's top edge is the remiges' inner vanes** (5-6 cm above the forearm: the trailing vanes face up
+      when folded). Only cards rooted on the body can cover it, hence the scapulars. A cape of flat cards can't follow
+      a round back: at 18° outward slope they cut the back (spread), at 5° they stand off it. The bone's roll does
+      both (10° rest, 30.5° folded).
+    - **Reverse-overlapped greater coverts** (the distal one on top, as on a real upper wing) give a row of tips when
+      folded. Over a secondaries' stack that climbs 12 mm toward the elbow, they float 1-2.5 cm in the open wing
+      (tried, dropped). Rolling each card about its shaft (louvres) crossed them as the fan closed. Rigid on the
+      forearm, folded, they hang down as one board. They overlap the usual way: 12 narrow ones, so the folded steps
+      are small.
+    - **The wingtips don't meet over the tail:** turned further in (4-6°) they cut the rump; tilted up (2-8°) they cut
+      the outer tail feathers and the scapulars. They reach the tail's middle beside it.
+    - **The sculpted feather clumps were one-sided** (noise on the symmetrized body), so the right side's cards hit
+      where the left's cleared. `_fur` mirrors them.
+    - **The old trouser mask** (all below z 0.30) painted the whole belly and breast tawny.
+    - **Euler Y on a mirrored blob:** −Y raised the brow's outer edge. The first pass's "horns" at the brow came from it.
+
+- **Golden eagle: the third fold pass reverted (2026-10-24).** Daniel, comparing `renders/eagle_ba_fold3.png`: "Lets accept the issue and animate it... wait. The before actually looks better than the after, can we go back?" The second pass's eagle sources (`src/eagle_body.py`, `eagle_pose.py`, `eagle_build.py`, `eagle_paint.py`, saved by the third pass before it started) are back and the model rebuilt from them (`build check review closeups game presets`): 5,356 tris, 86 bones, all card checks 0 in bind / perched / spread, the hidden card-vs-flesh 296 when perched, lowest vertex 0.2 mm. The README describes the second pass again; the entry below is the reverted attempt's record (its approach, numbers and open points), kept for the next try. Daniel accepts the folded wing as it is ("accept the issue and animate it"): next are the clips and the Unity setup.
+- **Golden eagle, the folded wing's third pass (2026-10-24):** Daniel looked at `renders/eagle_ba_fold.png` and asked:
+  "Do another pass on the folded wing first: curve it around the body so it doesn't read as flat boards from behind
+  and above." Still the model only (no clips, no Unity, not committed). The second pass's renders are in
+  `renders/eagle_before_fold/` (and the fold views, game shots and measurements of that model, made with the new
+  steps); the sheets are `renders/eagle_ba_fold3.png` (golden), `eagle_ba_fold3_bald.png`, `eagle_ba_fold3_game.png`,
+  `eagle_ba_spread3.png`; the sections `renders/eagle_fold_sections.png`.
+  - What it is now (`eagle_pose`, "the folded wing"):
+    - the flat stack (`fold_stack`): one plane, `FOLD_PLANE` leaning in 35°, its back end turned 6° in toward the
+      midline and raised 7° (the wings converge on the tail); the forearm along the plane's long axis (`FOLD['wrist']`
+      None), so the secondaries' roots and top edges are level; the fans closed (`FAN`, by each card's open-wing angle);
+      the primaries 3° down and dropped 2.4 cm under S1's top edge (`FOLD_DROP_AUTO`: their band is the folded wing's
+      lower edge); the coverts' and the tertials' top edges set 3 and 4.8-6 cm above the secondaries' (`FOLD_TOPS`);
+      the tertials lifted 1.2 cm outside the coverts, the alula 6 mm (`FOLD_LIFT`);
+    - the wrap (`_wrap`): a convex profile along the body (`WRAP`: 12 cm radius over the back, 14.5 cm down the side),
+      starting in the plane at the secondaries' top edge; each unit (a card's bone or the coverts' pair) is turned
+      about its own top edge by the profile's turn at its arc and hung there, tangent to it. Tertials 23-29° over the
+      back (meeting the other wing's over the rump), coverts 14° over the shoulder, the secondaries the plane (they
+      ride S12: one facet), the primaries 10° in toward the flank and the tail's sides;
+    - why it can't make cards cut each other: of two tangents to a convex curve, the one further round stays inside
+      the other past its tangent point, so a card hung further round stays inside every card outside it as long as its
+      top edge is no higher; the drop and `FOLD_TOPS` keep that order;
+    - the scapulars: `FOLD_SCAP` (30.5° roll, 1° in); the perched tail: `PERCHED_TAIL` (3° up, was 6; 10° closed past
+      shut, so the wingtips lie at its sides).
+  - Bones: one per secondary (`WingS1..12`) and per tertial (`WingT1..4`), the greater coverts on `WingCovA/B`; 114
+    bones (was 86). The rest frames are the cards' own, so the bind and spread poses are unchanged (the spread renders
+    differ by under 0.3/255 on average, from the UV islands packed in another order).
+  - Built: 5,356 tris, unchanged (the fused body 2,000; beak 260, lower mandible 180, eyes 100; tarsi and toes 624,
+    talons 176; wing flesh 280; cards 1,032 plus undersides 704); weights 0 unweighted, 0 over 4; UV overlap 0, 82%
+    coverage.
+  - Checks (bind / perched / spread): card through the body 0 / 0 / 0, card through card 0 / 0 / 0, card vertices
+    inside 0 / 0 / 0, cards against the wing's flesh 0 / 278 / 0 (under the cards), lowest vertex 0.2 mm, −4 mm,
+    1.13 m.
+  - Measured (`eagle_build.foldmetrics`, perched, in the body's axes; before → after): the wing's inner side off the
+    body 47 / 189 → 41 / 103 mm (mean / max); its lower edge off the body 109 / 189 → 54 / 103 mm; the shell index (the
+    outer face's turn over the section against the angle it spans) 0.04 → 0.46; the lower edge's flare 61° / 66° →
+    58° / 60°; sky between wing and trunk or tail behind / above / low 3/4 back 29 / 48 / 14 → 10 / 32 / 13 cm²; the
+    wingtips 22.4 → 14.4 cm apart (each 7.2 cm out of the middle, the closed tail 5.0 cm half wide); the wing's half
+    width from above at the shoulder / mid-back / rump / tail 16 / 18 / 20 / 19 → 15 / 14 / 13 / 12 cm.
+  - New steps (`eagle_build`): `foldviews`, `foldgame`, `foldmetrics` (see the README's renders list).
+  - Gotchas:
+    - **Flat cards can't be bent round a curve by turning each a little more than the one outside it** when they
+      overlap almost wholly (the secondaries, 1-9 mm apart): turned about their own top edges they fan out like
+      louvres from one line; turned about their middles they cut each other. Hung from their top edges on a convex
+      profile they stay clear, but only groups whose top edges stand apart turn apart (a facet per group).
+    - **The primaries are inner cards with wider inner vanes:** near the wrist their top edges stood 2.5-4.5 cm above
+      S1's, so any wrap clamped the secondaries flat (or the primaries came out through them). Dropped under S1, their
+      band becomes the wing's lower edge, as on the bird.
+    - **The primaries sit on the trousers:** every way of lowering or turning them in (secondaries staggered down so
+      the wrap fans them, the primaries turned 2° in, a 2° steeper plane) put their lower edges into the thighs. The
+      wingtips stay beside the tail; they don't meet over it.
+    - **The tertials' natural top edges are 2 cm apart** (rooted up the humerus), so the wrap fanned them 8° apart and
+      from a low 3/4 back the far wing's showed as separate blades with sky between. `FOLD_TOPS` sets them 4 mm apart.
+    - **A tight profile over the back stands the caps off:** a flat card hung from its top on a radius r stands off
+      w²/2r at its lower edge (8 cm on 12 cm: 2.7 cm before the next card's own lean).
+    - **The wrap is per unit, the clearance proof per card pair:** the coverts' pair is one rigid unit; they must stay
+      outside S12 behind the elbow (G9-G12) and inside the tertials (hence the tertials' lift).
+    - **The UV pack follows the dominant bone per vertex** (`beast_paint.mark_seams`): new bones re-pack the islands;
+      the textures on disk then belong to the new layout. To re-render the old model, run its own `paint` first.
+
 Both are installed in MedievalSetting (`Assets/Beasts`, `Scenes/Beasts_Test`: 7 wolves, 10 rats, 8 goblins). Root
 motion is traced over 3 loops for both: steady head offset, no loop snap.
 
@@ -629,6 +816,30 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
     victim between `Bite` and the end of Lunge; `Drain` / `Drain2` for damage over time);
   - Lunge latches onto a point 0.4 m up in front of it, not onto a victim's real position (no IK);
   - maybe: a Swim clip (vertical undulation), a turn in place, a smaller swarm variant.
+- **Golden eagle (2026-10-24):**
+  - Status (2026-10-24): the model is accepted with the folded wing as the second pass left it (the third pass
+    reverted at Daniel's call). Next: the clips and the Unity setup. Not committed before the revert; committed
+    with it.
+  - The fold is wrapped in facets, one per feather group (tertials, coverts, secondaries, primaries): from behind and
+    above the wings close round the back, but the wing's side (the secondaries) is still one flat facet, so from a 3/4
+    back the near wing still reads as a board, and seen edge-on from the far side the facets' edges separate into 2-3
+    thin plates. A smoother side would need the secondaries spread round the flank, and their band sits on the
+    primaries', which sit on the trousers.
+  - The wingtips lie beside the closed tail (14.4 cm apart, 2 cm outside its edges); they don't meet or cross over it.
+  - The coverts and the tertials stand off the secondaries a little at their lower edges (flat cards hung on a curve);
+    the tertials' tops still show as a short stair from the side, the coverts' as a fine stair of edges.
+  - `folded()` (body level) has the open tail: the primaries meet it there. Clips with folded wings need
+    `PERCHED_TAIL`'s closed tail.
+  - The scapulars over a round back: their outer edges stand off it a little in the spread pose.
+  - Folded, the remiges' bases run through the forearm slab and the scapulars' roots cross the humerus slab (278 face
+    pairs, under the cards).
+  - The trousers end in a smooth hem (a flared cuff), not ragged feathers.
+  - 114 bones (72 of them feather bones: 60 in the wings and scapulars, 12 in the tail). Daniel may want fewer;
+    the secondaries could go back to fewer row bones only if their fold stays one facet (it does now).
+  - 5,356 tris against the brief's ~5,000 (the beak +140, the tarsi +56, the scapulars +64, the 12 three-row
+    greater coverts +96, less 280 for the coverts' and scapulars' dropped undersides).
+  - Next, when he says so: clips (perch idle, take-off, flap and glide loops, land, dive and grab with
+    `Socket_Grip`, a scream on `Jaw`, hit, death), then the export and an `EagleSetup.cs` like the bat's.
 - **More beasts:** a howdah on the mammoth's `Socket_Back` (the driver on the neck is done, "Riders"), giant elk, boar and dire variants can reuse the
   pipeline: parts, tufts, fuse, heat weights, and the painter's flow strokes.
 - **Ooze, Unity side:**
