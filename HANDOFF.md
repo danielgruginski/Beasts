@@ -925,7 +925,12 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   - Lunge latches onto a point 0.4 m up in front of it, not onto a victim's real position (no IK);
   - maybe: a Swim clip (vertical undulation), a turn in place, a smaller swarm variant.
 - **Golden eagle (2026-10-24):**
-  - The arm's feathers fixed (2026-10-24, entry above); not seen by Daniel yet.
+  - The arm's feathers fixed (2026-10-24, entry above). Daniel then: "any idea why this looks boxy?" (the perched
+    eagle from the game camera, front-above), and before I answered: "wait, we spent so much time in this eagle,
+    let's just submit as it is". Submitted as it is: MedievalSetting cs:93 (the eagle's assets, EagleFeatherFold,
+    BeastSetupUtil's blendShapes flag, Creatures_Test). The boxy look is not looked into (renders
+    `renders/eagle_boxy_*.png` made, not compared): candidates are the trunk's and head's boxy lofts (shape 0.82 / 0.80),
+    the folded wing's flat stacks either side, and the arm's thicker flesh (ARM_RISE) at the shoulders.
   - Status: the model is accepted with the folded wing as the second pass left it, plus the creases (2026-10-24, Daniel's
     idea; not judged by him yet: if he prefers the plain fold, `CREASES` can be emptied or the shares set to 0 without
     a rebuild of the rig); ten clips, the export and `EagleSetup.cs` are done and pushed. Installed in MedievalSetting
