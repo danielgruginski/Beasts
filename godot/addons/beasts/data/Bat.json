@@ -1,0 +1,96 @@
+{
+ "Bat": {
+  "target": "BatBody",
+  "scale": [
+   0.92,
+   1.08
+  ],
+  "skins": [
+   {
+    "name": "Base",
+    "texture": "T_Bat"
+   }
+  ],
+  "meshes": {
+   "BatWing": {
+    "name": "Wing",
+    "texture": "T_Bat"
+   }
+  },
+  "pools": [
+   {
+    "name": "Idle",
+    "weight": 2,
+    "clips": [
+     "Idle",
+     "Hover"
+    ],
+    "hold": [
+     3,
+     6
+    ]
+   },
+   {
+    "name": "Fly",
+    "weight": 2,
+    "clips": [
+     "Fly"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "moves": true
+   },
+   {
+    "name": "Screech",
+    "weight": 0.5,
+    "clips": [
+     "Screech"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Dive"
+   },
+   {
+    "name": "Dive",
+    "weight": 1.2,
+    "clips": [
+     "Dive"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Hit",
+    "weight": 0.4,
+    "clips": [
+     "Hit"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Death",
+    "weight": 0.2,
+    "clips": [
+     "Death"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle",
+    "after": 2.5
+   }
+  ]
+ }
+}

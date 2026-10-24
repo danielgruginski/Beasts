@@ -1,0 +1,180 @@
+{
+ "Rhino": {
+  "target": "RhinoBody",
+  "scale": [
+   1.0,
+   1.0
+  ],
+  "skins": [
+   {
+    "name": "Base",
+    "texture": "T_Rhino"
+   }
+  ],
+  "meshes": {
+   "Spear": {
+    "name": "Spear",
+    "texture": "T_Rhino"
+   }
+  },
+  "pools": [
+   {
+    "name": "Idle",
+    "weight": 2,
+    "clips": [
+     "Idle"
+    ],
+    "hold": [
+     2.5,
+     5
+    ]
+   },
+   {
+    "name": "Walk",
+    "weight": 2,
+    "clips": [
+     "Walk"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "moves": true
+   },
+   {
+    "name": "Run",
+    "weight": 0.8,
+    "clips": [
+     "Run"
+    ],
+    "hold": [
+     1.5,
+     3
+    ],
+    "moves": true
+   },
+   {
+    "name": "Paw",
+    "weight": 0.8,
+    "clips": [
+     "Paw"
+    ],
+    "hold": [
+     1.2,
+     1.2
+    ],
+    "next": "Charge"
+   },
+   {
+    "name": "Charge",
+    "weight": 0,
+    "clips": [
+     "Charge"
+    ],
+    "hold": [
+     1.0,
+     1.6
+    ],
+    "moves": true,
+    "next": "Idle"
+   },
+   {
+    "name": "Gore",
+    "weight": 1.2,
+    "clips": [
+     "Gore"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Stamp",
+    "weight": 0.5,
+    "clips": [
+     "Stamp"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Roar",
+    "weight": 0.4,
+    "clips": [
+     "Roar"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Daze",
+    "weight": 0.3,
+    "clips": [
+     "Daze"
+    ],
+    "hold": [
+     2,
+     4
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Sleep",
+    "weight": 0.3,
+    "clips": [
+     "Sleep"
+    ],
+    "hold": [
+     4,
+     7
+    ],
+    "next": "Wake"
+   },
+   {
+    "name": "Wake",
+    "weight": 0,
+    "clips": [
+     "Wake"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Hit",
+    "weight": 0.4,
+    "clips": [
+     "Hit"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Death",
+    "weight": 0.15,
+    "clips": [
+     "Death"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Wake",
+    "after": 2.5
+   }
+  ]
+ }
+}

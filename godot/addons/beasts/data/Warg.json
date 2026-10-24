@@ -1,0 +1,187 @@
+{
+ "Warg": {
+  "target": "WargBody",
+  "scale": [
+   0.94,
+   1.08
+  ],
+  "skins": [
+   {
+    "name": "Dark",
+    "texture": "T_Warg",
+    "weight": 3,
+    "normal": "T_Warg_Normal"
+   },
+   {
+    "name": "Ash",
+    "texture": "T_Warg_Ash",
+    "normal": "T_Warg_Normal"
+   },
+   {
+    "name": "Black",
+    "texture": "T_Warg_Black",
+    "normal": "T_Warg_Normal"
+   }
+  ],
+  "meshes": {
+   "WargTack": {
+    "name": "Tack",
+    "texture": "T_WargTack",
+    "normal": "T_WargTack_Normal",
+    "normal_scale": 0.8,
+    "visible": false
+   },
+   "WargMask": {
+    "name": "Tack",
+    "texture": "T_WargTack",
+    "normal": "T_WargTack_Normal",
+    "normal_scale": 0.8,
+    "visible": false
+   }
+  },
+  "variants": [
+   {
+    "name": "WargRidden",
+    "show": [
+     "WargTack",
+     "WargMask"
+    ]
+   }
+  ],
+  "pools": [
+   {
+    "name": "Idle",
+    "weight": 2,
+    "clips": [
+     "Idle",
+     "IdlePant"
+    ],
+    "hold": [
+     3,
+     6
+    ]
+   },
+   {
+    "name": "Walk",
+    "weight": 2.2,
+    "clips": [
+     "Walk"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "moves": true
+   },
+   {
+    "name": "Trot",
+    "weight": 1.6,
+    "clips": [
+     "Trot"
+    ],
+    "hold": [
+     2,
+     5
+    ],
+    "moves": true
+   },
+   {
+    "name": "Run",
+    "weight": 0.7,
+    "clips": [
+     "Run"
+    ],
+    "hold": [
+     1.5,
+     3
+    ],
+    "moves": true
+   },
+   {
+    "name": "Threat",
+    "weight": 0.8,
+    "clips": [
+     "Threat"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Bite"
+   },
+   {
+    "name": "Bite",
+    "weight": 1.2,
+    "clips": [
+     "Bite"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Lunge",
+    "weight": 0.8,
+    "clips": [
+     "Lunge"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Howl",
+    "weight": 0.5,
+    "clips": [
+     "Howl"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Hit",
+    "weight": 0.5,
+    "clips": [
+     "Hit"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Death",
+    "weight": 0.25,
+    "clips": [
+     "Death"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "GetUp",
+    "after": 2
+   },
+   {
+    "name": "GetUp",
+    "weight": 0,
+    "clips": [
+     "GetUp"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   }
+  ]
+ }
+}

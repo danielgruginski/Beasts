@@ -1,0 +1,102 @@
+{
+ "Turtle": {
+  "target": "TurtleBody",
+  "scale": [
+   0.9,
+   1.1
+  ],
+  "skins": [
+   {
+    "name": "Base",
+    "texture": "T_Turtle"
+   }
+  ],
+  "pools": [
+   {
+    "name": "Idle",
+    "weight": 2.5,
+    "clips": [
+     "Idle"
+    ],
+    "hold": [
+     4,
+     8
+    ]
+   },
+   {
+    "name": "Walk",
+    "weight": 2,
+    "clips": [
+     "Walk"
+    ],
+    "hold": [
+     4,
+     8
+    ],
+    "moves": true
+   },
+   {
+    "name": "Bite",
+    "weight": 0.8,
+    "clips": [
+     "Bite"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Withdraw",
+    "weight": 0.5,
+    "clips": [
+     "Withdraw"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Emerge",
+    "after": 3
+   },
+   {
+    "name": "Emerge",
+    "weight": 0,
+    "clips": [
+     "Emerge"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Hit",
+    "weight": 0.4,
+    "clips": [
+     "Hit"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Death",
+    "weight": 0.15,
+    "clips": [
+     "Death"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle",
+    "after": 2.5
+   }
+  ]
+ }
+}

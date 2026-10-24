@@ -1,0 +1,183 @@
+{
+ "Mammoth": {
+  "target": "MammothBody",
+  "scale": [
+   0.92,
+   1.06
+  ],
+  "skins": [
+   {
+    "name": "Brown",
+    "texture": "T_Mammoth",
+    "weight": 2
+   },
+   {
+    "name": "Dark",
+    "texture": "T_Mammoth_Dark"
+   }
+  ],
+  "meshes": {
+   "MammothTack": {
+    "name": "Tack",
+    "texture": "T_MammothTack",
+    "normal": "T_MammothTack_Normal",
+    "normal_scale": 0.8,
+    "visible": false
+   }
+  },
+  "variants": [
+   {
+    "name": "MammothTacked",
+    "show": [
+     "MammothTack"
+    ]
+   }
+  ],
+  "pools": [
+   {
+    "name": "Idle",
+    "weight": 2,
+    "clips": [
+     "Idle"
+    ],
+    "hold": [
+     3,
+     6
+    ]
+   },
+   {
+    "name": "Graze",
+    "weight": 1.2,
+    "clips": [
+     "Graze"
+    ],
+    "hold": [
+     4,
+     8
+    ]
+   },
+   {
+    "name": "Walk",
+    "weight": 2,
+    "clips": [
+     "Walk"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "moves": true
+   },
+   {
+    "name": "Run",
+    "weight": 0.6,
+    "clips": [
+     "Run"
+    ],
+    "hold": [
+     1.5,
+     3
+    ],
+    "moves": true
+   },
+   {
+    "name": "Charge",
+    "weight": 0.4,
+    "clips": [
+     "Charge"
+    ],
+    "hold": [
+     1.2,
+     2
+    ],
+    "moves": true,
+    "next": "Idle"
+   },
+   {
+    "name": "Trumpet",
+    "weight": 0.4,
+    "clips": [
+     "Trumpet"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "TuskSwipe",
+    "weight": 1.0,
+    "clips": [
+     "TuskSwipe"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Stomp",
+    "weight": 0.5,
+    "clips": [
+     "Stomp"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Sleep",
+    "weight": 0.3,
+    "clips": [
+     "Sleep"
+    ],
+    "hold": [
+     4,
+     7
+    ],
+    "next": "Wake"
+   },
+   {
+    "name": "Wake",
+    "weight": 0,
+    "clips": [
+     "Wake"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Hit",
+    "weight": 0.4,
+    "clips": [
+     "Hit"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Death",
+    "weight": 0.15,
+    "clips": [
+     "Death"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Wake",
+    "after": 2.5
+   }
+  ]
+ }
+}

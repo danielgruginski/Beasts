@@ -1,0 +1,125 @@
+{
+ "Eagle": {
+  "target": "EagleBody",
+  "scale": [
+   0.92,
+   1.08
+  ],
+  "skins": [
+   {
+    "name": "Golden",
+    "texture": "T_Eagle"
+   },
+   {
+    "name": "Bald",
+    "texture": "T_Eagle_Bald"
+   }
+  ],
+  "pools": [
+   {
+    "name": "Idle",
+    "weight": 2,
+    "clips": [
+     "Idle"
+    ],
+    "hold": [
+     4,
+     8
+    ]
+   },
+   {
+    "name": "Walk",
+    "weight": 0.8,
+    "clips": [
+     "Walk"
+    ],
+    "hold": [
+     2,
+     5
+    ],
+    "moves": true
+   },
+   {
+    "name": "Screech",
+    "weight": 0.4,
+    "clips": [
+     "Screech"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Hit",
+    "weight": 0.3,
+    "clips": [
+     "Hit"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Death",
+    "weight": 0.1,
+    "clips": [
+     "Death"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle",
+    "after": 2.5
+   },
+   {
+    "name": "TakeOff",
+    "weight": 0.9,
+    "clips": [
+     "TakeOff"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Flight"
+   },
+   {
+    "name": "Flight",
+    "weight": 0,
+    "clips": [
+     "Fly",
+     "Glide",
+     "Fly",
+     "Dive",
+     "Fly",
+     "Glide"
+    ],
+    "hold": [
+     2,
+     4
+    ],
+    "moves": true,
+    "next": "Land",
+    "sequence": true
+   },
+   {
+    "name": "Land",
+    "weight": 0,
+    "clips": [
+     "Land"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   }
+  ],
+  "setup": "res://addons/beasts/setup/eagle_setup.gd"
+ }
+}

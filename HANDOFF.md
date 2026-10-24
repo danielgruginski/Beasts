@@ -830,6 +830,42 @@ motion is traced over 3 loops for both: steady head offset, no loop snap.
 Repo: github.com/danielgruginski/Beasts (`main`; public since 2026-10-06, CC0, for the itch.io packs). It holds the scripts and docs only; the .blend, the
 exports, the textures and the renders are regenerated (see `.gitignore`). Commit and push each piece of work as soon as it is finished and checked (Daniel, 2026-10-12).
 
+- **The Godot creatures pack (2026-10-24).** Daniel: "converting the creatures into a godot file ... including the demo
+  scenes and the special effects like the ooze transparency or the ooze oozing ooze on the floor"; "the plan is to
+  build a godot one" (of the itch Creatures pack); his picks: GDScript (the standard Godot), every creature built so
+  far. Blender -> glTF -> Godot 4.7 (README "Godot"): `src/beast_gdx.py` + `tools/godot_export.py` (each creature's own
+  `export()` with the FBX writer swapped: same rig, meshes, clips, texture prefix as Unity), `tools/install_to_godot.py`,
+  the addon `godot/addons/beasts` (import script, `Creature`, `CreatureWanderer`, coat shaders, builder from the
+  Unity setups' values in `data/*.json`, demo scenes + viewer + menu). 20 beasts exported (all 12 Blender files; the
+  warg from `beasts_unsaved_2026-10-12_warg.blend`), every one built with its coats, sizes and pools; variants
+  WargRidden and MammothTacked; the eagle's FoldL / FoldR blend shapes (positions only) driven by its gauge bones;
+  the dragon's breath. Checked in Godot: wolves wander by root motion, coats and sizes roll, events fire (Howl, Dead,
+  Bite), Death -> GetUp; a lineup of every creature; the demo scenes (beasts 37, dragons 4, farm 30, insectoids 27).
+  The insectoids are in the same project (Insectoids repo's `godot/addons/insectoids`).
+  - The ooze (`ooze/`, `creatures.json` "Ooze"): the see-through jelly (far side + near side, one material per
+    colour preset), the remains inside at real size, the trail that dries in ~9 s (drying on the GPU), drips and
+    splashes, the acid glob with its fizzing puddle, OozeSmall and OozeGiant (splits into two Oozes that Reform).
+    Godot differences: the jelly's shadow is a dithered shadow-only twin (grainy under the default "Soft Low" shadow
+    filter, smooth at Soft High); droplets stop at a floor height (Godot particles can't hit geometry).
+  - Creature scenes only reference their `.glb` (2026-10-24): the builder used editable instances, which saved a copy
+    of the whole model (mesh, skin, every clip) in each scene: 0.5 to 6 MB each. Now nothing inside the model
+    instance is saved: `Creature` puts its materials (`materials`: "<mesh path>:<surface>"), `shown` / `hidden` meshes
+    and the first skin on it (it's a tool script, so the editor shows that skin too); bone attachments sit under the
+    root with `use_external_skeleton` (`creature_builder.gd` `attach()`); nodes that must be the skeleton's children
+    (the ooze's OozeLook, a SkeletonModifier3D, and its shadow twin) are moved there when the creature enters the game
+    (`skeleton_children`). Scenes are 1 to 3 KB. Rebuilt and re-checked: the breath, the eagle's folds, the ooze
+    (lineup, spit, split, remains), the insects' effects, every demo.
+- **The dragon's breath, reworked like the game's fire (2026-10-24).** Daniel: "the fire effect on the main game ...
+  looks much better than the dragon breath". `BeastBreath` now builds FireFx's layers (MedievalSetting
+  `World/FireFx.cs`): an alpha-blended body of flame tongues (8 x 8 flipbook from a random frame, tinted only lightly,
+  turbulence; additive puffs piled in the stream had washed out to white), an additive core, a warm glow, embers, dark
+  smoke, the firelight; `maxParticleSize` 2 (big flames up close were clipped at the default 0.5); `Build()` and
+  `Preview(seconds)` for edit-mode renders. Installed in MedievalSetting. Daniel played it: "the fire is good, but the
+  orientation is not being respected" (the tongues spun at random angles): flames and core now stand upright as
+  FireFx's do (start rotation +-0.12 rad, no spin; glow and smoke keep their turn), pushed 295a49e. Godot's
+  `CreatureBreath` does the same with the game's flipbooks (res://beasts/FX/). The itch package has no FX materials:
+  there the soft blobs stand in, as before.
+
 ## Open / next
 
 - **Farm animals:**

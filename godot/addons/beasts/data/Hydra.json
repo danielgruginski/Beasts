@@ -1,0 +1,162 @@
+{
+ "Hydra": {
+  "target": "HydraBody",
+  "scale": [
+   0.92,
+   1.08
+  ],
+  "skins": [
+   {
+    "name": "Sea",
+    "texture": "T_Hydra",
+    "normal": "T_Hydra_Normal"
+   },
+   {
+    "name": "Swamp",
+    "texture": "T_Hydra_Swamp",
+    "normal": "T_Hydra_Normal"
+   },
+   {
+    "name": "Abyss",
+    "texture": "T_Hydra_Abyss",
+    "normal": "T_Hydra_Normal"
+   }
+  ],
+  "paired": {
+   "target": "HydraFins",
+   "skins": [
+    {
+     "name": "FinsSea",
+     "texture": "T_HydraFins",
+     "mode": "two_sided",
+     "normal": "T_HydraFins_Normal",
+     "normal_scale": 0.8
+    },
+    {
+     "name": "FinsSwamp",
+     "texture": "T_HydraFins_Swamp",
+     "mode": "two_sided",
+     "normal": "T_HydraFins_Normal",
+     "normal_scale": 0.8
+    },
+    {
+     "name": "FinsAbyss",
+     "texture": "T_HydraFins_Abyss",
+     "mode": "two_sided",
+     "normal": "T_HydraFins_Normal",
+     "normal_scale": 0.8
+    }
+   ]
+  },
+  "pools": [
+   {
+    "name": "Idle",
+    "weight": 2,
+    "clips": [
+     "Idle"
+    ],
+    "hold": [
+     4,
+     8
+    ]
+   },
+   {
+    "name": "Walk",
+    "weight": 2,
+    "clips": [
+     "Walk"
+    ],
+    "hold": [
+     4,
+     8
+    ],
+    "moves": true
+   },
+   {
+    "name": "Run",
+    "weight": 0.6,
+    "clips": [
+     "Run"
+    ],
+    "hold": [
+     2,
+     4
+    ],
+    "moves": true
+   },
+   {
+    "name": "Bite",
+    "weight": 1,
+    "clips": [
+     "Bite"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "TripleBite",
+    "weight": 0.8,
+    "clips": [
+     "TripleBite"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "TailSweep",
+    "weight": 0.5,
+    "clips": [
+     "TailSweep"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Roar",
+    "weight": 0.5,
+    "clips": [
+     "Roar"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Hit",
+    "weight": 0.3,
+    "clips": [
+     "Hit"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Death",
+    "weight": 0.12,
+    "clips": [
+     "Death"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle",
+    "after": 2.5
+   }
+  ]
+ }
+}

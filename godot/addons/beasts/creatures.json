@@ -1,0 +1,49 @@
+{
+ "Wolf": {
+  "target": "WolfBody", "scale": [0.92, 1.1],
+  "skins": [
+   {"name": "Grey", "texture": "T_Wolf", "weight": 3},
+   {"name": "Brown", "texture": "T_Wolf", "tint": [1.0, 0.86, 0.70]},
+   {"name": "Black", "texture": "T_Wolf_Black"},
+   {"name": "White", "texture": "T_Wolf_White"}
+  ],
+  "pools": [
+   {"name": "Idle", "weight": 2, "clips": ["Idle", "IdlePant"], "hold": [3, 6]},
+   {"name": "Walk", "weight": 2.2, "clips": ["Walk"], "moves": true, "hold": [3, 6]},
+   {"name": "Trot", "weight": 1.6, "clips": ["Trot"], "moves": true, "hold": [2, 5]},
+   {"name": "Run", "weight": 0.7, "clips": ["Run"], "moves": true, "hold": [1.5, 3]},
+   {"name": "Threat", "weight": 0.8, "clips": ["Threat"], "next": "Bite"},
+   {"name": "Bite", "weight": 1.2, "clips": ["Bite"], "next": "Idle"},
+   {"name": "Lunge", "weight": 0.8, "clips": ["Lunge"], "next": "Idle"},
+   {"name": "Howl", "weight": 0.5, "clips": ["Howl"], "next": "Idle"},
+   {"name": "Hit", "weight": 0.5, "clips": ["Hit"], "next": "Idle"},
+   {"name": "Death", "weight": 0.25, "clips": ["Death"], "after": 2, "next": "GetUp"},
+   {"name": "GetUp", "weight": 0, "clips": ["GetUp"], "next": "Idle"}
+  ]
+ },
+ "Ooze": {
+  "target": "OozeBody", "scale": [0.9, 1.1],
+  "setup": "res://addons/beasts/ooze/ooze_setup.gd",
+  "presets": ["Green", "Green", "Grey", "Ochre", "Crimson", "Black"],
+  "meshes": {"OozeContents": {"name": "Contents", "texture": "T_OozeContents"}},
+  "pools": [
+   {"name": "Idle", "weight": 1.5, "clips": ["Idle"], "hold": [3, 6]},
+   {"name": "Crawl", "weight": 2.5, "clips": ["Crawl"], "moves": true, "hold": [4, 8]},
+   {"name": "Lash", "weight": 0.4, "clips": ["Lash"], "next": "Idle"},
+   {"name": "Grab", "weight": 0.4, "clips": ["Grab"], "next": "Idle"},
+   {"name": "Spit", "weight": 0.4, "clips": ["Spit"], "next": "Idle"},
+   {"name": "Engulf", "weight": 0.3, "clips": ["Engulf"], "next": "Idle"},
+   {"name": "Hit", "weight": 0.3, "clips": ["Hit"], "next": "Idle"},
+   {"name": "Puddle", "weight": 0.4, "clips": ["Puddle"], "hold": [4, 8], "next": "Rise"},
+   {"name": "Rise", "weight": 0, "clips": ["Rise"], "next": "Idle"},
+   {"name": "Death", "weight": 0.15, "clips": ["Death"], "after": 2.5, "next": "Rise"},
+   {"name": "Reform", "weight": 0, "clips": ["Reform"], "next": "Idle"}
+  ],
+  "ooze_variants": {
+   "OozeSmall": {"scale": [0.5, 0.6], "presets": ["Green", "Grey", "Ochre"], "hidden": ["Skull", "Helm", "Sword"]},
+   "OozeGiant": {"scale": [1.6, 1.6], "presets": ["Green", "Black"],
+    "pools": [{"name": "Split", "weight": 0.35, "clips": ["Split"], "next": "Idle"}],
+    "split": {"into": "Ooze", "scale": 0.79, "pool": "Reform"}}
+  }
+ }
+}

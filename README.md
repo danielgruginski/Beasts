@@ -193,6 +193,44 @@ Then **Tools > Beasts > Rebuild Wolf** (runs by itself the first time). A report
 The runtime and editor scripts are copies of the insectoids' (`Beasts` namespace), so the packages don't depend on
 each other.
 
+## Godot
+
+The creatures pack for Godot 4.7 (GDScript only, the standard Godot), straight from the .blend files (not through
+Unity). The project is `E:\Unity\Godot\GameArtGeneration\creatures` (made by the install step, `CREATURES_GODOT`
+overrides it).
+
+```
+blender.exe -b --factory-startup blender/beasts.blend --python tools/godot_export.py -- wolf rat rhino bear deer mammoth ooze
+blender.exe -b --factory-startup blender/dragon.blend --python tools/godot_export.py -- dragon     (one call per creature file:
+        hydra, eagle, bat, leech, turtle, zombie_wolf -> zombiewolf, farm_<animal> -> goat sheep cow horse pig chicken,
+        beasts_unsaved_2026-10-12_warg -> warg)
+py tools/install_to_godot.py
+godot --headless --path <project> --import
+godot --headless --path <project> --script res://addons/beasts/build/build_cli.gd
+godot --headless --path <project> --script res://addons/beasts/demo/demo_cli.gd
+```
+
+- `tools/godot_export.py` runs each creature's own `<name>_build.export()` with the FBX writer swapped for
+  `src/beast_gdx.py`: `export/godot/<Name>/<Name>.glb` (rig, meshes in the bind pose, every clip an animation named
+  after it, blend shapes positions only), `<name>_clips.json` (loop, root motion, events: as the FBX path's), the
+  textures.
+- `tools/install_to_godot.py` makes the project, links `godot/addons/beasts` into it (a directory junction: edit the
+  repo copy), copies the exports to `res://beasts/<Name>/` with their `.import` files (`creature_import.gd` runs on
+  each `.glb`) and the game's fire flipbooks for the dragon's breath when MedievalSetting is there.
+- The addon (`godot/addons/beasts`): `import/creature_import.gd` (loop modes, root motion on the `Motion` bone,
+  events as Animation metadata), `runtime/creature.gd` (`Creature`: random coat and size, `creature_event` signal;
+  BeastAppearance + BeastEvents), `creature_wanderer.gd` (`CreatureWanderer`: BeastRandomAnimator),
+  `creature_pool.gd` / `creature_animation_set.gd`, `creature_breath.gd` (the dragon's fire), `eagle_feather_fold.gd`,
+  `shaders/creature_coat*.gdshader` (URP Lit's look: roughness = 1 - the texture's alpha), `build/creature_builder.gd`
+  (each creature's materials, pools and `<Name>.tscn` from `creatures.json` and `data/<Name>.json`, the Unity setups'
+  values; `setup/*.gd` add a creature's extras), `demo/` (the demo scenes, their viewer and the menu: the project's
+  main scene). The ooze's jelly and effects are in `ooze/`; the insectoids' in the Insectoids repo's addon.
+- A creature scene only references its `.glb` ("Model", nothing inside it saved: a scene is a few KB, and a
+  re-exported model shows up without a rebuild). `Creature` dresses the model when it enters the tree: the rolled
+  skin, `materials` ("<mesh path>:<surface>"), `shown` / `hidden` meshes; in the editor the first skin. Extras on bones
+  are BoneAttachment3Ds under the root with an external skeleton; `skeleton_children` are moved under the skeleton
+  when the game starts (the ooze's look, a SkeletonModifier3D).
+
 ## Skeleton (Unity Generic)
 
 `Root` and `Motion` sit at the origin, point up with +Z toward the wolf's front, and are siblings: `Motion` carries

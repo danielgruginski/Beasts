@@ -1,0 +1,178 @@
+{
+ "Bear": {
+  "target": "BearBody",
+  "scale": [
+   0.92,
+   1.08
+  ],
+  "skins": [
+   {
+    "name": "Brown",
+    "texture": "T_Bear",
+    "weight": 2
+   },
+   {
+    "name": "Old",
+    "texture": "T_Bear_Old"
+   }
+  ],
+  "pools": [
+   {
+    "name": "Idle",
+    "weight": 2,
+    "clips": [
+     "Idle"
+    ],
+    "hold": [
+     2.5,
+     5
+    ]
+   },
+   {
+    "name": "Walk",
+    "weight": 2,
+    "clips": [
+     "Walk"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "moves": true
+   },
+   {
+    "name": "Run",
+    "weight": 0.8,
+    "clips": [
+     "Run"
+    ],
+    "hold": [
+     1.5,
+     3
+    ],
+    "moves": true
+   },
+   {
+    "name": "Swipe",
+    "weight": 1.2,
+    "clips": [
+     "Swipe"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Bite",
+    "weight": 0.8,
+    "clips": [
+     "Bite"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Slam",
+    "weight": 0.5,
+    "clips": [
+     "Slam"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Hug",
+    "weight": 0.4,
+    "clips": [
+     "Hug"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Rear",
+    "weight": 0.4,
+    "clips": [
+     "Rear"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Roar",
+    "weight": 0.4,
+    "clips": [
+     "Roar"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Sleep",
+    "weight": 0.3,
+    "clips": [
+     "Sleep"
+    ],
+    "hold": [
+     4,
+     7
+    ],
+    "next": "Wake"
+   },
+   {
+    "name": "Wake",
+    "weight": 0,
+    "clips": [
+     "Wake"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Hit",
+    "weight": 0.4,
+    "clips": [
+     "Hit"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Death",
+    "weight": 0.15,
+    "clips": [
+     "Death"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Wake",
+    "after": 2.5
+   }
+  ]
+ }
+}

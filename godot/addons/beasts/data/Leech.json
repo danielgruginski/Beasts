@@ -1,0 +1,77 @@
+{
+ "Leech": {
+  "target": "LeechBody",
+  "scale": [
+   0.85,
+   1.15
+  ],
+  "skins": [
+   {
+    "name": "Base",
+    "texture": "T_Leech"
+   }
+  ],
+  "pools": [
+   {
+    "name": "Idle",
+    "weight": 2,
+    "clips": [
+     "Idle"
+    ],
+    "hold": [
+     3,
+     6
+    ]
+   },
+   {
+    "name": "Crawl",
+    "weight": 2.2,
+    "clips": [
+     "Crawl"
+    ],
+    "hold": [
+     4,
+     8
+    ],
+    "moves": true
+   },
+   {
+    "name": "Lunge",
+    "weight": 0.9,
+    "clips": [
+     "Lunge"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Hit",
+    "weight": 0.4,
+    "clips": [
+     "Hit"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Death",
+    "weight": 0.2,
+    "clips": [
+     "Death"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle",
+    "after": 2.5
+   }
+  ]
+ }
+}

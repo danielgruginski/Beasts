@@ -1,0 +1,194 @@
+{
+ "Dragon": {
+  "target": "DragonBody",
+  "scale": [
+   0.92,
+   1.08
+  ],
+  "skins": [
+   {
+    "name": "Red",
+    "texture": "T_Dragon",
+    "normal": "T_Dragon_Normal"
+   },
+   {
+    "name": "Ash",
+    "texture": "T_Dragon_Ash",
+    "normal": "T_Dragon_Normal"
+   },
+   {
+    "name": "Bronze",
+    "texture": "T_Dragon_Bronze",
+    "normal": "T_Dragon_Normal"
+   }
+  ],
+  "paired": {
+   "target": "DragonWingMembrane",
+   "skins": [
+    {
+     "name": "WingRed",
+     "texture": "T_DragonWing",
+     "mode": "two_sided",
+     "normal": "T_DragonWing_Normal",
+     "normal_scale": 0.8
+    },
+    {
+     "name": "WingAsh",
+     "texture": "T_DragonWing_Ash",
+     "mode": "two_sided",
+     "normal": "T_DragonWing_Normal",
+     "normal_scale": 0.8
+    },
+    {
+     "name": "WingBronze",
+     "texture": "T_DragonWing_Bronze",
+     "mode": "two_sided",
+     "normal": "T_DragonWing_Normal",
+     "normal_scale": 0.8
+    }
+   ]
+  },
+  "pools": [
+   {
+    "name": "Idle",
+    "weight": 2,
+    "clips": [
+     "Idle"
+    ],
+    "hold": [
+     4,
+     8
+    ]
+   },
+   {
+    "name": "Walk",
+    "weight": 1.6,
+    "clips": [
+     "Walk"
+    ],
+    "hold": [
+     4,
+     8
+    ],
+    "moves": true
+   },
+   {
+    "name": "Run",
+    "weight": 0.5,
+    "clips": [
+     "Run"
+    ],
+    "hold": [
+     2,
+     4
+    ],
+    "moves": true
+   },
+   {
+    "name": "Bite",
+    "weight": 0.8,
+    "clips": [
+     "Bite"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Claw",
+    "weight": 0.7,
+    "clips": [
+     "Claw"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "TailSweep",
+    "weight": 0.5,
+    "clips": [
+     "TailSweep"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Fire",
+    "weight": 0.9,
+    "clips": [
+     "Fire"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Roar",
+    "weight": 0.5,
+    "clips": [
+     "Roar"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Hit",
+    "weight": 0.3,
+    "clips": [
+     "Hit"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Death",
+    "weight": 0.12,
+    "clips": [
+     "Death"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle",
+    "after": 2.5
+   },
+   {
+    "name": "Flight",
+    "weight": 1.0,
+    "clips": [
+     "Takeoff",
+     "Fly",
+     "Glide",
+     "Fly",
+     "Land"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "moves": true,
+    "next": "Idle",
+    "sequence": true,
+    "vertical": true
+   }
+  ],
+  "setup": "res://addons/beasts/setup/dragon_setup.gd"
+ }
+}

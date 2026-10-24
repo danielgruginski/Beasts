@@ -1,0 +1,161 @@
+{
+ "Pig": {
+  "target": "PigBody",
+  "scale": [
+   0.92,
+   1.08
+  ],
+  "skins": [
+   {
+    "name": "Base",
+    "texture": "T_Pig"
+   },
+   {
+    "name": "Saddleback",
+    "texture": "T_Pig_Saddleback"
+   },
+   {
+    "name": "Black",
+    "texture": "T_Pig_Black"
+   },
+   {
+    "name": "Brown",
+    "texture": "T_Pig_Brown"
+   }
+  ],
+  "pools": [
+   {
+    "name": "Idle",
+    "weight": 1.5,
+    "clips": [
+     "Idle"
+    ],
+    "hold": [
+     3,
+     6
+    ]
+   },
+   {
+    "name": "Graze",
+    "weight": 3,
+    "clips": [
+     "Graze"
+    ],
+    "hold": [
+     5,
+     10
+    ],
+    "next": "Alert"
+   },
+   {
+    "name": "Alert",
+    "weight": 0.4,
+    "clips": [
+     "Alert"
+    ],
+    "hold": [
+     1.5,
+     2.5
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Call",
+    "weight": 0.3,
+    "clips": [
+     "Call"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Walk",
+    "weight": 2,
+    "clips": [
+     "Walk"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "moves": true
+   },
+   {
+    "name": "Trot",
+    "weight": 0.5,
+    "clips": [
+     "Trot"
+    ],
+    "hold": [
+     2,
+     4
+    ],
+    "moves": true
+   },
+   {
+    "name": "Run",
+    "weight": 0.25,
+    "clips": [
+     "Run"
+    ],
+    "hold": [
+     1.2,
+     2.5
+    ],
+    "moves": true
+   },
+   {
+    "name": "Sleep",
+    "weight": 0.3,
+    "clips": [
+     "Sleep"
+    ],
+    "hold": [
+     4,
+     7
+    ],
+    "next": "Wake"
+   },
+   {
+    "name": "Wake",
+    "weight": 0,
+    "clips": [
+     "Wake"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Hit",
+    "weight": 0.2,
+    "clips": [
+     "Hit"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Idle"
+   },
+   {
+    "name": "Death",
+    "weight": 0.1,
+    "clips": [
+     "Death"
+    ],
+    "hold": [
+     3,
+     6
+    ],
+    "next": "Wake",
+    "after": 2.5
+   }
+  ]
+ }
+}
