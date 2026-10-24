@@ -101,6 +101,11 @@ namespace Beasts.EditorTools
                 (OozeSetup.GiantPrefabPath, OozeSetup.GiantSetPath, "GiantOoze", "giant oozes", 1, 8.0f, 2.5f, 5.5f),
                 (WargSetup.PrefabPath, WargSetup.SetPath, "Warg", "wargs", 2, 5.0f, 1.9f, 3.2f),
                 (WargSetup.RiddenPrefabPath, WargSetup.SetPath, "WargRidden", "saddled wargs", 2, 5.0f, 2.0f, 3.2f),
+                (ZombieWolfSetup.PrefabPath, ZombieWolfSetup.SetPath, "ZombieWolf", "zombie wolves", 3, 3.5f, 1.3f, 2.2f),
+                (BatSetup.PrefabPath, BatSetup.SetPath, "Bat", "bats", 3, 3.0f, 1.2f, 1.6f),
+                (LeechSetup.PrefabPath, LeechSetup.SetPath, "Leech", "leeches", 3, 2.0f, 0.5f, 1.0f),
+                (TurtleSetup.PrefabPath, TurtleSetup.SetPath, "Turtle", "turtles", 2, 3.0f, 1.0f, 2.0f),
+                (EagleSetup.PrefabPath, EagleSetup.SetPath, "Eagle", "eagles", 2, 4.0f, 1.2f, 2.0f),
             })
             {
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
