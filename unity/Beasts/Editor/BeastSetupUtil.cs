@@ -195,8 +195,8 @@ namespace Beasts.EditorTools
         /// <summary>
         /// The creature's model: Generic, avatar from this model, Motion bone = root-motion node (a sibling of the
         /// skeleton: Unity leaves the motion node's own travel in the pose, so it must not be an ancestor of anything
-        /// visible), sockets kept. blendShapes: keep the mesh's blend shapes (the eagle's FoldL / FoldR). Returns the
-        /// avatar and the motion node's path.
+        /// visible), sockets kept. blendShapes: keep the mesh's blend shapes (the eagle's FoldL / FoldR; positions
+        /// only). Returns the avatar and the motion node's path.
         /// </summary>
         public static (Avatar avatar, string motionPath, GameObject model) ConfigureModel(string path,
             (string source, Material mat)[] remaps, StringBuilder log, bool blendShapes = false)
@@ -206,6 +206,10 @@ namespace Beasts.EditorTools
             imp.importLights = false;
             imp.importAnimation = false;
             imp.importBlendShapes = blendShapes;
+            // blend shapes move positions only (2026-10-24): Unity's calculated blend-shape normals smooth across
+            // vertices that share a place, and every eagle card has a flipped underside on its top -- the two
+            // opposite normals averaged to nothing and the folded wing (FoldL/FoldR at 94 %) rendered near black
+            if (blendShapes) imp.importBlendShapeNormals = ModelImporterNormals.None;
             imp.isReadable = false;
             imp.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
             foreach (var (source, mat) in remaps)

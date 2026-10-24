@@ -633,6 +633,15 @@ checks.
     - **The old trouser mask** (all below z 0.30) painted the whole belly and breast tawny.
     - **Euler Y on a mirrored blob:** −Y raised the brow's outer edge. The first pass's "horns" at the brow came from it.
 
+- **Golden eagle: the folded wing rendered near black in Unity (2026-10-24).** Daniel: "when feathers get close
+  together this weird balckness happens, is that an material issue? Can it be fixed?" Not the material, not shadows or
+  SSAO (Unity preview renders with each off: still dark, `MedievalSetting/Logs/EagleDark`): Eagle.fbx imported with
+  blend-shape normals *Calculated*, and Unity smooths those across vertices that share a place -- every card's flipped
+  underside sits on its top, the two opposite normals averaged to nothing, and where FoldL/FoldR were high (folded:
+  94 %) the cards lost their light (dark navy: the sky's ambient only). `BeastSetupUtil.ConfigureModel(blendShapes:
+  true)` now sets `importBlendShapeNormals = None` (the shapes move positions only; the creases' turned parts keep
+  their unbent normals, at most 33 deg off). Re-rendered: the folded wing lit like the body. Unity rebuilt; not checked
+  into Plastic yet (cs:93 has the dark version).
 - **Golden eagle: the arm's feathers (2026-10-24).** Daniel in Unity: "The feathers that should connect on the "forearm"
   are not connecting there" / "I meant "arm", not forearm, the thing after the shoulders" / "The feathers that should
   be there already exists, but they are "glued" in a fan position from the feathers of the "forearm"" / "see, the
