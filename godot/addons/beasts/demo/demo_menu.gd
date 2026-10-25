@@ -3,10 +3,10 @@ extends Control
 ## demo_builder.gd made. Unity: the test scenes, opened by hand.
 
 const DEMOS := [
-	["Beasts", "res://demo/beasts_demo.tscn", "wolves, wargs, rats, bears, a rhino, a mammoth, deer, oozes"],
+	["Beasts", "res://demo/beasts_demo.tscn", "wolves, wargs, zombie wolves, rats, bears, a rhino, a mammoth, deer, oozes"],
 	["Dragons", "res://demo/dragons_demo.tscn", "two dragons and two hydras"],
 	["Farm", "res://demo/farm_demo.tscn", "goats, sheep, cows, horses, pigs, hens"],
-	["Insectoids", "res://demo/insectoids_demo.tscn", "spiders, a broodmother, spiderlings, wasps, centipedes"],
+	["Insectoids", "res://demo/insectoids_demo.tscn", "spiders, a broodmother, spiderlings, wasps, centipedes; bats, leeches, turtles, eagles"],
 	["Lineup", "res://demo/lineup_demo.tscn", "every creature side by side"],
 ]
 
