@@ -304,6 +304,8 @@ def _bones_of(B, names):
 def polyline(points, bones, n, start=None, end=None, blend=0.2):
     """n points evenly along a polyline, each riding on the bone of its segment, blended across the joints over
     `blend` metres. start / end: a bone the first / last `blend` metres blend in from (shared corners).
+    A joint's blend reaches at most a quarter of the segments on either side: the bat's finger bones are 0.22 m, and a
+    0.2 m blend bent its membrane's edge across the whole bone while the finger itself bent at the joint, 3 cm off it.
     -> (P (n, 3), [weights])"""
     pts = np.asarray(points, float)
     seg = np.linalg.norm(np.diff(pts, axis=0), axis=1)
@@ -317,12 +319,14 @@ def polyline(points, bones, n, start=None, end=None, blend=0.2):
         d0, d1 = s - s0[i], s0[i + 1] - s
         prev = bones[i - 1] if i > 0 else start
         nxt = bones[i + 1] if i + 1 < len(bones) else end
-        if prev is not None and d0 < blend:
-            k = 0.5 + 0.5 * d0 / blend
+        b0 = min(blend, 0.25 * seg[i], 0.25 * seg[i - 1] if i > 0 else blend)
+        b1 = min(blend, 0.25 * seg[i], 0.25 * seg[i + 1] if i + 1 < len(seg) else blend)
+        if prev is not None and d0 < b0:
+            k = 0.5 + 0.5 * d0 / b0
             w = {bones[i]: k}
             w[prev] = w.get(prev, 0) + 1 - k
-        elif nxt is not None and d1 < blend:
-            k = 0.5 + 0.5 * d1 / blend
+        elif nxt is not None and d1 < b1:
+            k = 0.5 + 0.5 * d1 / b1
             w = {bones[i]: k}
             w[nxt] = w.get(nxt, 0) + 1 - k
         W.append(w)
@@ -340,8 +344,15 @@ def _wmix(terms):
 def coons(bottom, top, left, right):
     """Coons patch: bottom/top = (P (nu, 3), W) along u, left/right = (P (nv, 3), W) along v; the corners must meet
     (bottom[0] = left[0], bottom[-1] = right[0], top[0] = left[-1], top[-1] = right[-1]). Positions are exact Coons;
-    weights blend the same way with the corners taken from bottom/top. -> P (nu, nv, 3), W [nu][nv]"""
+    weights blend the same way with the corners taken from bottom/top. -> P (nu, nv, 3), W [nu][nv]
+    The left / right edges' corner weights are replaced by bottom's / top's: where they differed (a finger edge
+    starting half on the hand, the side edge all on the hand), the difference leaked along the whole bottom / top edge,
+    so a finger's membrane edge carried hand weight to its tip and left the finger when it spread (Daniel 2026-10-24:
+    "a hole in the middle of the dragon wing ... as if the membrane were not attached to the finger"). A corner is
+    on a joint, where either weighting puts it in the same place."""
     (Pb, Wb), (Pt, Wt), (Pl, Wl), (Pr, Wr) = bottom, top, left, right
+    Wl, Wr = list(Wl), list(Wr)
+    Wl[0], Wl[-1], Wr[0], Wr[-1] = Wb[0], Wt[0], Wb[-1], Wt[-1]
     nu, nv = len(Pb), len(Pl)
     P = np.zeros((nu, nv, 3))
     W = [[None] * nv for _ in range(nu)]

@@ -866,6 +866,20 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   `CreatureBreath` does the same with the game's flipbooks (res://beasts/FX/). The itch package has no FX materials:
   there the soft blobs stand in, as before.
 
+- **Wing membranes left their fingers (2026-10-24).** Daniel: "there is a hole in the middle of the dragon wing,
+  happens in godot and unity ... at flight mode, or when plaining ... as if the mambrane were not attached to the
+  finger". Cause: `dragon_body.coons()` blended weights with the corners taken from bottom/top, and the finger panels'
+  left edge (all `WingHand`) disagreed with the finger edge's first point (half hand), so hand weight leaked along the
+  whole finger edge (36% at the knuckle, 4% at the tip): spread, the membrane lagged up to 49 cm off its finger (Fly).
+  The arm panel had the same at the shoulder and the wrist. Fixed: coons() takes the side edges' corner weights from
+  bottom/top (a corner is on a joint, where either puts it in the same place). Also `polyline()` caps a joint's blend
+  at a quarter of the segments (the bat's 0.22 m finger bones were blended along their whole length). Weights only:
+  the meshes, UVs and paint are unchanged. Dragon: `dragon_build.membrane_helpers()` re-weights in place; edge
+  vertices now within 2.4 cm of their bones (the elbow's own blend), panel seams 0. Bat (same code): seams had opened
+  up to 5 cm; re-weighted in place by `tools/bat_reweight.py` (matched by rest position), seams 0, edges within
+  2.9 cm (a trailing edge beside finger 2). Both re-exported (FBX + glTF), installed in MedievalSetting and the Godot
+  project, checked by renders of Fly from four sides in both engines; the itch Creatures pack rebuilt.
+
 ## Open / next
 
 - **Farm animals:**
