@@ -632,17 +632,55 @@ def arm_panel(B, s_, sfx, ws=None):
     bottom = polyline([sh, el, wr, kn], [f"WingArm{sfx}", f"WingForearm{sfx}", f"WingHand{sfx}"], nu,
                       start=f"WingScap{sfx}")
     topP = _sag(att, f4[-1], el, nu, ws.sag)
-    att_w = ws.att_w(B, s_, sfx) if ws.att_w is not None else chain_weights(att[None], trunk)[0]
+    leftP = np.linspace(sh, att, nv)
+    skin = body_skin_weights(leftP) if ws.flank is None else None
+    if ws.att_w is not None:
+        att_w = ws.att_w(B, s_, sfx)
+    elif skin is not None:
+        att_w = skin[-1]
+    else:
+        att_w = chain_weights(att[None], trunk)[0]
     top = (topP, [_wmix([(1 - u, att_w), (u, {fb4[-1]: 1.0})]) for u in np.linspace(0, 1, nu)])
     if ws.flank is not None:
         left = ws.flank(B, s_, sfx, nv)
+    elif skin is not None:
+        left = (leftP, skin)
     else:
-        leftP = np.linspace(sh, att, nv)
         lw = chain_weights(leftP, trunk)
         left = (leftP, [_wmix([(1 - smoothstep(0, 0.35, v), {f"WingScap{sfx}": 1.0}), (smoothstep(0, 0.35, v), w)])
                         for v, w in zip(np.linspace(0, 1, nv), lw)])
     right = polyline(f4, fb4, nv, start=f"WingHand{sfx}")
     return bottom, top, left, right
+
+
+def body_skin_weights(P, ob_name="DragonBody", limit=4):
+    """The body skin's own weights at the surface points nearest P (rest, object space: its polygon's vertex weights
+    blended by poly_3d_calc, the strongest `limit` kept), so the membrane's flank edge moves with the flank instead of
+    its own trunk chain (Daniel 2026-10-24: "where the membrane touches the dragon body, there is a gap": up to 14 cm in
+    Fly / Glide / Takeoff). None while the body has no weights yet (the first build; membrane_helpers re-weights)."""
+    from mathutils.bvhtree import BVHTree
+    from mathutils.interpolate import poly_3d_calc
+    ob = bpy.data.objects.get(ob_name)
+    if ob is None or not ob.vertex_groups:
+        return None
+    me = ob.data
+    bvh = BVHTree.FromPolygons([v.co for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
+    names = {g.index: g.name for g in ob.vertex_groups}
+    out = []
+    for p in P:
+        loc, _, fi, _ = bvh.find_nearest(Vector(p))
+        if fi is None:
+            return None
+        vs = list(me.polygons[fi].vertices)
+        bary = poly_3d_calc([me.vertices[i].co for i in vs], loc)
+        w = {}
+        for i, b in zip(vs, bary):
+            for g in me.vertices[i].groups:
+                w[names[g.group]] = w.get(names[g.group], 0.0) + b * g.weight
+        top = sorted(w.items(), key=lambda kv: -kv[1])[:limit]
+        s = sum(x for _, x in top) or 1.0
+        out.append({n: x / s for n, x in top if x > 1e-4})
+    return out
 
 
 def coons_P(Pb, Pt, Pl, Pr):

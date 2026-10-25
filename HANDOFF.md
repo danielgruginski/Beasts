@@ -879,6 +879,16 @@ exports, the textures and the renders are regenerated (see `.gitignore`). Commit
   up to 5 cm; re-weighted in place by `tools/bat_reweight.py` (matched by rest position), seams 0, edges within
   2.9 cm (a trailing edge beside finger 2). Both re-exported (FBX + glTF), installed in MedievalSetting and the Godot
   project, checked by renders of Fly from four sides in both engines; the itch Creatures pack rebuilt.
+- **The membrane's flank edge left the body (2026-10-24, same evening).** Daniel: "The exact same issue is happening
+  where the membrane touches the dragon body, there is a gap over there ... it kind of looks cool, the only problem is
+  the gap." The arm panel's flank edge (shoulder -> `att`) and the trailing edge's start were weighted by a chain blend
+  of the trunk bones, while the body's skin there has its own (smoothed heat) weights: up to 14 cm apart in Fly /
+  Glide / Takeoff. Now `arm_panel` takes the body skin's weights at the nearest surface point for both
+  (`dragon_body.body_skin_weights`, DragonBody's polygon weights blended by poly_3d_calc, 4 kept; it falls back to the
+  chain on the first build, before the body has weights; the bat keeps its own `flank`). The helper bones ride the
+  same edge, so `dragon_build.export()` re-baked every clip. Measured: the flank gap grows at most 2.3 cm in flight,
+  3.5 cm at the shoulder's front in Roar; finger edges unchanged. Re-exported (FBX + clips + glTF), installed in
+  MedievalSetting and the Godot project, checked by close renders of the flank in Fly / Glide / Takeoff.
 
 ## Open / next
 
